@@ -2,7 +2,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { LoginCredentials, RegisterData, DoctorResponseDto, DoctorRequestDto, AuthResponse } from '../types';
 
-const API_BASE_URL = 'http://192.168.11.106:8080/api'; // replace with your PC's LAN IP
+const API_BASE_URL = 'https://38s5pw9t-8080.uks1.devtunnels.ms/api/'; // replace with your PC's LAN IP
 
 
 class ApiService {
