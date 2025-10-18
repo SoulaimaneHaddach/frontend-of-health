@@ -77,7 +77,7 @@ export interface LoginCredentials {
 
 export interface RegisterData extends LoginCredentials {
   name: string;
-  phone: string;
+  phoneNumber: string;
   specialization?: string;
   latitude?: number;
   longitude?: number;

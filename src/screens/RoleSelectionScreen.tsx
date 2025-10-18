@@ -70,9 +70,7 @@ const RoleCard: React.FC<{
     <Text style={styles.cardTitle}>{title}</Text>
     <Text style={styles.cardDescription}>{description}</Text>
     
-    <View style={[styles.arrow, { backgroundColor: color }]}>
-      <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
-    </View>
+    
   </TouchableOpacity>
 );
 
