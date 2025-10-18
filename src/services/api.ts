@@ -1,34 +1,7 @@
 // src/services/api.ts
 import axios, { AxiosInstance } from 'axios';
 
-export interface Location {
-  latitude: number;
-  longitude: number;
-  address: string;
-  city: string;
-}
-
-export interface DoctorRequestDto {
-  email: string;
-  password?: string; // optional
-  name: string;
-  specialization: string;
-  phoneNumber: string;
-  location: Location;
-}
-
-export interface DoctorResponseDto {
-  id: string;
-  email: string;
-  name: string;
-  specialization: string;
-  phoneNumber: string;
-  location: Location;
-  rating: number;
-  reviewsCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
+const API_BASE_URL = 'https://38s5pw9t-8080.uks1.devtunnels.ms/api/'; // replace with your PC's LAN IP
 
 export interface DoctorRegisterRequestDTO {
   name: string;
