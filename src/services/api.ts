@@ -1,9 +1,60 @@
 // src/services/api.ts
 import axios, { AxiosInstance } from 'axios';
-import { LoginCredentials, RegisterData, DoctorResponseDto, DoctorRequestDto, AuthResponse } from '../types';
 
-const API_BASE_URL = 'http://192.168.11.106:8080/api'; // replace with your PC's LAN IP
+export interface Location {
+  latitude: number;
+  longitude: number;
+  address: string;
+  city: string;
+}
 
+export interface DoctorRequestDto {
+  email: string;
+  password?: string; // optional
+  name: string;
+  specialization: string;
+  phoneNumber: string;
+  location: Location;
+}
+
+export interface DoctorResponseDto {
+  id: string;
+  email: string;
+  name: string;
+  specialization: string;
+  phoneNumber: string;
+  location: Location;
+  rating: number;
+  reviewsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DoctorRegisterRequestDTO {
+  name: string;
+  email: string;
+  password: string;
+  specialization: string;
+  phoneNumber: string;
+  latitude: number;
+  longitude: number;
+  address: string;
+}
+
+export interface LoginRequestDTO {
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  tokenType: string;
+  expiresInMs: number;
+  email: string;
+  id: string;
+}
+
+const API_BASE_URL = 'https://38s5pw9t-8080.uks1.devtunnels.ms/api';
 
 class ApiService {
   private api: AxiosInstance;
@@ -12,11 +63,11 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: API_BASE_URL,
-      timeout: 10000,
+      timeout: 30000, // increased timeout
       headers: { 'Content-Type': 'application/json' },
     });
 
-    this.api.interceptors.request.use(config => {
+    this.api.interceptors.request.use((config) => {
       if (this.authToken) {
         config.headers.Authorization = `Bearer ${this.authToken}`;
       }
@@ -24,42 +75,51 @@ class ApiService {
     });
   }
 
-  private setAuthToken(token: string) { this.authToken = token; }
-  private getAuthToken() { return this.authToken; }
-  private clearAuthToken() { this.authToken = null; }
-
-  // Auth
-  async login(credentials: LoginCredentials): Promise<{ doctor: AuthResponse; token: string }> {
-    const response = await this.api.post<AuthResponse>('/auth/login', credentials);
-    this.setAuthToken(response.data.accessToken);
-    return { doctor: response.data, token: response.data.accessToken };
+  private setAuthToken(token: string) {
+    this.authToken = token;
   }
 
-  async register(data: RegisterData): Promise<AuthResponse> {
+  private clearAuthToken() {
+    this.authToken = null;
+  }
+
+  async login(credentials: LoginRequestDTO): Promise<AuthResponse> {
+    const response = await this.api.post<AuthResponse>('/auth/login', credentials);
+    this.setAuthToken(response.data.accessToken);
+    return response.data;
+  }
+
+  async register(data: DoctorRegisterRequestDTO): Promise<AuthResponse> {
     const response = await this.api.post<AuthResponse>('/auth/register', data);
     this.setAuthToken(response.data.accessToken);
     return response.data;
   }
 
-  async logout(): Promise<void> {
+  logout(): void {
     this.clearAuthToken();
   }
 
-  // Doctor endpoints
-  async getDoctors(specialty: string): Promise<DoctorResponseDto[]> {
-    const response = await this.api.get<DoctorResponseDto[]>('/doctors', { params: { specialty } });
+  async getMyProfile(): Promise<DoctorResponseDto> {
+    const response = await this.api.get<DoctorResponseDto>('/doctors/me');
     return response.data;
   }
 
-  async updateDoctor(id: string, doctorData: DoctorRequestDto): Promise<DoctorResponseDto> {
-    const response = await this.api.put<DoctorResponseDto>(`/doctors/${id}`, doctorData, {
-      headers: { Authorization: `Bearer ${this.authToken}` },
+  async updateMyProfile(doctorData: DoctorRequestDto): Promise<DoctorResponseDto> {
+    const response = await this.api.put<DoctorResponseDto>('/doctors/me', doctorData);
+    return response.data;
+  }
+
+  async getDoctors(specialization?: string): Promise<DoctorResponseDto[]> {
+    const response = await this.api.get<DoctorResponseDto[]>('/doctors', {
+      params: specialization ? { specialty: specialization } : {},
     });
     return response.data;
   }
 
   async searchDoctors(query: string): Promise<DoctorResponseDto[]> {
-    const response = await this.api.get<DoctorResponseDto[]>('/doctors/search', { params: { q: query } });
+    const response = await this.api.get<DoctorResponseDto[]>('/doctors/search', {
+      params: { q: query },
+    });
     return response.data;
   }
 }
