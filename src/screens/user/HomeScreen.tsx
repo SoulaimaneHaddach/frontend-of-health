@@ -1,5 +1,5 @@
 // src/screens/user/HomeScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../constants/th
 import { SpecialtyType, DoctorResponseDto } from '../../types';
 import { BottomNavBar } from '../../components/BottomNavBar';
 import api from '../../services/api';
+import SpecialtyFilter from '../../components/SpecialtyFilter';
 
 type HomeScreenProps = {
   navigation: NativeStackNavigationProp<any>;
@@ -59,7 +60,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   // Fetch doctors whenever the specialty changes
   useEffect(() => {
     fetchDoctors();
-  }, [selectedSpecialty]);
+  }, []);
 
   const fetchDoctors = async () => {
     setLoading(true);
@@ -74,14 +75,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
   const filterDoctors = () => {
+    const q = (searchQuery ?? '').trim().toLowerCase();
+
     return doctors.filter((doctor) => {
-      const matchesSearch =
-        searchQuery === '' || doctor.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSearch;
+      const name = (doctor.name ?? '').toLowerCase();
+      const specialization = (doctor.specialization ?? '').toLowerCase();
+      const matchesSearch = q === '' || name.includes(q);
+      const matchesSpecialty =
+        selectedSpecialty === 'all' ||
+        specialization.toLowerCase() === selectedSpecialty.toLowerCase();
+
+      return matchesSearch && matchesSpecialty;
     });
   };
+  
 
-  const filteredDoctors = filterDoctors();
+  const filteredDoctors = useMemo(() => filterDoctors(), [doctors, searchQuery, selectedSpecialty]);
 
   if (!userLocation) {
     return (

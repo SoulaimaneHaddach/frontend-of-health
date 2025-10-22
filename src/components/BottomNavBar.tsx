@@ -6,10 +6,11 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { SpecialtyType } from '../types';
 
 interface BottomNavBarProps {
-  selectedSpecialty: SpecialtyType;  // <-- بدل string استخدم SpecialtyType
+  selectedSpecialty: SpecialtyType;
   onSpecialtySelect: (specialty: SpecialtyType) => void;
   onSearchPress: () => void;
 }
+
 
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   selectedSpecialty,

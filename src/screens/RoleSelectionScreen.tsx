@@ -15,7 +15,9 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({ naviga
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-      
+      <TouchableOpacity onPress={() => navigation.goBack()}>
+                <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+      </TouchableOpacity>
       <View style={styles.header}>
         <Text style={styles.title}>I am a...</Text>
         <Text style={styles.subtitle}>Select your role to continue</Text>
@@ -40,13 +42,7 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({ naviga
         />
       </View>
       
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-      >
-        <Ionicons name="arrow-back"  size={24} color={COLORS.textSecondary} />
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
+      
     </SafeAreaView>
   );
 };
