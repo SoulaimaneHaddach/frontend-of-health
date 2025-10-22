@@ -21,7 +21,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
           <Ionicons name="medical" size={80} color={COLORS.white} />
         </View>
         
-        <Text style={styles.title}>HealthConnect</Text>
+        <Text style={styles.title}>DocBooky</Text>
         <Text style={styles.subtitle}>Your trusted healthcare companion</Text>
       </View>
       
