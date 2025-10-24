@@ -1,6 +1,5 @@
-// src/screens/user/HomeScreen.tsx - UPDATED WITH SPECIALTY ICONS
+// src/screens/user/HomeScreen.tsx - FIXED WITH AUTH CHECK
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-// src/screens/user/HomeScreen.tsx
 import {
   View,
   Text,
@@ -32,7 +31,6 @@ type HomeScreenProps = {
   navigation: NativeStackNavigationProp<any>;
 };
 
-// ⭐ SPECIALTY CONFIGURATION (matches BottomNavBar)
 const SPECIALTY_CONFIG: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
   all: { icon: 'apps', color: COLORS.primary },
   hearing: { icon: 'ear', color: COLORS.hearing },
@@ -57,7 +55,6 @@ const SPECIALTY_CONFIG: Record<string, { icon: keyof typeof Ionicons.glyphMap; c
   allergy: { icon: 'medkit', color: '#CDDC39' },
 };
 
-// ⭐ HELPER FUNCTIONS
 const getSpecialtyIcon = (specialty?: string): keyof typeof Ionicons.glyphMap => {
   const normalized = specialty?.toLowerCase() || 'all';
   return SPECIALTY_CONFIG[normalized]?.icon || 'medical';
@@ -78,28 +75,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   
   const slideAnim = useRef(new Animated.Value(CARD_HEIGHT)).current;
 
-  
-  const [userLocation, setUserLocation] = useState<Region>({latitude: 35.7595,
-          longitude: -5.8340,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05});
-  
-  // Request user location permission and get coordinates
+  const [userLocation, setUserLocation] = useState<Region>({
+    latitude: 35.7595,
+    longitude: -5.8340,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  });
+
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({});      
+        const location = await Location.getCurrentPositionAsync({});
         setUserLocation({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        });
-      } else {
-        setUserLocation({
-          latitude: 35.7595,
-          longitude: -5.8340,
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         });
@@ -114,10 +104,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const fetchDoctors = async () => {
     setLoading(true);
     try {
-      const data = await api.getDoctors(userLocation.latitude, userLocation.longitude,selectedSpecialty === 'all' ? '' : selectedSpecialty,);
-      setDoctors(data);
+      const data = await api.getDoctors(
+        userLocation.latitude,
+        userLocation.longitude,
+        selectedSpecialty === 'all' ? '' : selectedSpecialty,
+      );
+
+      console.log('Doctors data:', data);
+      const safeData = Array.isArray(data) ? data : (data as any)?.data || [];
+      setDoctors(safeData);
     } catch (error) {
       console.error('Error fetching doctors:', error);
+      setDoctors([]);
     } finally {
       setLoading(false);
     }
@@ -125,7 +123,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const filterDoctors = () => {
     const q = (searchQuery ?? '').trim().toLowerCase();
-    return doctors.filter((doctor) => {
+    return (Array.isArray(doctors) ? doctors : []).filter((doctor) => {
       const name = (doctor.name ?? '').toLowerCase();
       const specialization = (doctor.specialization ?? '').toLowerCase();
       const matchesSearch = q === '' || name.includes(q);
@@ -136,7 +134,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       return matchesSearch && matchesSpecialty;
     });
   };
-  
 
   const filteredDoctors = useMemo(() => filterDoctors(), [doctors, searchQuery, selectedSpecialty]);
 
@@ -155,25 +152,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       toValue: CARD_HEIGHT,
       duration: 250,
       useNativeDriver: true,
-    }).start(() => {
-      setSelectedDoctor(null);
-    });
+    }).start(() => setSelectedDoctor(null));
   };
 
-  const renderStars = (rating: number) => {
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(<Ionicons key={`star-${i}`} name="star" size={16} color="#FFB800" />);
+  // ⭐ NEW: Handle profile icon press with authentication check
+  const handleProfilePress = async () => {
+    try {
+      const isAuthenticated = await api.isAuthenticated();
+      
+      if (isAuthenticated) {
+        // User is logged in, go to profile
+        console.log('✅ User authenticated, navigating to profile');
+        navigation.navigate('DoctorProfile');
+      } else {
+        // User is not logged in, go to login
+        console.log('❌ User not authenticated, navigating to login');
+        navigation.navigate('DoctorLogin');
+      }
+    } catch (error) {
+      console.error('❌ Error checking authentication:', error);
+      // On error, navigate to login to be safe
+      navigation.navigate('DoctorLogin');
     }
-    if (hasHalfStar) {
-      stars.push(<Ionicons key="star-half" name="star-half" size={16} color="#FFB800" />);
-    }
-    for (let i = stars.length; i < 5; i++) {
-      stars.push(<Ionicons key={`star-empty-${i}`} name="star-outline" size={16} color="#FFB800" />);
-    }
-    return stars;
   };
 
   if (!userLocation) {
@@ -190,7 +190,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Find Your Doctor</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('DoctorLogin')}>
+        {/* ⭐ FIXED: Use handleProfilePress instead of direct navigation */}
+        <TouchableOpacity onPress={handleProfilePress}>
           <Ionicons name="person-circle" size={32} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
@@ -235,7 +236,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               </View>
             </Marker>
 
-            {/* ⭐ UPDATED: Map Markers with Specialty Icons */}
             {filteredDoctors.map((doctor, index) => (
               <Marker
                 key={index.toString()}
@@ -252,11 +252,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                       { backgroundColor: getSpecialtyColor(doctor.specialization) },
                     ]}
                   >
-                    {/* ⭐ SPECIALTY ICON */}
-                    <Ionicons 
-                      name={getSpecialtyIcon(doctor.specialization)} 
-                      size={20} 
-                      color={COLORS.white} 
+                    <Ionicons
+                      name={getSpecialtyIcon(doctor.specialization)}
+                      size={20}
+                      color={COLORS.white}
                     />
                   </View>
                 </View>
@@ -271,7 +270,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </View>
       )}
 
-      {/* ⭐ UPDATED: Doctor List with Specialty Icons */}
       <View style={styles.doctorsList}>
         <Text style={styles.listTitle}>Nearby Doctors</Text>
         <ScrollView
@@ -288,41 +286,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </ScrollView>
       </View>
 
-      {/* Bottom Card Popup */}
       {selectedDoctor && (
         <Animated.View
-          style={[
-            styles.bottomCard,
-            {
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
+          style={[styles.bottomCard, { transform: [{ translateY: slideAnim }] }]}
         >
           <View style={styles.cardHandle} />
-          
           <View style={styles.cardHeader}>
-            {/* ⭐ UPDATED: Avatar with Specialty Icon and Color */}
             <View
               style={[
                 styles.cardAvatar,
                 { backgroundColor: getSpecialtyColor(selectedDoctor.specialization) },
               ]}
             >
-              <Ionicons 
-                name={getSpecialtyIcon(selectedDoctor.specialization)} 
-                size={40} 
-                color={COLORS.white} 
+              <Ionicons
+                name={getSpecialtyIcon(selectedDoctor.specialization)}
+                size={40}
+                color={COLORS.white}
               />
             </View>
-            
             <View style={styles.cardHeaderInfo}>
-              <View style={styles.nameRow}>
-                <Text style={styles.cardName}>{selectedDoctor.name}</Text>
-                <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-              </View>
+              <Text style={styles.cardName}>{selectedDoctor.name}</Text>
               <Text style={styles.cardSpecialty}>{selectedDoctor.specialization}</Text>
             </View>
-
             <TouchableOpacity onPress={hideDoctorCard} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
@@ -330,9 +315,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
           <View style={styles.addressSection}>
             <Ionicons name="location-outline" size={20} color={COLORS.primary} />
-            <Text style={styles.addressText}>
-              {selectedDoctor.location.address}
-            </Text>
+            <Text style={styles.addressText}>{selectedDoctor.location?.address}</Text>
           </View>
 
           <View style={styles.actionButtons}>
@@ -358,7 +341,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   );
 };
 
-// ⭐ UPDATED: Doctor Card Component with Specialty Icon
 const DoctorCard: React.FC<{ doctor: DoctorResponseDto; onPress: () => void }> = ({
   doctor,
   onPress,
@@ -367,14 +349,13 @@ const DoctorCard: React.FC<{ doctor: DoctorResponseDto; onPress: () => void }> =
     <View
       style={[
         styles.doctorAvatar,
-        { backgroundColor: getSpecialtyColor(doctor.specialization as SpecialtyType,) },
+        { backgroundColor: getSpecialtyColor(doctor.specialization as SpecialtyType) },
       ]}
     >
-      {/* ⭐ SPECIALTY ICON in Doctor Card */}
-      <Ionicons 
-        name={getSpecialtyIcon(doctor.specialization)} 
-        size={30} 
-        color={COLORS.white} 
+      <Ionicons
+        name={getSpecialtyIcon(doctor.specialization)}
+        size={30}
+        color={COLORS.white}
       />
     </View>
     <View style={styles.doctorInfo}>
@@ -441,7 +422,6 @@ const styles = StyleSheet.create({
   doctorInfo: { flex: 1 },
   doctorName: { fontSize: FONT_SIZES.base, fontWeight: '600', color: COLORS.textPrimary },
   doctorSpecialty: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary },
-  
   bottomCard: {
     position: 'absolute',
     bottom: 80,
@@ -465,40 +445,12 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: SPACING.md,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  cardAvatar: {
-    width: 70,
-    height: 70,
-    borderRadius: RADIUS.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.md,
-  },
-  cardHeaderInfo: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  cardName: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: 'bold',
-    color: COLORS.textPrimary,
-  },
-  cardSpecialty: {
-    fontSize: FONT_SIZES.base,
-    color: COLORS.textSecondary,
-  },
-  closeButton: {
-    padding: 4,
-  },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md },
+  cardAvatar: { width: 70, height: 70, borderRadius: RADIUS.lg, alignItems: 'center', justifyContent: 'center', marginRight: SPACING.md },
+  cardHeaderInfo: { flex: 1 },
+  cardName: { fontSize: FONT_SIZES.lg, fontWeight: 'bold', color: COLORS.textPrimary },
+  cardSpecialty: { fontSize: FONT_SIZES.base, color: COLORS.textSecondary },
+  closeButton: { padding: 4 },
   addressSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -507,33 +459,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     marginBottom: SPACING.md,
   },
-  addressText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textPrimary,
-    marginLeft: SPACING.sm,
-    flex: 1,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.md,
-    gap: 6,
-  },
-  detailsButton: {
-    backgroundColor: COLORS.background,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  detailsButtonText: {
-    fontSize: FONT_SIZES.base,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-  },
+  addressText: { fontSize: FONT_SIZES.sm, color: COLORS.textPrimary, marginLeft: SPACING.sm, flex: 1 },
+  actionButtons: { flexDirection: 'row', gap: SPACING.md },
+  actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: SPACING.md, borderRadius: RADIUS.md, gap: 6 },
+  detailsButton: { backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border },
+  detailsButtonText: { fontSize: FONT_SIZES.base, fontWeight: '600', color: COLORS.textPrimary },
 });

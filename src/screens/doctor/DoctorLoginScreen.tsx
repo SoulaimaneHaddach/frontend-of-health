@@ -195,13 +195,6 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
               fullWidth
               loading={loading}
             />
-
-            <View style={styles.infoBox}>
-              <Ionicons name="information-circle" size={20} color={COLORS.info} />
-              <Text style={styles.infoText}>
-                Make sure to use the email and password you registered with
-              </Text>
-            </View>
           </View>
 
           <View style={styles.footer}>

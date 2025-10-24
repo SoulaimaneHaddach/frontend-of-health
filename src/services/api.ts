@@ -1,5 +1,6 @@
-// src/services/api.ts
+// src/services/api.ts - FIXED WITH TOKEN PERSISTENCE
 import axios, { AxiosInstance } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface Location {
   latitude: number;
@@ -10,7 +11,7 @@ export interface Location {
 
 export interface DoctorRequestDto {
   email: string;
-  password?: string; // optional
+  password?: string;
   name: string;
   specialization: string;
   phoneNumber: string;
@@ -60,11 +61,12 @@ const API_BASE_URL = 'https://vsrwljl6-8080.uks1.devtunnels.ms/api';
 class ApiService {
   private api: AxiosInstance;
   private authToken: string | null = null;
+  private isInitialized = false;
 
   constructor() {
     this.api = axios.create({
       baseURL: API_BASE_URL,
-      timeout: 30000, // increased timeout
+      timeout: 30000,
       headers: { 'Content-Type': 'application/json' },
     });
 
@@ -76,28 +78,67 @@ class ApiService {
     });
   }
 
-  private setAuthToken(token: string) {
-    this.authToken = token;
+  // ⭐ NEW: Initialize and restore token from AsyncStorage
+  async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      if (token) {
+        this.authToken = token;
+        console.log('✅ Token restored from storage');
+      }
+    } catch (error) {
+      console.error('❌ Failed to restore token:', error);
+    } finally {
+      this.isInitialized = true;
+    }
   }
 
-  private clearAuthToken() {
+  // ⭐ NEW: Check if user is authenticated
+  async isAuthenticated(): Promise<boolean> {
+    await this.initialize();
+    return this.authToken !== null;
+  }
+
+  // ⭐ NEW: Get current token
+  getToken(): string | null {
+    return this.authToken;
+  }
+
+  private async setAuthToken(token: string): Promise<void> {
+    this.authToken = token;
+    try {
+      await AsyncStorage.setItem('authToken', token);
+    } catch (error) {
+      console.error('❌ Failed to save token:', error);
+    }
+  }
+
+  async clearAuthToken(): Promise<void> {
     this.authToken = null;
+    try {
+      await AsyncStorage.multiRemove(['authToken', 'doctorEmail', 'doctorId']);
+      console.log('✅ Token cleared from storage');
+    } catch (error) {
+      console.error('❌ Failed to clear token:', error);
+    }
   }
 
   async login(credentials: LoginRequestDTO): Promise<AuthResponse> {
     const response = await this.api.post<AuthResponse>('/auth/login', credentials);
-    this.setAuthToken(response.data.accessToken);
+    await this.setAuthToken(response.data.accessToken);
     return response.data;
   }
 
   async register(data: DoctorRegisterRequestDTO): Promise<AuthResponse> {
     const response = await this.api.post<AuthResponse>('/auth/register', data);
-    this.setAuthToken(response.data.accessToken);
+    await this.setAuthToken(response.data.accessToken);
     return response.data;
   }
 
-  logout(): void {
-    this.clearAuthToken();
+  async logout(): Promise<void> {
+    await this.clearAuthToken();
   }
 
   async getMyProfile(): Promise<DoctorResponseDto> {
@@ -110,15 +151,13 @@ class ApiService {
     return response.data;
   }
 
-  async getDoctors(latitude: any, longitude: any, specialization?: string ): Promise<DoctorResponseDto[]> {
+  async getDoctors(latitude: any, longitude: any, specialization?: string): Promise<DoctorResponseDto[]> {
     const params: Record<string, any> = {};
     if (specialization) params.specialty = specialization;
     params.latitude = latitude;
     params.longitude = longitude;
 
-    const response = await this.api.get<DoctorResponseDto[]>('/doctors', {
-      params,
-    });
+    const response = await this.api.get<DoctorResponseDto[]>('/doctors', { params });
     return response.data;
   }
 
