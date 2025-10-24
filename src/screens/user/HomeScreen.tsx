@@ -31,14 +31,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [doctors, setDoctors] = useState<DoctorResponseDto[]>([]);
   const [loading, setLoading] = useState(false);
-  const [userLocation, setUserLocation] = useState<Region | null>(null);
-
+  
+  const [userLocation, setUserLocation] = useState<Region>({latitude: 35.7595,
+          longitude: -5.8340,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05});
+  
   // Request user location permission and get coordinates
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({});
+        const location = await Location.getCurrentPositionAsync({});      
         setUserLocation({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
@@ -65,7 +69,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const fetchDoctors = async () => {
     setLoading(true);
     try {
-      const data = await api.getDoctors(selectedSpecialty === 'all' ? '' : selectedSpecialty);
+      const data = await api.getDoctors(userLocation.latitude, userLocation.longitude,selectedSpecialty === 'all' ? '' : selectedSpecialty,);
       setDoctors(data);
     } catch (error) {
       console.error('Error fetching doctors:', error);
@@ -222,7 +226,7 @@ const DoctorCard: React.FC<{ doctor: DoctorResponseDto; onPress: () => void }> =
     <View
       style={[
         styles.doctorAvatar,
-        { backgroundColor: getSpecialtyColor(doctor.specialization as SpecialtyType) },
+        { backgroundColor: getSpecialtyColor(doctor.specialization as SpecialtyType,) },
       ]}
     >
       <Ionicons name="person" size={30} color={COLORS.white} />
