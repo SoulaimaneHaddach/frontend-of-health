@@ -110,9 +110,14 @@ class ApiService {
     return response.data;
   }
 
-  async getDoctors(specialization?: string): Promise<DoctorResponseDto[]> {
+  async getDoctors(latitude: any, longitude: any, specialization?: string ): Promise<DoctorResponseDto[]> {
+    const params: Record<string, any> = {};
+    if (specialization) params.specialty = specialization;
+    params.latitude = latitude;
+    params.longitude = longitude;
+
     const response = await this.api.get<DoctorResponseDto[]>('/doctors', {
-      params: specialization ? { specialty: specialization } : {},
+      params,
     });
     return response.data;
   }
