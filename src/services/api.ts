@@ -18,6 +18,7 @@ export interface DoctorRequestDto {
 }
 
 export interface DoctorResponseDto {
+  address: string;
   id: string;
   email: string;
   name: string;
@@ -54,7 +55,7 @@ export interface AuthResponse {
   id: string;
 }
 
-const API_BASE_URL = 'https://38s5pw9t-8080.uks1.devtunnels.ms/api';
+const API_BASE_URL = 'https://vsrwljl6-8080.uks1.devtunnels.ms/api';
 
 class ApiService {
   private api: AxiosInstance;

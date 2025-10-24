@@ -1,4 +1,4 @@
-// src/screens/doctor/DoctorLoginScreen.tsx
+// src/screens/doctor/DoctorLoginScreen.tsx - WITH FORGOT PASSWORD
 import React, { useState } from 'react';
 import {
   View,
@@ -17,8 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomButton } from '../../components/CustomButton';
 import { InputField } from '../../components/InputField';
-import { COLORS, FONT_SIZES, SPACING, RADIUS } from '../../constants/theme';
-import ApiService, { LoginRequestDTO, AuthResponse } from '../../services/api'; // ✅ correct import path
+import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
+import ApiService, { LoginRequestDTO, AuthResponse } from '../../services/api';
 
 type DoctorLoginScreenProps = {
   navigation: NativeStackNavigationProp<any>;
@@ -33,42 +33,101 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
 
-    if (!email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Invalid email address';
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
 
-    if (!password.trim()) newErrors.password = 'Password is required';
-    else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters long';
+    if (!password.trim()) {
+      newErrors.password = 'Password is required';
+    } else if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleLogin = async () => {
-    if (!validateForm()) return;
+    setErrors({});
+
+    if (!validateForm()) {
+      return;
+    }
 
     setLoading(true);
     try {
-      const credentials: LoginRequestDTO = { email, password };
+      const credentials: LoginRequestDTO = { email: email.trim(), password };
+      
+      console.log('🔐 Attempting login for:', email);
+      
       const authResponse: AuthResponse = await ApiService.login(credentials);
 
-      // ✅ Store login info securely for later API calls
       await AsyncStorage.multiSet([
         ['authToken', authResponse.accessToken],
         ['doctorEmail', authResponse.email],
         ['doctorId', authResponse.id],
       ]);
 
-      Alert.alert('Success', 'Login successful!');
-      navigation.replace('DoctorProfile'); // Navigate to profile or home screen
+      console.log('✅ Login successful for:', authResponse.email);
+      
+      Alert.alert('Success', 'Welcome back! 👋', [
+        {
+          text: 'Continue',
+          onPress: () => navigation.replace('DoctorProfile'),
+        },
+      ]);
     } catch (error: any) {
-      console.error('Login error:', error);
-      const message =
-        error.response?.data?.message ||
-        error.message ||
-        'Login failed. Please check your credentials.';
-      Alert.alert('Error', message);
+      console.error('❌ Login error:', error.response?.data || error.message);
+      
+      if (error.response) {
+        const status = error.response.status;
+        const errorData = error.response.data;
+
+        if (status === 401 || status === 404 || status === 400) {
+          // ⭐ Don't specify if email or password is wrong for security
+          Alert.alert(
+            'Login Failed',
+            'Invalid email or password. Please check your credentials and try again.',
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert(
+            'Server Error',
+            errorData?.message || 'Something went wrong. Please try again later.',
+            [{ text: 'OK' }]
+          );
+        }
+      } else if (error.request) {
+        Alert.alert(
+          'Connection Error',
+          'Unable to connect to the server. Please check your internet connection and try again.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          error.message || 'An unexpected error occurred. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEmailChange = (text: string) => {
+    setEmail(text);
+    if (errors.email) {
+      setErrors({ ...errors, email: undefined });
+    }
+  };
+
+  const handlePasswordChange = (text: string) => {
+    setPassword(text);
+    if (errors.password) {
+      setErrors({ ...errors, password: undefined });
     }
   };
 
@@ -80,7 +139,11 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
@@ -98,9 +161,10 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
               label="Email Address"
               placeholder="doctor@example.com"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={handleEmailChange}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
               icon="mail"
               error={errors.email}
             />
@@ -109,16 +173,20 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
               label="Password"
               placeholder="Enter your password"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={handlePasswordChange}
               isPassword
               icon="lock-closed"
               error={errors.password}
             />
 
-            <TouchableOpacity style={styles.forgotPassword}>
+            {/* ⭐ FORGOT PASSWORD BUTTON */}
+            <TouchableOpacity 
+              style={styles.forgotPassword}
+              onPress={() => navigation.navigate('ForgotPassword')}
+            >
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
-
+            
             <CustomButton
               title="Login"
               onPress={handleLogin}
@@ -127,6 +195,13 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
               fullWidth
               loading={loading}
             />
+
+            <View style={styles.infoBox}>
+              <Ionicons name="information-circle" size={20} color={COLORS.info} />
+              <Text style={styles.infoText}>
+                Make sure to use the email and password you registered with
+              </Text>
+            </View>
           </View>
 
           <View style={styles.footer}>
@@ -141,13 +216,14 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
   );
 };
 
-// ==== Styles ====
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  keyboardView: { flex: 1 },
+  keyboardView: { 
+    flex: 1 
+  },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: SPACING.lg,
@@ -168,6 +244,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.lg,
+    ...SHADOWS.medium,
   },
   title: {
     fontSize: FONT_SIZES.xxxl,
@@ -191,6 +268,23 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.secondary,
     fontWeight: '600',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    marginTop: SPACING.md,
+    gap: SPACING.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.info || COLORS.primary,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
   },
   footer: {
     flexDirection: 'row',

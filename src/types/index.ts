@@ -45,6 +45,7 @@ export type Location = {
 };
 
 export type DoctorResponseDto = {
+  [x: string]: string;
   name: string;
   email: string;
   specialization: string;
