@@ -1,17 +1,52 @@
-// src/screens/doctor/DoctorRegisterScreen.tsx
+// src/screens/doctor/DoctorRegisterScreen.tsx - FIXED
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  ScrollView, 
+  StatusBar, 
+  KeyboardAvoidingView, 
+  Platform, 
+  Alert,
+  Modal 
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomButton } from '../../components/CustomButton';
 import { InputField } from '../../components/InputField';
-import { COLORS, FONT_SIZES, SPACING } from '../../constants/theme';
+import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import ApiService from '../../services/api';
 
 type DoctorRegisterScreenProps = {
   navigation: NativeStackNavigationProp<any>;
 };
+
+// ⭐ SPECIALTIES LIST (matches BottomNavBar)
+const SPECIALTIES = [
+  { label: 'Hearing', value: 'hearing', icon: 'ear' as const, color: '#9B59B6' },
+  { label: 'Orthopedic', value: 'orthopedic', icon: 'fitness' as const, color: '#F39C12' },
+  { label: 'Brain', value: 'brain', icon: 'pulse' as const, color: '#E74C3C' },
+  { label: 'Cardiology', value: 'cardiology', icon: 'heart' as const, color: '#E91E63' },
+  { label: 'Dermatology', value: 'dermatology', icon: 'color-palette' as const, color: '#FF9800' },
+  { label: 'Pediatrics', value: 'pediatrics', icon: 'people' as const, color: '#4CAF50' },
+  { label: 'Ophthalmology', value: 'ophthalmology', icon: 'eye' as const, color: '#00BCD4' },
+  { label: 'Psychiatry', value: 'psychiatry', icon: 'happy' as const, color: '#9C27B0' },
+  { label: 'Gastroenterology', value: 'gastroenterology', icon: 'restaurant' as const, color: '#795548' },
+  { label: 'Endocrinology', value: 'endocrinology', icon: 'flask' as const, color: '#607D8B' },
+  { label: 'Neurology', value: 'neurology', icon: 'pulse' as const, color: '#E74C3C' },
+  { label: 'ENT', value: 'ent', icon: 'volume-high' as const, color: '#3F51B5' },
+  { label: 'Urology', value: 'urology', icon: 'water-outline' as const, color: '#2196F3' },
+  { label: 'Nephrology', value: 'nephrology', icon: 'water' as const, color: '#03A9F4' },
+  { label: 'Oncology', value: 'oncology', icon: 'bandage' as const, color: '#F44336' },
+  { label: 'Gynecology', value: 'gynecology', icon: 'woman' as const, color: '#E91E63' },
+  { label: 'Dentistry', value: 'dentistry', icon: 'hammer' as const, color: '#9E9E9E' },
+  { label: 'Pulmonology', value: 'pulmonology', icon: 'cloud' as const, color: '#B0BEC5' },
+  { label: 'Rheumatology', value: 'rheumatology', icon: 'trending-up' as const, color: '#FF5722' },
+  { label: 'Allergy', value: 'allergy', icon: 'medkit' as const, color: '#CDDC39' },
+];
 
 export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -24,6 +59,7 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [specialtyModalVisible, setSpecialtyModalVisible] = useState(false);
 
   const updateField = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });
@@ -48,55 +84,328 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
     if (!validateForm()) return;
     setLoading(true);
     try {
+      // ⭐ FIX: Send the LABEL instead of value if backend expects capitalized names
+      const selectedSpecialty = SPECIALTIES.find(s => s.value === formData.specialty);
+      const specializationToSend = selectedSpecialty ? selectedSpecialty.label : formData.specialty;
+
+      console.log('🔍 Sending registration data:', {
+        name: formData.name,
+        email: formData.email,
+        specialization: specializationToSend,
+        phoneNumber: formData.phone,
+      });
+
       await ApiService.register({
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        specialization: formData.specialty,
+        specialization: specializationToSend, // ⭐ Send label (e.g., "Cardiology")
         phoneNumber: formData.phone,
         latitude: 0,
         longitude: 0,
-        address: 'Unknown',
+        address: 'Not specified',
       });
-      Alert.alert('Success', 'Account created successfully.');
+      
+      Alert.alert('Success', 'Account created successfully. Please log in.');
       navigation.replace('DoctorLogin');
     } catch (error: any) {
-      console.error('Registration error:', error.response || error);
-      Alert.alert('Registration Failed', error.response?.data?.message || 'Something went wrong.');
+      console.error('❌ Registration error:', error.response?.data || error.message);
+      const errorMessage = error.response?.data?.message 
+        || error.response?.data?.error
+        || 'Registration failed. Please try again.';
+      Alert.alert('Registration Failed', errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
+  const selectedSpecialtyObj = SPECIALTIES.find(s => s.value === formData.specialty);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xl }} showsVerticalScrollIndicator={false}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: SPACING.md, marginBottom: SPACING.lg }}>
+        <ScrollView 
+          contentContainerStyle={{ paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xl }} 
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableOpacity 
+            onPress={() => navigation.goBack()} 
+            style={{ marginTop: SPACING.md, marginBottom: SPACING.lg }}
+          >
             <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
-          <Text style={{ fontSize: FONT_SIZES.xxxl, fontWeight: 'bold', color: COLORS.textPrimary, marginBottom: SPACING.sm }}>Create Account</Text>
-          <Text style={{ fontSize: FONT_SIZES.base, color: COLORS.textSecondary, marginBottom: SPACING.lg }}>Join as a healthcare professional</Text>
+          
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>Join as a healthcare professional</Text>
 
-          <InputField label="Full Name" placeholder="Dr. John Doe" value={formData.name} onChangeText={(v) => updateField('name', v)} icon="person" error={errors.name} />
-          <InputField label="Email Address" placeholder="doctor@example.com" value={formData.email} onChangeText={(v) => updateField('email', v)} keyboardType="email-address" autoCapitalize="none" icon="mail" error={errors.email} />
-          <InputField label="Phone Number" placeholder="+1 234 567 8900" value={formData.phone} onChangeText={(v) => updateField('phone', v)} keyboardType="phone-pad" icon="call" error={errors.phone} />
-          <InputField label="Specialty" placeholder="Cardiology" value={formData.specialty} onChangeText={(v) => updateField('specialty', v)} icon="fitness" error={errors.specialty} />
-          <InputField label="Password" placeholder="Create a strong password" value={formData.password} onChangeText={(v) => updateField('password', v)} isPassword icon="lock-closed" error={errors.password} />
-          <InputField label="Confirm Password" placeholder="Re-enter your password" value={formData.confirmPassword} onChangeText={(v) => updateField('confirmPassword', v)} isPassword icon="lock-closed" error={errors.confirmPassword} />
+          <InputField 
+            label="Full Name" 
+            placeholder="Dr. John Doe" 
+            value={formData.name} 
+            onChangeText={(v) => updateField('name', v)} 
+            icon="person" 
+            error={errors.name} 
+          />
+          
+          <InputField 
+            label="Email Address" 
+            placeholder="doctor@example.com" 
+            value={formData.email} 
+            onChangeText={(v) => updateField('email', v)} 
+            keyboardType="email-address" 
+            autoCapitalize="none" 
+            icon="mail" 
+            error={errors.email} 
+          />
+          
+          <InputField 
+            label="Phone Number" 
+            placeholder="+212 123 456 789" 
+            value={formData.phone} 
+            onChangeText={(v) => updateField('phone', v)} 
+            keyboardType="phone-pad" 
+            icon="call" 
+            error={errors.phone} 
+          />
+          
+          {/* ⭐ SPECIALTY PICKER */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Specialty *</Text>
+            <TouchableOpacity 
+              style={[
+                styles.pickerButton,
+                errors.specialty && styles.pickerButtonError
+              ]}
+              onPress={() => setSpecialtyModalVisible(true)}
+            >
+              <View style={styles.pickerContent}>
+                {selectedSpecialtyObj ? (
+                  <>
+                    <View style={[styles.iconCircle, { backgroundColor: selectedSpecialtyObj.color }]}>
+                      <Ionicons name={selectedSpecialtyObj.icon} size={20} color={COLORS.white} />
+                    </View>
+                    <Text style={styles.pickerText}>{selectedSpecialtyObj.label}</Text>
+                  </>
+                ) : (
+                  <Text style={styles.placeholderText}>Select your specialty</Text>
+                )}
+              </View>
+              <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+            {errors.specialty && <Text style={styles.errorText}>{errors.specialty}</Text>}
+          </View>
+          
+          <InputField 
+            label="Password" 
+            placeholder="Create a strong password" 
+            value={formData.password} 
+            onChangeText={(v) => updateField('password', v)} 
+            isPassword 
+            icon="lock-closed" 
+            error={errors.password} 
+          />
+          
+          <InputField 
+            label="Confirm Password" 
+            placeholder="Re-enter your password" 
+            value={formData.confirmPassword} 
+            onChangeText={(v) => updateField('confirmPassword', v)} 
+            isPassword 
+            icon="lock-closed" 
+            error={errors.confirmPassword} 
+          />
 
-          <CustomButton title="Create Account" onPress={handleRegister} variant="secondary" size="large" fullWidth loading={loading} />
-          <View style={{ flexDirection: 'row', justifyContent: 'center', paddingVertical: SPACING.lg }}>
-            <Text style={{ fontSize: FONT_SIZES.base, color: COLORS.textSecondary }}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('DoctorLogin')}><Text style={{ fontSize: FONT_SIZES.base, color: COLORS.secondary, fontWeight: '600' }}>Sign In</Text></TouchableOpacity>
+          <CustomButton 
+            title="Create Account" 
+            onPress={handleRegister} 
+            variant="secondary" 
+            size="large" 
+            fullWidth 
+            loading={loading} 
+          />
+          
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('DoctorLogin')}>
+              <Text style={styles.signInText}>Sign In</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ⭐ SPECIALTY MODAL */}
+      <Modal
+        visible={specialtyModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setSpecialtyModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Specialty</Text>
+              <TouchableOpacity onPress={() => setSpecialtyModalVisible(false)}>
+                <Ionicons name="close" size={24} color={COLORS.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              {SPECIALTIES.map((specialty) => (
+                <TouchableOpacity
+                  key={specialty.value}
+                  style={[
+                    styles.specialtyOption,
+                    formData.specialty === specialty.value && styles.specialtyOptionSelected
+                  ]}
+                  onPress={() => {
+                    updateField('specialty', specialty.value);
+                    setSpecialtyModalVisible(false);
+                  }}
+                >
+                  <View style={[styles.iconCircle, { backgroundColor: specialty.color }]}>
+                    <Ionicons name={specialty.icon} size={24} color={COLORS.white} />
+                  </View>
+                  <Text style={styles.specialtyOptionText}>{specialty.label}</Text>
+                  {formData.specialty === specialty.value && (
+                    <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { 
+    flex: 1, 
+    backgroundColor: COLORS.background 
+  },
+  title: {
+    fontSize: FONT_SIZES.xxxl,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.sm,
+  },
+  subtitle: {
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.xl,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingVertical: SPACING.lg,
+  },
+  footerText: {
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textSecondary,
+  },
+  signInText: {
+    fontSize: FONT_SIZES.base,
+    color: COLORS.secondary,
+    fontWeight: '600',
+  },
+  inputContainer: {
+    marginBottom: SPACING.md,
+  },
+  label: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.sm,
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+  },
+  pickerButtonError: {
+    borderColor: COLORS.error,
+    borderWidth: 2,
+  },
+  pickerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.sm,
+  },
+  pickerText: {
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textPrimary,
+    fontWeight: '500',
+  },
+  placeholderText: {
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textLight,
+  },
+  errorText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.error,
+    marginTop: SPACING.xs,
+    marginLeft: SPACING.xs,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
+    maxHeight: '80%',
+    ...SHADOWS.large,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+  },
+  modalScroll: {
+    maxHeight: 500,
+  },
+  specialtyOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  specialtyOptionSelected: {
+    backgroundColor: COLORS.background,
+  },
+  specialtyOptionText: {
+    fontSize: FONT_SIZES.base,
+    color: COLORS.textPrimary,
+    fontWeight: '500',
+    flex: 1,
+    marginLeft: SPACING.sm,
+  },
 });
