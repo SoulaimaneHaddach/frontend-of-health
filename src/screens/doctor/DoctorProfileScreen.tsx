@@ -1,4 +1,4 @@
-// src/screens/doctor/DoctorProfileScreen.tsx - IMPROVED
+// src/screens/doctor/DoctorProfileScreen.tsx - MERGED VERSION
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
@@ -212,7 +212,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={() => navigation.replace('Home')}>
             <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Profile</Text>

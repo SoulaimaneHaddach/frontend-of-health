@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import api from '../services/api';
 
 type RoleSelectionScreenProps = {
   navigation: NativeStackNavigationProp<any>;
@@ -12,6 +13,25 @@ type RoleSelectionScreenProps = {
 
 
 export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({ navigation }) => {
+    const handleProfilePress = async () => {
+      try {
+        const isAuthenticated = await api.isAuthenticated();
+        
+        if (isAuthenticated) {
+          // User is logged in, go to profile
+          console.log('✅ User authenticated, navigating to profile');
+          navigation.navigate('DoctorProfile');
+        } else {
+          // User is not logged in, go to login
+          console.log('❌ User not authenticated, navigating to login');
+          navigation.navigate('DoctorLogin');
+        }
+      } catch (error) {
+        console.error('❌ Error checking authentication:', error);
+        // On error, navigate to login to be safe
+        navigation.navigate('DoctorLogin');
+      }
+    };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
@@ -35,10 +55,10 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({ naviga
         <RoleCard
           icon="medical"
           title="Doctor"
-          description="Manage your practice and 
+          description="Manage your practice and
           connect with patients"
           color={COLORS.secondary}
-          onPress={() => navigation.navigate('DoctorLogin')}
+          onPress={handleProfilePress}
         />
       </View>
       
