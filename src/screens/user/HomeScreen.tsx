@@ -1,4 +1,4 @@
-// src/screens/user/HomeScreen.tsx
+// src/screens/user/HomeScreen.tsx - WITH GLOBAL THEME
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
@@ -12,13 +12,13 @@ import {
   Animated,
   Dimensions,
   PanResponder,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { SpecialtyType } from '../../types';
 import { DoctorResponseDto } from '../../services/api';
@@ -70,6 +70,9 @@ const getSpecialtyColor = (specialty?: string): string => {
 };
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
+  // ========== GLOBAL THEME ==========
+  const { isDarkMode, toggleTheme, colors } = useTheme();
+
   const [selectedSpecialty, setSelectedSpecialty] = useState<SpecialtyType>('all');
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -214,6 +217,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   };
 
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   if (!userLocation) {
     return (
       <SafeAreaView style={styles.container}>
@@ -224,27 +229,49 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar 
+        barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
+        backgroundColor={colors.background} 
+      />
       
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Find Your Doctor</Text>
-        <TouchableOpacity onPress={handleProfilePress}>
-          <Ionicons name="person-circle" size={32} color={COLORS.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {/* Dark Mode Toggle Button */}
+          <TouchableOpacity onPress={toggleTheme} style={styles.iconButton}>
+            <Ionicons 
+              name={isDarkMode ? "sunny" : "moon"} 
+              size={26} 
+              color={colors.text} 
+            />
+          </TouchableOpacity>
+          
+          <TouchableOpacity onPress={handleProfilePress}>
+            <Ionicons 
+              name="person-circle" 
+              size={32} 
+              color={COLORS.primary} 
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search Bar */}
       {searchVisible && (
         <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
-            <Ionicons name="search" size={20} color={COLORS.textSecondary} />
+            <Ionicons 
+              name="search" 
+              size={20} 
+              color={colors.textSecondary} 
+            />
             <TextInput
               style={styles.searchInput}
               placeholder="Search doctors or specialties..."
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholderTextColor={COLORS.textLight}
+              placeholderTextColor={colors.textSecondary}
             />
             <TouchableOpacity
               onPress={() => {
@@ -252,7 +279,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 setSearchVisible(false);
               }}
             >
-              <Ionicons name="close-circle" size={20} color={COLORS.textSecondary} />
+              <Ionicons 
+                name="close-circle" 
+                size={20} 
+                color={colors.textSecondary} 
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -278,7 +309,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           >
             {filteredDoctors.length === 0 ? (
               <View style={styles.emptySearchState}>
-                <Ionicons name="search-outline" size={48} color={COLORS.textLight} />
+                <Ionicons 
+                  name="search-outline" 
+                  size={48} 
+                  color={colors.textSecondary} 
+                />
                 <Text style={styles.emptyText}>No doctors found</Text>
                 <Text style={styles.emptySubText}>Try a different search term</Text>
               </View>
@@ -315,14 +350,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                     <Text style={styles.searchResultSpecialty}>{doctor.specialization}</Text>
                     {doctor.location?.address && (
                       <View style={styles.searchResultLocation}>
-                        <Ionicons name="location-outline" size={14} color={COLORS.textSecondary} />
+                        <Ionicons 
+                          name="location-outline" 
+                          size={14} 
+                          color={colors.textSecondary} 
+                        />
                         <Text style={styles.searchResultAddress} numberOfLines={1}>
                           {doctor.location.address}
                         </Text>
                       </View>
                     )}
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+                  <Ionicons 
+                    name="chevron-forward" 
+                    size={20} 
+                    color={colors.textSecondary} 
+                  />
                 </TouchableOpacity>
               ))
             )}
@@ -341,6 +384,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             style={styles.map} 
             region={userLocation}
             onRegionChangeComplete={handleMapRegionChangeComplete}
+            customMapStyle={isDarkMode ? DARK_MAP_STYLE : []}
           >
             <Marker
               key="user-location"
@@ -415,7 +459,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         }}
       />
 
-      {/* Doctor Details Card - Enhanced Version */}
+      {/* Doctor Details Card */}
       <DoctorCard
         doctor={selectedDoctor}
         visible={!!selectedDoctor}
@@ -443,46 +487,148 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.white },
+const DARK_MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+  {
+    featureType: "administrative.locality",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#d59563" }],
+  },
+  {
+    featureType: "poi",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#d59563" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "geometry",
+    stylers: [{ color: "#263c3f" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#6b9a76" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#38414e" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#212a37" }],
+  },
+  {
+    featureType: "road",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#9ca5b3" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#746855" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#1f2835" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#f3d19c" }],
+  },
+  {
+    featureType: "transit",
+    elementType: "geometry",
+    stylers: [{ color: "#2f3948" }],
+  },
+  {
+    featureType: "transit.station",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#d59563" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#17263c" }],
+  },
+  {
+    featureType: "water",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#515c6d" }],
+  },
+  {
+    featureType: "water",
+    elementType: "labels.text.stroke",
+    stylers: [{ color: "#17263c" }],
+  },
+];
+
+const createStyles = (colors: any) => StyleSheet.create({
+  container: { 
+    flex: 1, 
+    backgroundColor: colors.background 
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
-  headerTitle: { fontSize: FONT_SIZES.xl, fontWeight: 'bold', color: COLORS.textPrimary },
+  headerTitle: { 
+    fontSize: FONT_SIZES.xl, 
+    fontWeight: 'bold', 
+    color: colors.text 
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  iconButton: {
+    padding: SPACING.xs,
+  },
   searchContainer: { 
     paddingHorizontal: SPACING.lg, 
     paddingTop: SPACING.md,
     paddingBottom: SPACING.sm,
-    backgroundColor: COLORS.white 
+    backgroundColor: colors.card 
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     gap: SPACING.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  searchInput: { flex: 1, fontSize: FONT_SIZES.base, color: COLORS.textPrimary },
+  searchInput: { 
+    flex: 1, 
+    fontSize: FONT_SIZES.base, 
+    color: colors.text 
+  },
   
   searchResultsSection: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   searchResultsHeader: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   searchHeaderTop: {
     flexDirection: 'row',
@@ -493,11 +639,11 @@ const styles = StyleSheet.create({
   searchResultsTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.text,
   },
   searchResultsCount: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   searchResultsList: {
@@ -515,7 +661,7 @@ const styles = StyleSheet.create({
   searchResultCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
     ...SHADOWS.small,
@@ -534,12 +680,12 @@ const styles = StyleSheet.create({
   searchResultName: {
     fontSize: FONT_SIZES.base,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.text,
     marginBottom: 2,
   },
   searchResultSpecialty: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   searchResultLocation: {
@@ -549,7 +695,7 @@ const styles = StyleSheet.create({
   },
   searchResultAddress: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     flex: 1,
   },
 
@@ -570,23 +716,29 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: SPACING.md,
     right: SPACING.md,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.full,
     ...SHADOWS.small,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  resultsText: { fontSize: FONT_SIZES.sm, fontWeight: '600', color: COLORS.textPrimary },
+  resultsText: { 
+    fontSize: FONT_SIZES.sm, 
+    fontWeight: '600', 
+    color: colors.text 
+  },
 
   emptyText: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.md,
   },
   emptySubText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textLight,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
 

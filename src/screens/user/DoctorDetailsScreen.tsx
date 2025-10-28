@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../context/ThemeContext";
 import { CustomButton } from "../../components/CustomButton";
 import {
   COLORS,
@@ -36,6 +37,7 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
   route,
 }) => {
   const { doctor } = route.params;
+  const { isDarkMode, colors } = useTheme();
 
   const handleCall = () =>
     doctor.phoneNumber && Linking.openURL(`tel:${doctor.phoneNumber}`);
@@ -50,18 +52,17 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar 
+        barStyle={isDarkMode ? "light-content" : "dark-content"} 
+        backgroundColor={colors.background} 
+      />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.background }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        {/* <Text style={styles.headerTitle}>Doctor Profile</Text> */}
-        {/* <TouchableOpacity>
-          <Ionicons name="heart-outline" size={24} color={COLORS.textPrimary} />
-        </TouchableOpacity> */}
       </View>
 
       <ScrollView
@@ -69,30 +70,30 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
         showsVerticalScrollIndicator={false}
       >
         {/* Profile */}
-        <View style={styles.profileSection}>
-          <View style={styles.avatar}>
+        <View style={[styles.profileSection, { backgroundColor: colors.background }]}>
+          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
             <Ionicons name="person" size={60} color={COLORS.white} />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.name}>{doctor.name}</Text>
-            <Text style={styles.specialty}>{doctor.specialization}</Text>
-            {/* <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={20} color={COLORS.warning} />
-              <Text style={styles.ratingText}>{doctor.rating ?? 0}</Text>                  le mizajor 
-              <Text style={styles.reviewCount}>({doctor.reviewsCount ?? 0} reviews)</Text>
-            </View> */}
+            <Text style={[styles.name, { color: colors.text }]}>{doctor.name}</Text>
+            <Text style={[styles.specialty, { color: colors.primary }]}>
+              {doctor.specialization}
+            </Text>
           </View>
         </View>
 
         {/* Contact */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact Information</Text>
+        <View style={[styles.section, { backgroundColor: colors.background }]}>
+          <Text style={[styles.sectionTitle, { color: colors.primary }]}>
+            Contact Information
+          </Text>
           {doctor.phoneNumber && (
             <InfoRow
               icon="call"
               label="Phone"
               value={doctor.phoneNumber}
               onPress={handleCall}
+              colors={colors}
             />
           )}
           {doctor.email && (
@@ -101,6 +102,7 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
               label="Email"
               value={doctor.email}
               onPress={handleEmail}
+              colors={colors}
             />
           )}
           {doctor.location?.address && (
@@ -109,16 +111,20 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
               label="Address"
               value={doctor.location.address}
               onPress={handleDirections}
+              colors={colors}
             />
           )}
         </View>
       </ScrollView>
 
       {/* Footer */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: colors.primary, borderTopColor: colors.border }]}>
         {doctor.phoneNumber && (
-          <TouchableOpacity style={styles.callButton} onPress={handleCall}>
-            <Ionicons name="call" size={24} color={COLORS.primary} />
+          <TouchableOpacity 
+            style={[styles.callButton, { backgroundColor: colors.background }]} 
+            onPress={handleCall}
+          >
+            <Ionicons name="call" size={24} color={colors.primary} />
           </TouchableOpacity>
         )}
       </View>
@@ -132,58 +138,46 @@ const InfoRow: React.FC<{
   label: string;
   value: string;
   onPress?: () => void;
-}> = ({ icon, label, value, onPress }) => (
+  colors: any;
+}> = ({ icon, label, value, onPress, colors }) => (
   <TouchableOpacity
-    style={styles.infoRow}
+    style={[styles.infoRow, { borderBottomColor: colors.border }]}
     onPress={onPress}
     disabled={!onPress}
     activeOpacity={onPress ? 0.7 : 1}
   >
-    <View style={styles.infoIcon}>
-      <Ionicons name={icon} size={20} color={COLORS.primary} />
+    <View style={[styles.infoIcon, { backgroundColor: colors.card }]}>
+      <Ionicons name={icon} size={20} color={colors.primary} />
     </View>
     <View style={styles.infoContent}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+      <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.infoValue, { color: colors.text }]}>{value}</Text>
     </View>
     {onPress && (
-      <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+      <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
     )}
   </TouchableOpacity>
 );
 
 // Styles
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    backgroundColor: COLORS.background,
-    // borderBottomWidth: 1,
-    // borderBottomColor: COLORS.border,
   },
-  // headerTitle: {
-  //   fontSize: FONT_SIZES.lg,
-  //   fontWeight: "bold",
-  //   color: COLORS.textPrimary,
-  // },
   scrollContent: { 
     paddingBottom: SPACING.xxl + 80 
   },
   profileSection: {
-    backgroundColor: COLORS.background,
-    // padding: SPACING.xl,
     alignItems: "center",
-    // borderBottomWidth: 1,
-    // borderBottomColor: COLORS.border,
   },
   avatar: {
     width: 100,
     height: 100,
     borderRadius: RADIUS.full,
-    backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: SPACING.md,
@@ -193,27 +187,13 @@ const styles = StyleSheet.create({
   name: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: "bold",
-    color: COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
   specialty: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.primaryLight,
     marginBottom: SPACING.sm,
   },
-  // ratingContainer: {
-  //   flexDirection: "row",
-  //   alignItems: "center",
-  //   gap: SPACING.xs,
-  // },
-  // ratingText: {
-  //   fontSize: FONT_SIZES.lg,
-  //   fontWeight: "600",
-  //   color: COLORS.textPrimary,
-  // },
-  // reviewCount: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary },
   section: {
-    backgroundColor: COLORS.background,
     padding: SPACING.lg,
     paddingTop: 20,
     marginTop: SPACING.md,
@@ -221,7 +201,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: "bold",
-    color: COLORS.primaryLight,
     marginBottom: SPACING.md,
   },
   infoRow: {
@@ -229,13 +208,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
   },
   infoIcon: {
     width: 40,
     height: 40,
     borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.background,
     alignItems: "center",
     justifyContent: "center",
     marginRight: SPACING.md,
@@ -243,12 +220,10 @@ const styles = StyleSheet.create({
   infoContent: { flex: 1 },
   infoLabel: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
   },
   infoValue: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textPrimary,
     fontWeight: "500",
   },
   footer: {
@@ -258,17 +233,14 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: "row",
     padding: SPACING.lg,
-    backgroundColor: COLORS.primaryLight,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
     gap: SPACING.md,
     ...SHADOWS.large,
   },
   callButton: {
-    width :330,
+    width: 330,
     height: 56,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.background,
     alignItems: "center",
     justifyContent: "center",
   },

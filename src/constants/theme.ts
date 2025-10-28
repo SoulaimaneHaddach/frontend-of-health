@@ -42,7 +42,13 @@ export const COLORS = {
   // Borders
   border: '#E8ECEF',
   borderLight: '#F1F3F5',
+  darkBg: '#121212',
+  darkCard: '#1E1E1E',
+  darkText: '#FFFFFF',
+  darkTextSecondary: '#B0B0B0',
+  darkBorder: '#333333',
 };
+
 
 export const FONTS = {
   light: 'System',
