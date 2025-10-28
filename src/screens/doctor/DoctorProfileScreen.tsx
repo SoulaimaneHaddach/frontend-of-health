@@ -1,138 +1,437 @@
-// src/screens/doctor/DoctorProfileScreen.tsx - MERGED VERSION
-import React, { useState, useEffect } from 'react';
+// src/screens/doctor/DoctorProfileScreen.tsx - ENHANCED VERSION
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
-  StatusBar, 
+  StatusBar,
   Alert,
   Modal,
-  ActivityIndicator 
+  ActivityIndicator,
+  Animated,
+  Keyboard,
+  useColorScheme,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { CustomButton } from '../../components/CustomButton';
 import { InputField } from '../../components/InputField';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import ApiService, { DoctorRequestDto } from '../../services/api';
 
-type DoctorProfileScreenProps = { navigation: NativeStackNavigationProp<any> };
+// ==========================================
+// TYPES & INTERFACES
+// ==========================================
 
-// ⭐ SPECIALTIES LIST
-const SPECIALTIES = [
-  { label: 'Hearing', value: 'hearing', icon: 'ear' as const, color: '#9B59B6' },
-  { label: 'Orthopedic', value: 'orthopedic', icon: 'fitness' as const, color: '#F39C12' },
-  { label: 'Brain', value: 'brain', icon: 'pulse' as const, color: '#E74C3C' },
-  { label: 'Cardiology', value: 'cardiology', icon: 'heart' as const, color: '#E91E63' },
-  { label: 'Dermatology', value: 'dermatology', icon: 'color-palette' as const, color: '#FF9800' },
-  { label: 'Pediatrics', value: 'pediatrics', icon: 'people' as const, color: '#4CAF50' },
-  { label: 'Ophthalmology', value: 'ophthalmology', icon: 'eye' as const, color: '#00BCD4' },
-  { label: 'Psychiatry', value: 'psychiatry', icon: 'happy' as const, color: '#9C27B0' },
-  { label: 'Gastroenterology', value: 'gastroenterology', icon: 'restaurant' as const, color: '#795548' },
-  { label: 'Endocrinology', value: 'endocrinology', icon: 'flask' as const, color: '#607D8B' },
-  { label: 'Neurology', value: 'neurology', icon: 'pulse' as const, color: '#E74C3C' },
-  { label: 'ENT', value: 'ent', icon: 'volume-high' as const, color: '#3F51B5' },
-  { label: 'Urology', value: 'urology', icon: 'water-outline' as const, color: '#2196F3' },
-  { label: 'Nephrology', value: 'nephrology', icon: 'water' as const, color: '#03A9F4' },
-  { label: 'Oncology', value: 'oncology', icon: 'bandage' as const, color: '#F44336' },
-  { label: 'Gynecology', value: 'gynecology', icon: 'woman' as const, color: '#E91E63' },
-  { label: 'Dentistry', value: 'dentistry', icon: 'hammer' as const, color: '#9E9E9E' },
-  { label: 'Pulmonology', value: 'pulmonology', icon: 'cloud' as const, color: '#B0BEC5' },
-  { label: 'Rheumatology', value: 'rheumatology', icon: 'trending-up' as const, color: '#FF5722' },
-  { label: 'Allergy', value: 'allergy', icon: 'medkit' as const, color: '#CDDC39' },
+type DoctorProfileScreenProps = { 
+  navigation: NativeStackNavigationProp<any> 
+};
+
+interface LocationData {
+  latitude: number;
+  longitude: number;
+  address: string;
+  city: string;
+}
+
+interface ProfileData {
+  id: string;
+  name: string;
+  specialization: string;
+  email: string;
+  phoneNumber: string;
+  location: LocationData;
+}
+
+interface Specialty {
+  label: string;
+  value: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+}
+
+interface ValidationErrors {
+  name?: string;
+  email?: string;
+  phoneNumber?: string;
+  specialization?: string;
+  address?: string;
+  city?: string;
+}
+
+// ==========================================
+// CONSTANTS
+// ==========================================
+
+const SPECIALTIES: Specialty[] = [
+  { label: 'Hearing', value: 'hearing', icon: 'ear', color: '#9B59B6' },
+  { label: 'Orthopedic', value: 'orthopedic', icon: 'fitness', color: '#F39C12' },
+  { label: 'Brain', value: 'brain', icon: 'pulse', color: '#E74C3C' },
+  { label: 'Cardiology', value: 'cardiology', icon: 'heart', color: '#E91E63' },
+  { label: 'Dermatology', value: 'dermatology', icon: 'color-palette', color: '#FF9800' },
+  { label: 'Pediatrics', value: 'pediatrics', icon: 'people', color: '#4CAF50' },
+  { label: 'Ophthalmology', value: 'ophthalmology', icon: 'eye', color: '#00BCD4' },
+  { label: 'Psychiatry', value: 'psychiatry', icon: 'happy', color: '#9C27B0' },
+  { label: 'Gastroenterology', value: 'gastroenterology', icon: 'restaurant', color: '#795548' },
+  { label: 'Endocrinology', value: 'endocrinology', icon: 'flask', color: '#607D8B' },
+  { label: 'Neurology', value: 'neurology', icon: 'pulse', color: '#E74C3C' },
+  { label: 'ENT', value: 'ent', icon: 'volume-high', color: '#3F51B5' },
+  { label: 'Urology', value: 'urology', icon: 'water-outline', color: '#2196F3' },
+  { label: 'Nephrology', value: 'nephrology', icon: 'water', color: '#03A9F4' },
+  { label: 'Oncology', value: 'oncology', icon: 'bandage', color: '#F44336' },
+  { label: 'Gynecology', value: 'gynecology', icon: 'woman', color: '#E91E63' },
+  { label: 'Dentistry', value: 'dentistry', icon: 'hammer', color: '#9E9E9E' },
+  { label: 'Pulmonology', value: 'pulmonology', icon: 'cloud', color: '#B0BEC5' },
+  { label: 'Rheumatology', value: 'rheumatology', icon: 'trending-up', color: '#FF5722' },
+  { label: 'Allergy', value: 'allergy', icon: 'medkit', color: '#CDDC39' },
 ];
 
+// Default location for Tétouan, Morocco
+const DEFAULT_LOCATION: LocationData = {
+  latitude: 35.7595,
+  longitude: -5.8337,
+  address: '',
+  city: 'Tétouan',
+};
+
+// ==========================================
+// UTILITY FUNCTIONS
+// ==========================================
+
+/**
+ * Validates email format using regex
+ */
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+/**
+ * Validates phone number format (international format)
+ */
+const isValidPhoneNumber = (phone: string): boolean => {
+  const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
+  return phoneRegex.test(phone.replace(/\s/g, ''));
+};
+
+/**
+ * Validates all profile form fields
+ */
+const validateProfileData = (data: ProfileData): ValidationErrors => {
+  const errors: ValidationErrors = {};
+
+  if (!data.name.trim()) {
+    errors.name = 'Name is required';
+  } else if (data.name.trim().length < 3) {
+    errors.name = 'Name must be at least 3 characters';
+  }
+
+  if (!data.email.trim()) {
+    errors.email = 'Email is required';
+  } else if (!isValidEmail(data.email)) {
+    errors.email = 'Please enter a valid email address';
+  }
+
+  if (!data.phoneNumber.trim()) {
+    errors.phoneNumber = 'Phone number is required';
+  } else if (!isValidPhoneNumber(data.phoneNumber)) {
+    errors.phoneNumber = 'Please enter a valid phone number';
+  }
+
+  if (!data.specialization.trim()) {
+    errors.specialization = 'Specialization is required';
+  }
+
+  if (!data.location.address.trim()) {
+    errors.address = 'Address is required';
+  }
+
+  if (!data.location.city.trim()) {
+    errors.city = 'City is required';
+  }
+
+  return errors;
+};
+
+// ==========================================
+// REUSABLE COMPONENTS
+// ==========================================
+
+/**
+ * Info card component for displaying profile information
+ */
+const InfoCard: React.FC<{ 
+  icon: keyof typeof Ionicons.glyphMap; 
+  label: string; 
+  value: string;
+  isDark: boolean;
+}> = React.memo(({ icon, label, value, isDark }) => {
+  const styles = createStyles(isDark);
+  
+  return (
+    <View style={styles.infoCard}>
+      <View style={styles.infoIconContainer}>
+        <Ionicons name={icon} size={20} color={isDark ? COLORS.primary : COLORS.primary} />
+      </View>
+      <View style={styles.infoContent}>
+        <Text style={styles.infoLabel}>{label}</Text>
+        <Text style={styles.infoValue}>{value || 'Not provided'}</Text>
+      </View>
+    </View>
+  );
+});
+
+/**
+ * Specialty option in modal
+ */
+const SpecialtyOption: React.FC<{
+  specialty: Specialty;
+  isSelected: boolean;
+  onPress: () => void;
+  isDark: boolean;
+}> = React.memo(({ specialty, isSelected, onPress, isDark }) => {
+  const styles = createStyles(isDark);
+  
+  return (
+    <TouchableOpacity
+      style={[styles.specialtyOption, isSelected && styles.specialtyOptionSelected]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.iconCircle, { backgroundColor: specialty.color }]}>
+        <Ionicons name={specialty.icon} size={24} color={COLORS.white} />
+      </View>
+      <Text style={styles.specialtyOptionText}>{specialty.label}</Text>
+      {isSelected && (
+        <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+      )}
+    </TouchableOpacity>
+  );
+});
+
+/**
+ * Loading overlay component
+ */
+const LoadingOverlay: React.FC<{ visible: boolean; message?: string; isDark: boolean }> = ({ visible, message, isDark }) => {
+  if (!visible) return null;
+
+  const overlayStyles = StyleSheet.create({
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 9999,
+    },
+    card: {
+      backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+      padding: SPACING.xl,
+      borderRadius: RADIUS.lg,
+      alignItems: 'center',
+      ...SHADOWS.large,
+    },
+    message: {
+      marginTop: SPACING.md,
+      fontSize: FONT_SIZES.base,
+      color: isDark ? COLORS.darkText : COLORS.textPrimary,
+      fontWeight: '500',
+    },
+  });
+
+  return (
+    <View style={overlayStyles.overlay}>
+      <View style={overlayStyles.card}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        {message && <Text style={overlayStyles.message}>{message}</Text>}
+      </View>
+    </View>
+  );
+};
+
+// ==========================================
+// MAIN COMPONENT
+// ==========================================
+
 export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ navigation }) => {
+  // ========== STATE MANAGEMENT ==========
+  const systemColorScheme = useColorScheme();
+  const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [specialtyModalVisible, setSpecialtyModalVisible] = useState(false);
-  const [profileData, setProfileData] = useState<any>({
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  
+  const [profileData, setProfileData] = useState<ProfileData>({
     id: '',
     name: '',
     specialization: '',
     email: '',
     phoneNumber: '',
-    location: { 
-      latitude: 35.7595, // Tétouan default coordinates
-      longitude: -5.8337, 
-      address: '', 
-      city: 'Tétouan' 
-    },
+    location: DEFAULT_LOCATION,
   });
 
+  // ========== ANIMATIONS ==========
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(50))[0];
+  const scaleAnim = useState(new Animated.Value(0.9))[0];
+
+  // ========== EFFECTS ==========
+  
+  /**
+   * Load profile data on component mount
+   */
   useEffect(() => {
     loadProfile();
   }, []);
 
-  const loadProfile = async () => {
+  /**
+   * Animate content entrance
+   */
+  useEffect(() => {
+    if (!initialLoading) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [initialLoading]);
+
+  // ========== MEMOIZED VALUES ==========
+  
+  /**
+   * Get selected specialty object based on current specialization
+   */
+  const selectedSpecialtyObj = useMemo(() => 
+    SPECIALTIES.find(
+      s => s.label.toLowerCase() === profileData.specialization.toLowerCase() ||
+           s.value === profileData.specialization.toLowerCase()
+    ),
+    [profileData.specialization]
+  );
+
+  /**
+   * Map region configuration
+   */
+  const mapRegion: Region = useMemo(() => ({
+    latitude: profileData.location.latitude,
+    longitude: profileData.location.longitude,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  }), [profileData.location.latitude, profileData.location.longitude]);
+
+  // ========== CALLBACKS ==========
+  
+  /**
+   * Load profile data from API
+   */
+  const loadProfile = useCallback(async () => {
     try {
       setInitialLoading(true);
       const data = await ApiService.getMyProfile();
+      
       setProfileData({
         ...data,
         location: data.location || { 
-          latitude: 35.7595, 
-          longitude: -5.8337, 
+          ...DEFAULT_LOCATION,
           address: data.address || '', 
-          city: 'Tétouan' 
         }
       });
     } catch (err: any) {
       console.error('❌ Fetch profile error:', err.response || err);
+      
       if (err.response?.status === 401) {
         Alert.alert('Session Expired', 'Please log in again.');
         ApiService.logout();
         navigation.replace('Welcome');
       } else {
-        Alert.alert('Error', 'Failed to load profile. Please try again.');
+        Alert.alert(
+          'Error', 
+          'Failed to load profile. Please try again.',
+          [
+            { text: 'Retry', onPress: loadProfile },
+            { text: 'Cancel', style: 'cancel' }
+          ]
+        );
       }
     } finally {
       setInitialLoading(false);
     }
-  };
+  }, [navigation]);
 
-  const handleSave = async () => {
-    // Validate fields
-    if (!profileData.name.trim()) {
-      Alert.alert('Validation Error', 'Name is required');
-      return;
-    }
-    if (!profileData.email.trim()) {
-      Alert.alert('Validation Error', 'Email is required');
-      return;
-    }
-    if (!profileData.phoneNumber.trim()) {
-      Alert.alert('Validation Error', 'Phone number is required');
+  /**
+   * Handle profile save with validation
+   */
+  const handleSave = useCallback(async () => {
+    // Dismiss keyboard
+    Keyboard.dismiss();
+
+    // Validate all fields
+    const errors = validateProfileData(profileData);
+    setValidationErrors(errors);
+
+    // If there are validation errors, show alert and stop
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.values(errors)[0];
+      Alert.alert('Validation Error', firstError);
       return;
     }
 
     setLoading(true);
+    
     try {
       const payload: DoctorRequestDto = {
-        email: profileData.email,
-        name: profileData.name,
+        email: profileData.email.trim(),
+        name: profileData.name.trim(),
         specialization: profileData.specialization,
-        phoneNumber: profileData.phoneNumber,
+        phoneNumber: profileData.phoneNumber.trim(),
         location: {
           latitude: profileData.location.latitude,
           longitude: profileData.location.longitude,
-          address: profileData.location.address || 'Not specified',
-          city: profileData.location.city || 'Unknown',
+          address: profileData.location.address.trim() || 'Not specified',
+          city: profileData.location.city.trim() || 'Unknown',
         },
       };
 
       console.log('💾 Saving profile:', payload);
       await ApiService.updateMyProfile(payload);
+      
       setIsEditing(false);
-      Alert.alert('Success', 'Profile updated successfully! ✓');
+      setValidationErrors({});
+      
+      Alert.alert(
+        'Success', 
+        'Profile updated successfully! ✓',
+        [{ text: 'OK', style: 'default' }]
+      );
     } catch (err: any) {
       console.error('❌ Profile update error:', err.response || err);
+      
       if (err.response?.status === 401) {
         Alert.alert('Unauthorized', 'Your session has expired. Please log in again.');
         ApiService.logout();
@@ -144,9 +443,12 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     } finally {
       setLoading(false);
     }
-  };
+  }, [profileData, navigation]);
 
-  const handleLogout = () => {
+  /**
+   * Handle logout with confirmation
+   */
+  const handleLogout = useCallback(() => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -162,39 +464,108 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         },
       ]
     );
-  };
+  }, [navigation]);
 
-  const handlePickLocation = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Location permission is required to pick your location.');
-      return;
-    }
-
+  /**
+   * Pick current location using GPS
+   */
+  const handlePickLocation = useCallback(async () => {
     try {
-      const loc = await Location.getCurrentPositionAsync({});
-      setProfileData({
-        ...profileData,
+      setLocationLoading(true);
+      
+      // Request location permissions
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Denied', 
+          'Location permission is required to use your current location.',
+          [
+            { text: 'OK', style: 'default' },
+            { text: 'Settings', onPress: () => Location.requestForegroundPermissionsAsync() }
+          ]
+        );
+        return;
+      }
+
+      // Get current position
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      // Update location in state
+      setProfileData(prev => ({
+        ...prev,
         location: {
-          ...profileData.location,
+          ...prev.location,
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
         },
-      });
+      }));
+
       Alert.alert('Success', 'Location updated! Remember to save changes.');
     } catch (error) {
-      Alert.alert('Error', 'Failed to get your location. Please try again.');
+      console.error('Location error:', error);
+      Alert.alert('Error', 'Failed to get your location. Please try again or select manually on the map.');
+    } finally {
+      setLocationLoading(false);
     }
-  };
+  }, []);
 
-  const selectedSpecialtyObj = SPECIALTIES.find(
-    s => s.label.toLowerCase() === profileData.specialization.toLowerCase() ||
-         s.value === profileData.specialization.toLowerCase()
-  );
+  /**
+   * Handle map press to update location
+   */
+  const handleMapPress = useCallback((e: any) => {
+    setProfileData(prev => ({
+      ...prev,
+      location: {
+        ...prev.location,
+        latitude: e.nativeEvent.coordinate.latitude,
+        longitude: e.nativeEvent.coordinate.longitude,
+      },
+    }));
+  }, []);
 
+  /**
+   * Toggle edit mode
+   */
+  const toggleEditMode = useCallback(() => {
+    if (isEditing) {
+      // Cancel editing - reset validation errors
+      setValidationErrors({});
+    }
+    setIsEditing(prev => !prev);
+  }, [isEditing]);
+
+  /**
+   * Handle specialty selection
+   */
+  const handleSpecialtySelect = useCallback((specialty: Specialty) => {
+    setProfileData(prev => ({ ...prev, specialization: specialty.label }));
+    setSpecialtyModalVisible(false);
+    setValidationErrors(prev => ({ ...prev, specialization: undefined }));
+  }, []);
+
+  /**
+   * Toggle dark mode
+   */
+  const toggleDarkMode = useCallback(() => {
+    setIsDarkMode(prev => !prev);
+  }, []);
+
+  // ========== STYLES ==========
+  const styles = useMemo(() => createStyles(isDarkMode), [isDarkMode]);
+
+  // ========== RENDER ==========
+
+  // Loading state
   if (initialLoading) {
     return (
       <SafeAreaView style={styles.container}>
+        <StatusBar 
+          barStyle={isDarkMode ? "light-content" : "dark-content"} 
+          backgroundColor={isDarkMode ? COLORS.darkBg : COLORS.white} 
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Loading profile...</Text>
@@ -205,185 +576,186 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar 
+        barStyle={isDarkMode ? "light-content" : "dark-content"} 
+        backgroundColor={isDarkMode ? COLORS.darkBg : COLORS.white} 
+      />
+      
       <ScrollView 
         contentContainerStyle={{ paddingBottom: SPACING.xxl }} 
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.replace('Home')}>
-            <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Profile</Text>
-          <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
+          <TouchableOpacity onPress={() => navigation.replace('Home')} activeOpacity={0.7}>
             <Ionicons 
-              name={isEditing ? 'close' : 'create'} 
+              name="arrow-back" 
               size={24} 
-              color={isEditing ? COLORS.error : COLORS.primary} 
+              color={isDarkMode ? COLORS.darkText : COLORS.textPrimary} 
             />
           </TouchableOpacity>
-        </View>
-
-        {/* Profile Avatar Section */}
-        <View style={styles.avatarSection}>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>
-              {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'D'}
-            </Text>
-          </View>
-          <Text style={styles.profileName}>{profileData.name || 'Doctor'}</Text>
-          {selectedSpecialtyObj && (
-            <View style={styles.specialtyBadge}>
-              <Ionicons name={selectedSpecialtyObj.icon} size={16} color={COLORS.white} />
-              <Text style={styles.specialtyBadgeText}>{selectedSpecialtyObj.label}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Profile Form */}
-        {isEditing ? (
-          <View style={styles.formContainer}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
-            
-            <InputField 
-              label="Full Name" 
-              placeholder="Dr. John Doe"
-              value={profileData.name} 
-              onChangeText={(v) => setProfileData({ ...profileData, name: v })} 
-              icon="person" 
-            />
-
-            {/* Specialty Picker */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Specialty</Text>
-              <TouchableOpacity 
-                style={styles.pickerButton}
-                onPress={() => setSpecialtyModalVisible(true)}
-              >
-                <View style={styles.pickerContent}>
-                  {selectedSpecialtyObj ? (
-                    <>
-                      <View style={[styles.iconCircle, { backgroundColor: selectedSpecialtyObj.color }]}>
-                        <Ionicons name={selectedSpecialtyObj.icon} size={20} color={COLORS.white} />
-                      </View>
-                      <Text style={styles.pickerText}>{selectedSpecialtyObj.label}</Text>
-                    </>
-                  ) : (
-                    <Text style={styles.placeholderText}>Select your specialty</Text>
-                  )}
-                </View>
-                <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            
-            <InputField 
-              label="Email" 
-              placeholder="doctor@example.com"
-              value={profileData.email} 
-              onChangeText={(v) => setProfileData({ ...profileData, email: v })} 
-              keyboardType="email-address" 
-              autoCapitalize="none"
-              icon="mail" 
-            />
-            
-            <InputField 
-              label="Phone" 
-              placeholder="+212 123 456 789"
-              value={profileData.phoneNumber} 
-              onChangeText={(v) => setProfileData({ ...profileData, phoneNumber: v })} 
-              keyboardType="phone-pad" 
-              icon="call" 
-            />
-
-            <Text style={styles.sectionTitle}>Clinic Location</Text>
-            
-            <InputField 
-              label="Address" 
-              placeholder="Street, Building"
-              value={profileData.location.address} 
-              onChangeText={(v) => setProfileData({ ...profileData, location: { ...profileData.location, address: v } })} 
-              icon="location" 
-            />
-            
-            <InputField 
-              label="City" 
-              placeholder="City name"
-              value={profileData.location.city} 
-              onChangeText={(v) => setProfileData({ ...profileData, location: { ...profileData.location, city: v } })} 
-              icon="business" 
-            />
-
-            <Text style={styles.mapLabel}>📍 Pin Your Clinic Location</Text>
-            <MapView
-              style={styles.map}
-              region={{
-                latitude: profileData.location.latitude,
-                longitude: profileData.location.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              }}
-              onPress={(e) => setProfileData({
-                ...profileData,
-                location: {
-                  ...profileData.location,
-                  latitude: e.nativeEvent.coordinate.latitude,
-                  longitude: e.nativeEvent.coordinate.longitude,
-                },
-              })}
-            >
-              <Marker 
-                coordinate={{
-                  latitude: profileData.location.latitude,
-                  longitude: profileData.location.longitude,
-                }}
-                title="Your Clinic"
-                pinColor={COLORS.primary}
+          
+          <Text style={styles.headerTitle}>My Profile</Text>
+          
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={toggleDarkMode} style={styles.iconButton}>
+              <Ionicons 
+                name={isDarkMode ? "sunny" : "moon"} 
+                size={22} 
+                color={isDarkMode ? COLORS.darkText : COLORS.textPrimary} 
               />
-            </MapView>
-
-            <CustomButton 
-              title=" Use My Current Location" 
-              onPress={handlePickLocation} 
-              variant="secondary" 
-              size="large" 
-              fullWidth 
-              style={{ marginBottom: SPACING.md }} 
-            />
-
-            <CustomButton 
-              title=" Save Changes" 
-              onPress={handleSave} 
-              variant="primary" 
-              size="large" 
-              fullWidth 
-              loading={loading} 
-            />
-          </View>
-        ) : (
-          <View style={styles.infoContainer}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
-            <InfoCard icon="person" label="Name" value={profileData.name} />
-            <InfoCard icon="fitness" label="Specialization" value={profileData.specialization} />
-            <InfoCard icon="mail" label="Email" value={profileData.email} />
-            <InfoCard icon="call" label="Phone" value={profileData.phoneNumber} />
+            </TouchableOpacity>
             
-            <Text style={styles.sectionTitle}>Clinic Location</Text>
-            <InfoCard icon="location" label="Address" value={profileData.location.address} />
-            <InfoCard icon="business" label="City" value={profileData.location.city} />
+            <TouchableOpacity onPress={toggleEditMode} style={styles.iconButton}>
+              <Ionicons 
+                name={isEditing ? 'close' : 'create'} 
+                size={24} 
+                color={isEditing ? COLORS.error : COLORS.primary} 
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-            {/* Map Preview */}
-            <View style={styles.mapPreviewContainer}>
-              <MapView
-                style={styles.mapPreview}
-                region={{
-                  latitude: profileData.location.latitude,
-                  longitude: profileData.location.longitude,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
+        <Animated.View 
+          style={{
+            opacity: fadeAnim,
+            transform: [
+              { translateY: slideAnim },
+              { scale: scaleAnim }
+            ]
+          }}
+        >
+          {/* Profile Avatar Section */}
+          <View style={styles.avatarSection}>
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>
+                {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'D'}
+              </Text>
+            </View>
+            <Text style={styles.profileName}>{profileData.name || 'Doctor'}</Text>
+            {selectedSpecialtyObj && (
+              <View style={styles.specialtyBadge}>
+                <Ionicons name={selectedSpecialtyObj.icon} size={16} color={COLORS.white} />
+                <Text style={styles.specialtyBadgeText}>{selectedSpecialtyObj.label}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Profile Content */}
+          {isEditing ? (
+            // ========== EDIT MODE ==========
+            <View style={styles.formContainer}>
+              <Text style={styles.sectionTitle}>Personal Information</Text>
+              
+              <InputField 
+                label="Full Name" 
+                placeholder="Dr. John Doe"
+                value={profileData.name} 
+                onChangeText={(v) => {
+                  setProfileData({ ...profileData, name: v });
+                  setValidationErrors(prev => ({ ...prev, name: undefined }));
                 }}
-                scrollEnabled={false}
-                zoomEnabled={false}
+                icon="person"
+                error={validationErrors.name}
+              />
+
+              {/* Specialty Picker */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Specialty *</Text>
+                <TouchableOpacity 
+                  style={[
+                    styles.pickerButton,
+                    validationErrors.specialization && styles.inputError
+                  ]}
+                  onPress={() => setSpecialtyModalVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.pickerContent}>
+                    {selectedSpecialtyObj ? (
+                      <>
+                        <View style={[styles.iconCircle, { backgroundColor: selectedSpecialtyObj.color }]}>
+                          <Ionicons name={selectedSpecialtyObj.icon} size={20} color={COLORS.white} />
+                        </View>
+                        <Text style={styles.pickerText}>{selectedSpecialtyObj.label}</Text>
+                      </>
+                    ) : (
+                      <Text style={styles.placeholderText}>Select your specialty</Text>
+                    )}
+                  </View>
+                  <Ionicons 
+                    name="chevron-down" 
+                    size={20} 
+                    color={isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary} 
+                  />
+                </TouchableOpacity>
+                {validationErrors.specialization && (
+                  <Text style={styles.errorText}>{validationErrors.specialization}</Text>
+                )}
+              </View>
+              
+              <InputField 
+                label="Email" 
+                placeholder="doctor@example.com"
+                value={profileData.email} 
+                onChangeText={(v) => {
+                  setProfileData({ ...profileData, email: v });
+                  setValidationErrors(prev => ({ ...prev, email: undefined }));
+                }}
+                keyboardType="email-address" 
+                autoCapitalize="none"
+                icon="mail"
+                error={validationErrors.email}
+              />
+              
+              <InputField 
+                label="Phone" 
+                placeholder="+212 123 456 789"
+                value={profileData.phoneNumber} 
+                onChangeText={(v) => {
+                  setProfileData({ ...profileData, phoneNumber: v });
+                  setValidationErrors(prev => ({ ...prev, phoneNumber: undefined }));
+                }}
+                keyboardType="phone-pad" 
+                icon="call"
+                error={validationErrors.phoneNumber}
+              />
+
+              <Text style={styles.sectionTitle}>Clinic Location</Text>
+              
+              <InputField 
+                label="Address" 
+                placeholder="Street, Building"
+                value={profileData.location.address} 
+                onChangeText={(v) => {
+                  setProfileData({ ...profileData, location: { ...profileData.location, address: v } });
+                  setValidationErrors(prev => ({ ...prev, address: undefined }));
+                }}
+                icon="location"
+                error={validationErrors.address}
+              />
+              
+              <InputField 
+                label="City" 
+                placeholder="City name"
+                value={profileData.location.city} 
+                onChangeText={(v) => {
+                  setProfileData({ ...profileData, location: { ...profileData.location, city: v } });
+                  setValidationErrors(prev => ({ ...prev, city: undefined }));
+                }}
+                icon="business"
+                error={validationErrors.city}
+              />
+
+              <Text style={styles.mapLabel}>📍 Pin Your Clinic Location</Text>
+              <Text style={styles.mapHint}>Tap on the map to set your clinic location</Text>
+              
+              <MapView
+                style={styles.map}
+                region={mapRegion}
+                onPress={handleMapPress}
+                showsUserLocation
+                showsMyLocationButton
               >
                 <Marker 
                   coordinate={{
@@ -391,20 +763,81 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                     longitude: profileData.location.longitude,
                   }}
                   title="Your Clinic"
+                  description={profileData.location.address || 'Clinic Location'}
+                  pinColor={COLORS.primary}
                 />
               </MapView>
-            </View>
-          </View>
-        )}
 
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out" size={20} color={COLORS.error} />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+              <CustomButton 
+                title={locationLoading ? " Getting Location..." : "Use My Current Location"}
+                onPress={handlePickLocation} 
+                variant="secondary" 
+                size="large" 
+                fullWidth 
+                style={{ marginBottom: SPACING.md }} 
+                loading={locationLoading}
+                disabled={locationLoading}
+              />
+
+              <CustomButton 
+                title="Save Changes" 
+                onPress={handleSave} 
+                variant="primary" 
+                size="large" 
+                fullWidth 
+                loading={loading}
+                disabled={loading}
+              />
+            </View>
+          ) : (
+            // ========== VIEW MODE ==========
+            <View style={styles.infoContainer}>
+              <Text style={styles.sectionTitle}>Personal Information</Text>
+              <InfoCard icon="person" label="Name" value={profileData.name} isDark={isDarkMode} />
+              <InfoCard icon="fitness" label="Specialization" value={profileData.specialization} isDark={isDarkMode} />
+              <InfoCard icon="mail" label="Email" value={profileData.email} isDark={isDarkMode} />
+              <InfoCard icon="call" label="Phone" value={profileData.phoneNumber} isDark={isDarkMode} />
+              
+              <Text style={styles.sectionTitle}>Clinic Location</Text>
+              <InfoCard icon="location" label="Address" value={profileData.location.address} isDark={isDarkMode} />
+              <InfoCard icon="business" label="City" value={profileData.location.city} isDark={isDarkMode} />
+
+              {/* Map Preview */}
+              <View style={styles.mapPreviewContainer}>
+                <MapView
+                  style={styles.mapPreview}
+                  region={mapRegion}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  pitchEnabled={false}
+                  rotateEnabled={false}
+                >
+                  <Marker 
+                    coordinate={{
+                      latitude: profileData.location.latitude,
+                      longitude: profileData.location.longitude,
+                    }}
+                    title="Your Clinic"
+                    description={profileData.location.address}
+                  />
+                </MapView>
+              </View>
+            </View>
+          )}
+
+          {/* Logout Button */}
+          <TouchableOpacity 
+            style={styles.logoutButton} 
+            onPress={handleLogout}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="log-out" size={20} color={COLORS.error} />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </ScrollView>
 
-      {/* Specialty Modal */}
+      {/* Specialty Selection Modal */}
       <Modal
         visible={specialtyModalVisible}
         animationType="slide"
@@ -415,62 +848,50 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Specialty</Text>
-              <TouchableOpacity onPress={() => setSpecialtyModalVisible(false)}>
-                <Ionicons name="close" size={24} color={COLORS.textPrimary} />
+              <TouchableOpacity 
+                onPress={() => setSpecialtyModalVisible(false)}
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name="close" 
+                  size={24} 
+                  color={isDarkMode ? COLORS.darkText : COLORS.textPrimary} 
+                />
               </TouchableOpacity>
             </View>
             
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+              style={styles.modalScroll} 
+              showsVerticalScrollIndicator={false}
+            >
               {SPECIALTIES.map((specialty) => (
-                <TouchableOpacity
+                <SpecialtyOption
                   key={specialty.value}
-                  style={[
-                    styles.specialtyOption,
-                    profileData.specialization.toLowerCase() === specialty.label.toLowerCase() && 
-                    styles.specialtyOptionSelected
-                  ]}
-                  onPress={() => {
-                    setProfileData({ ...profileData, specialization: specialty.label });
-                    setSpecialtyModalVisible(false);
-                  }}
-                >
-                  <View style={[styles.iconCircle, { backgroundColor: specialty.color }]}>
-                    <Ionicons name={specialty.icon} size={24} color={COLORS.white} />
-                  </View>
-                  <Text style={styles.specialtyOptionText}>{specialty.label}</Text>
-                  {profileData.specialization.toLowerCase() === specialty.label.toLowerCase() && (
-                    <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
-                  )}
-                </TouchableOpacity>
+                  specialty={specialty}
+                  isSelected={profileData.specialization.toLowerCase() === specialty.label.toLowerCase()}
+                  onPress={() => handleSpecialtySelect(specialty)}
+                  isDark={isDarkMode}
+                />
               ))}
             </ScrollView>
           </View>
         </View>
       </Modal>
+
+      {/* Loading Overlay */}
+      <LoadingOverlay visible={loading} message="Saving profile..." isDark={isDarkMode} />
     </SafeAreaView>
   );
 };
 
-const InfoCard: React.FC<{ 
-  icon: keyof typeof Ionicons.glyphMap; 
-  label: string; 
-  value: string 
-}> = ({ icon, label, value }) => (
-  <View style={styles.infoCard}>
-    <View style={styles.infoIconContainer}>
-      <Ionicons name={icon} size={20} color={COLORS.primary} />
-    </View>
-    <View style={styles.infoContent}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value || 'Not provided'}</Text>
-    </View>
-  </View>
-);
+// ==========================================
+// STYLES
+// ==========================================
 
-const styles = StyleSheet.create({
+const createStyles = (isDark: boolean) => StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: COLORS.background 
+    backgroundColor: isDark ? COLORS.darkBg : COLORS.background,
   },
   loadingContainer: {
     flex: 1,
@@ -480,7 +901,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: SPACING.md,
     fontSize: FONT_SIZES.base,
-    color: COLORS.textSecondary,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
   },
   header: { 
     flexDirection: 'row', 
@@ -488,20 +909,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between', 
     paddingHorizontal: SPACING.lg, 
     paddingVertical: SPACING.md, 
-    backgroundColor: COLORS.white, 
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white, 
     borderBottomWidth: 1, 
-    borderBottomColor: COLORS.borderLight,
+    borderBottomColor: isDark ? COLORS.darkBorder : COLORS.borderLight,
     ...SHADOWS.small,
   },
   headerTitle: { 
     fontSize: FONT_SIZES.xl, 
     fontWeight: 'bold', 
-    color: COLORS.textPrimary 
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  iconButton: {
+    padding: SPACING.xs,
   },
   avatarSection: {
     alignItems: 'center',
     paddingVertical: SPACING.xl,
-    backgroundColor: COLORS.white,
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
     marginBottom: SPACING.md,
   },
   avatarCircle: {
@@ -522,7 +951,7 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
     marginBottom: SPACING.xs,
   },
   specialtyBadge: {
@@ -542,7 +971,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
     marginBottom: SPACING.md,
     marginTop: SPACING.md,
   },
@@ -554,7 +983,7 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     flexDirection: 'row',
-    backgroundColor: COLORS.white,
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
     padding: SPACING.md,
     borderRadius: RADIUS.md,
     marginBottom: SPACING.sm,
@@ -564,7 +993,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.background,
+    backgroundColor: isDark ? COLORS.darkBg : COLORS.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.md,
@@ -575,19 +1004,25 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
     marginBottom: SPACING.xs,
   },
   infoValue: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textPrimary,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
     fontWeight: '500',
   },
   mapLabel: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    marginBottom: SPACING.xs,
+  },
+  mapHint: {
+    fontSize: FONT_SIZES.xs,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
     marginBottom: SPACING.sm,
+    fontStyle: 'italic',
   },
   map: {
     width: '100%',
@@ -614,7 +1049,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xl,
     paddingVertical: SPACING.md,
     gap: SPACING.sm,
-    backgroundColor: COLORS.white,
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.error,
@@ -630,17 +1065,17 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
     marginBottom: SPACING.sm,
   },
   pickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.white,
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
   },
@@ -659,12 +1094,22 @@ const styles = StyleSheet.create({
   },
   pickerText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textPrimary,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
     fontWeight: '500',
   },
   placeholderText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textLight,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textLight,
+  },
+  inputError: {
+    borderColor: COLORS.error,
+    borderWidth: 1.5,
+  },
+  errorText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.error,
+    marginTop: SPACING.xs,
+    marginLeft: SPACING.xs,
   },
   modalOverlay: {
     flex: 1,
@@ -672,7 +1117,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: COLORS.white,
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
     borderTopLeftRadius: RADIUS.xl,
     borderTopRightRadius: RADIUS.xl,
     maxHeight: '80%',
@@ -685,12 +1130,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: isDark ? COLORS.darkBorder : COLORS.border,
   },
   modalTitle: {
     fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
   },
   modalScroll: {
     maxHeight: 500,
@@ -700,16 +1145,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
+    borderBottomColor: isDark ? COLORS.darkBorder : COLORS.borderLight,
   },
   specialtyOptionSelected: {
-    backgroundColor: COLORS.background,
+    backgroundColor: isDark ? COLORS.darkBg : COLORS.background,
   },
   specialtyOptionText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textPrimary,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
     fontWeight: '500',
     flex: 1,
     marginLeft: SPACING.sm,
   },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  loadingCard: {
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    padding: SPACING.xl,
+    borderRadius: RADIUS.lg,
+    alignItems: 'center',
+    ...SHADOWS.large,
+  },
+  loadingMessage: {
+    marginTop: SPACING.md,
+    fontSize: FONT_SIZES.base,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    fontWeight: '500',
+  },
 });
+

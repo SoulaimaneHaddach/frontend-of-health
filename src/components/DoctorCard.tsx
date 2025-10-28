@@ -171,9 +171,9 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
             </Text>
           </View>
         </View>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+        {/* <TouchableOpacity onPress={onClose} style={styles.closeButton}>
           <Ionicons name="close-circle" size={28} color={COLORS.textSecondary} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       {/* Distance Badge */}
@@ -222,19 +222,19 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
           <Ionicons name="information-circle" size={20} color={COLORS.white} />
           <Text style={styles.primaryButtonText}>View Details</Text>
         </TouchableOpacity>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.actionButton, styles.secondaryButton]}
           onPress={handleCall}
           activeOpacity={0.8}
         >
-          {/* <Ionicons name="call" size={20} color={COLORS.primary} />
+          <Ionicons name="call" size={20} color={COLORS.primary} />
           <Text style={styles.secondaryButtonText}>Call</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <TouchableOpacity
           style={[styles.actionButton, styles.secondaryButton]}
           onPress={handleDirections}
           activeOpacity={0.8}
-        > */}
+        >
           <Ionicons name="navigate" size={20} color={COLORS.primary} />
           <Text style={styles.secondaryButtonText}>Directions</Text>
         </TouchableOpacity>

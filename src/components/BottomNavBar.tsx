@@ -2,7 +2,8 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { SpecialtyType } from '../types';
 
 interface BottomNavBarProps {
@@ -17,11 +18,12 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   onSpecialtySelect,
   onSearchPress,
 }) => {
+const { colors } = useTheme();
 const specialties: { label: string; type: SpecialtyType; icon: keyof typeof Ionicons.glyphMap }[] = [
   { label: 'All', type: 'all', icon: 'apps' },
   { label: 'Hearing', type: 'hearing', icon: 'ear' },
   { label: 'Orthopedic', type: 'orthopedic', icon: 'fitness' },
-  { label: 'Brain', type: 'brain', icon: 'pulse' }, // already exists
+  { label: 'Brain', type: 'brain', icon: 'pulse' },
   { label: 'Cardiology', type: 'cardiology', icon: 'heart' },
   { label: 'Dermatology', type: 'dermatology', icon: 'color-palette' },
   { label: 'Pediatrics', type: 'pediatrics', icon: 'people' },
@@ -29,10 +31,10 @@ const specialties: { label: string; type: SpecialtyType; icon: keyof typeof Ioni
   { label: 'Psychiatry', type: 'psychiatry', icon: 'happy' },
   { label: 'Gastroenterology', type: 'gastroenterology', icon: 'restaurant' },
   { label: 'Endocrinology', type: 'endocrinology', icon: 'flask' },
-  { label: 'Neurology', type: 'neurology', icon: 'pulse' }, // replaced 'brain' with 'pulse'
+  { label: 'Neurology', type: 'neurology', icon: 'pulse' }, 
   { label: 'ENT', type: 'ent', icon: 'volume-high' },
-  { label: 'Urology', type: 'urology', icon: 'water-outline' }, // replaced 'water' with 'water-outline'
-  { label: 'Nephrology', type: 'nephrology', icon: 'water' }, // replace droplet
+  { label: 'Urology', type: 'urology', icon: 'water-outline' },
+  { label: 'Nephrology', type: 'nephrology', icon: 'water' },
   { label: 'Oncology', type: 'oncology', icon: 'bandage' },
   { label: 'Gynecology', type: 'gynecology', icon: 'woman' },
   { label: 'Dentistry', type: 'dentistry', icon: 'hammer' },
@@ -43,10 +45,10 @@ const specialties: { label: string; type: SpecialtyType; icon: keyof typeof Ioni
 
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.card }] }>
       {/* Search Button */}
       <TouchableOpacity style={styles.searchButton} onPress={onSearchPress}>
-        <Ionicons name="search" size={28} color={COLORS.primary} />
+        <Ionicons name="search" size={28} color={colors.primary} />
       </TouchableOpacity>
 
       {/* Specialty Buttons */}
@@ -56,18 +58,19 @@ const specialties: { label: string; type: SpecialtyType; icon: keyof typeof Ioni
             key={item.type}
             style={[
               styles.specialtyButton,
-              selectedSpecialty === item.type && { backgroundColor: COLORS.primary },
+              { backgroundColor: colors.background },
+              selectedSpecialty === item.type && { backgroundColor: colors.primary },
             ]}
             onPress={() => onSpecialtySelect(item.type)}
           >
-<Ionicons
-  name={item.icon as keyof typeof Ionicons.glyphMap}
-  size={20}
-  color={selectedSpecialty === item.type ? COLORS.white : COLORS.primary}
-/>
+            <Ionicons
+              name={item.icon as keyof typeof Ionicons.glyphMap}
+              size={20}
+              color={selectedSpecialty === item.type ? colors.white : colors.primary}
+            />
 
             <Text style={{
-              color: selectedSpecialty === item.type ? COLORS.white : COLORS.primary,
+              color: selectedSpecialty === item.type ? colors.white : colors.primary,
               marginLeft: 4,
             }}>{item.label}</Text>
           </TouchableOpacity>
@@ -82,7 +85,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     width: '100%',
-    backgroundColor: COLORS.white,
+    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: SPACING.sm,
@@ -104,7 +107,7 @@ const styles = StyleSheet.create({
   specialtyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F5F5F5',
     borderRadius: RADIUS.full,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
