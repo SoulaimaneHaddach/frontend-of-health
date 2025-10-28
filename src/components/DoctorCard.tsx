@@ -222,7 +222,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
           <Ionicons name="information-circle" size={20} color={COLORS.white} />
           <Text style={styles.primaryButtonText}>View Details</Text>
         </TouchableOpacity>
-        {/* <TouchableOpacity 
+        {/* <TouchableOpacity
           style={[styles.actionButton, styles.secondaryButton]}
           onPress={handleCall}
           activeOpacity={0.8}
