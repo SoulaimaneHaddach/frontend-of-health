@@ -1,5 +1,5 @@
-// src/screens/user/HomeScreen.tsx - WITH GLOBAL THEME
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+// src/screens/user/HomeScreen.tsx - OPTIMIZED VERSION
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,18 @@ import api from '../../services/api';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_HEIGHT = 280;
 const NAVBAR_HEIGHT = 60;
+
+// Zoom thresholds for showing markers
+const MIN_ZOOM_DELTA = 0.1; // Show markers when zoomed in closer than this
+const MAX_ZOOM_DELTA = 0.5; // Hide markers when zoomed out further than this
+
+// Map boundaries (Morocco area)
+const MOROCCO_BOUNDS = {
+  minLatitude: 27.66,
+  maxLatitude: 35.92,
+  minLongitude: -13.17,
+  maxLongitude: -0.99,
+};
 
 type HomeScreenProps = {
   navigation: NativeStackNavigationProp<any>;
@@ -65,7 +77,6 @@ const getSpecialtyIcon = (specialty?: string): keyof typeof Ionicons.glyphMap =>
 };
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  // ========== GLOBAL THEME ==========
   const { isDarkMode, toggleTheme, colors } = useTheme();
 
   const [selectedSpecialty, setSelectedSpecialty] = useState<SpecialtyType>('all');
@@ -75,6 +86,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorResponseDto | null>(null);
   const [isListVisible, setIsListVisible] = useState(false);
+  const [currentZoomLevel, setCurrentZoomLevel] = useState(0.05);
 
   const slideAnim = useRef(new Animated.Value(CARD_HEIGHT)).current;
   const panY = useRef(new Animated.Value(0)).current;
@@ -87,27 +99,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     longitudeDelta: 0.05,
   });
 
-  useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({});
-        setUserLocation({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        });
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    fetchDoctors();
-  }, []);
-
-  // map specialty to a color using runtime theme where possible
-  const getSpecialtyColor = (specialty?: string): string => {
+  // Memoized specialty color function
+  const getSpecialtyColor = useCallback((specialty?: string): string => {
     const normalized = specialty?.toLowerCase() || 'all';
     const map: Record<string, string> = {
       all: colors.primary,
@@ -132,9 +125,33 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       rheumatology: '#FF5722',
       allergy: '#CDDC39',
     };
-
     return map[normalized] || colors.primary;
-  };
+  }, [colors.primary]);
+
+  useEffect(() => {
+    let mounted = true;
+    
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted' && mounted) {
+        const location = await Location.getCurrentPositionAsync({});
+        if (mounted) {
+          setUserLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          });
+        }
+      }
+    })();
+
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    fetchDoctors();
+  }, []);
 
   const fetchDoctors = async () => {
     setLoading(true);
@@ -154,7 +171,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   };
 
-  const filterDoctors = () => {
+  // Optimized filter with useMemo
+  const filteredDoctors = useMemo(() => {
     const q = (searchQuery ?? '').trim().toLowerCase();
     return (Array.isArray(doctors) ? doctors : []).filter((doctor) => {
       const name = (doctor.name ?? '').toLowerCase();
@@ -165,11 +183,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         specialization.toLowerCase() === selectedSpecialty.toLowerCase();
       return matchesSearch && matchesSpecialty;
     });
-  };
+  }, [doctors, searchQuery, selectedSpecialty]);
 
-  const filteredDoctors = useMemo(() => filterDoctors(), [doctors, searchQuery, selectedSpecialty]);
+  // Only show markers when zoomed in enough
+  const visibleDoctors = useMemo(() => {
+    if (currentZoomLevel > MAX_ZOOM_DELTA) {
+      return []; // Too zoomed out, hide all markers
+    }
+    return filteredDoctors;
+  }, [filteredDoctors, currentZoomLevel]);
 
-  const showDoctorCard = (doctor: DoctorResponseDto) => {
+  const showDoctorCard = useCallback((doctor: DoctorResponseDto) => {
     setSelectedDoctor(doctor);
     panY.setValue(0);
     Animated.spring(slideAnim, {
@@ -178,15 +202,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       tension: 40,
       friction: 10,
     }).start();
-  };
+  }, [slideAnim, panY]);
 
-  const hideDoctorCard = () => {
+  const hideDoctorCard = useCallback(() => {
     Animated.timing(slideAnim, {
       toValue: CARD_HEIGHT,
       duration: 300,
       useNativeDriver: true,
     }).start(() => setSelectedDoctor(null));
-  };
+  }, [slideAnim]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -214,7 +238,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     })
   ).current;
 
-  const handleProfilePress = async () => {
+  const handleProfilePress = useCallback(async () => {
     try {
       const isAuthenticated = await api.isAuthenticated();
       if (isAuthenticated) navigation.navigate('DoctorProfile');
@@ -222,9 +246,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     } catch {
       navigation.navigate('DoctorLogin');
     }
-  };
+  }, [navigation]);
 
-  const handleDoctorPress = (doctor: DoctorResponseDto) => {
+  const handleDoctorPress = useCallback((doctor: DoctorResponseDto) => {
     showDoctorCard(doctor);
     if (doctor.location) {
       mapRef.current?.animateToRegion({
@@ -232,15 +256,43 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         longitude: doctor.location.longitude,
         latitudeDelta: 0.02,
         longitudeDelta: 0.02,
-      });
+      }, 300);
     }
-  };
+  }, [showDoctorCard]);
 
-  const handleMapRegionChangeComplete = () => {
+  // Constrain map to Morocco bounds
+  const handleMapRegionChange = useCallback((region: Region) => {
+    setCurrentZoomLevel(region.latitudeDelta);
+    
+    // Constrain to Morocco bounds
+    const constrainedRegion = {
+      ...region,
+      latitude: Math.max(
+        MOROCCO_BOUNDS.minLatitude,
+        Math.min(MOROCCO_BOUNDS.maxLatitude, region.latitude)
+      ),
+      longitude: Math.max(
+        MOROCCO_BOUNDS.minLongitude,
+        Math.min(MOROCCO_BOUNDS.maxLongitude, region.longitude)
+      ),
+      latitudeDelta: Math.max(0.01, Math.min(5, region.latitudeDelta)),
+      longitudeDelta: Math.max(0.01, Math.min(5, region.longitudeDelta)),
+    };
+
+    // Only update if significantly different
+    if (
+      Math.abs(constrainedRegion.latitude - region.latitude) > 0.01 ||
+      Math.abs(constrainedRegion.longitude - region.longitude) > 0.01
+    ) {
+      mapRef.current?.animateToRegion(constrainedRegion, 100);
+    }
+  }, []);
+
+  const handleMapRegionChangeComplete = useCallback(() => {
     if (selectedDoctor) {
       hideDoctorCard();
     }
-  };
+  }, [selectedDoctor, hideDoctorCard]);
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -263,7 +315,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Find Your Doctor</Text>
         <View style={styles.headerActions}>
-          {/* Dark Mode Toggle Button */}
           <TouchableOpacity onPress={toggleTheme} style={styles.iconButton}>
             <Ionicons 
               name={isDarkMode ? "sunny" : "moon"} 
@@ -319,7 +370,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         <View style={styles.searchResultsSection}>
           <View style={styles.searchResultsHeader}>
             <View style={styles.searchHeaderTop}>
-                <Ionicons name="search" size={20} color={colors.primary} />
+              <Ionicons name="search" size={20} color={colors.primary} />
               <Text style={styles.searchResultsTitle}>Search Results</Text>
             </View>
             <Text style={styles.searchResultsCount}>
@@ -331,6 +382,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             style={styles.searchResultsList}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.searchResultsContent}
+            removeClippedSubviews={true}
           >
             {filteredDoctors.length === 0 ? (
               <View style={styles.emptySearchState}>
@@ -345,7 +397,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             ) : (
               filteredDoctors.map((doctor, index) => (
                 <TouchableOpacity
-                  key={index.toString()}
+                  key={doctor.id || index.toString()}
                   style={styles.searchResultCard}
                   onPress={() => {
                     showDoctorCard(doctor);
@@ -357,7 +409,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                         longitude: doctor.location.longitude,
                         latitudeDelta: 0.02,
                         longitudeDelta: 0.02,
-                      });
+                      }, 300);
                   }}
                 >
                   <View style={[
@@ -371,8 +423,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                     />
                   </View>
                   <View style={styles.searchResultInfo}>
-                    <Text style={styles.searchResultName}>{doctor.name}</Text>
-                    <Text style={styles.searchResultSpecialty}>{doctor.specialization}</Text>
+                    <Text style={styles.searchResultName} numberOfLines={1}>{doctor.name}</Text>
+                    <Text style={styles.searchResultSpecialty} numberOfLines={1}>{doctor.specialization}</Text>
                     {doctor.location?.address && (
                       <View style={styles.searchResultLocation}>
                         <Ionicons 
@@ -398,7 +450,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </View>
       )}
 
-  {loading && <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />}
+      {loading && <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />}
 
       {/* Map */}
       {!loading && (
@@ -407,44 +459,56 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             ref={mapRef} 
             provider={PROVIDER_GOOGLE} 
             style={styles.map} 
-            region={userLocation}
+            initialRegion={userLocation}
+            onRegionChange={handleMapRegionChange}
             onRegionChangeComplete={handleMapRegionChangeComplete}
             customMapStyle={isDarkMode ? DARK_MAP_STYLE : []}
+            minZoomLevel={8}
+            maxZoomLevel={18}
+            pitchEnabled={false}
+            rotateEnabled={false}
+            toolbarEnabled={false}
+            loadingEnabled={true}
+            loadingIndicatorColor={colors.primary}
           >
+            {/* User Location Marker */}
             <Marker
               key="user-location"
               coordinate={{
                 latitude: userLocation.latitude,
                 longitude: userLocation.longitude,
               }}
+              anchor={{ x: 0.5, y: 0.5 }}
+              tracksViewChanges={false}
             >
               <View style={[styles.marker, { backgroundColor: colors.primary }]}>
                 <Ionicons name="location" size={20} color={colors.white} />
               </View>
             </Marker>
 
-            {filteredDoctors.map((doctor, index) => (
+            {/* Doctor Markers - Only shown when zoomed in */}
+            {visibleDoctors.map((doctor, index) => (
               <Marker
-                key={index.toString()}
+                key={doctor.id || `doctor-${index}`}
                 coordinate={{
                   latitude: doctor.location?.latitude ?? userLocation.latitude,
                   longitude: doctor.location?.longitude ?? userLocation.longitude,
                 }}
                 onPress={() => showDoctorCard(doctor)}
+                anchor={{ x: 0.5, y: 0.5 }}
+                tracksViewChanges={false}
               >
-                <View style={styles.markerContainer}>
-                  <View
-                    style={[
-                      styles.marker,
-                      { backgroundColor: getSpecialtyColor(doctor.specialization) },
-                    ]}
-                  >
-                    <Ionicons
-                      name={getSpecialtyIcon(doctor.specialization)}
-                      size={20}
-                      color={colors.white}
-                    />
-                  </View>
+                <View
+                  style={[
+                    styles.marker,
+                    { backgroundColor: getSpecialtyColor(doctor.specialization) },
+                  ]}
+                >
+                  <Ionicons
+                    name={getSpecialtyIcon(doctor.specialization)}
+                    size={20}
+                    color={colors.white}
+                  />
                 </View>
               </Marker>
             ))}
@@ -454,11 +518,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <Text style={styles.resultsText}>
               {filteredDoctors.length} {filteredDoctors.length === 1 ? 'doctor' : 'doctors'}
             </Text>
+            {currentZoomLevel > MAX_ZOOM_DELTA && (
+              <Text style={styles.zoomHint}>Zoom in to see doctors</Text>
+            )}
           </View>
         </View>
       )}
 
-      {/* Floating Action Button for List */}
+      {/* Floating Action Button */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => setIsListVisible(true)}
@@ -726,7 +793,6 @@ const createStyles = (colors: any) => StyleSheet.create({
 
   mapContainer: { flex: 1, position: 'relative' },
   map: { flex: 1 },
-  markerContainer: { alignItems: 'center' },
   marker: {
     width: 40,
     height: 40,
@@ -753,6 +819,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: FONT_SIZES.sm, 
     fontWeight: '600', 
     color: colors.text 
+  },
+  zoomHint: {
+    fontSize: FONT_SIZES.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 
   emptyText: {
