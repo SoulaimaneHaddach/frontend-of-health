@@ -19,15 +19,27 @@ export const COLORS = {
   brain: '#E74C3C',
   orthopedic: '#F39C12',
   
-  // Neutrals
+  // Light Mode Colors
   white: '#FFFFFF',
   background: '#F8F9FC',
   cardBackground: '#FFFFFF',
-  
-  // Text
   textPrimary: '#2C3E50',
   textSecondary: '#7F8C8D',
   textLight: '#BDC3C7',
+  border: '#E8ECEF',
+  borderLight: '#F1F3F5',
+  
+  // Dark Mode Colors - Enhanced for better contrast and readability
+  darkBg: '#0D0D0D',           // Deep black background
+  darkCard: '#1C1C1E',         // Elevated surface
+  darkCardSecondary: '#2C2C2E', // Secondary surface
+  darkText: '#F5F5F7',         // Soft white for text
+  darkTextSecondary: '#98989D', // Muted secondary text
+  darkBorder: '#38383A',       // Subtle borders
+  darkPrimary: '#5FA3EE',      // Lighter primary for dark mode
+  darkSecondary: '#3FD672',    // Lighter secondary for dark mode
+  darkAccent: '#FF7B7B',       // Lighter accent for dark mode
+  darkShadow: 'rgba(0, 0, 0, 0.4)', // Deeper shadows for depth
   
   // Status
   success: '#2ECC71',
@@ -38,15 +50,6 @@ export const COLORS = {
   // Shadows
   shadow: 'rgba(0, 0, 0, 0.08)',
   shadowDark: 'rgba(0, 0, 0, 0.15)',
-  
-  // Borders
-  border: '#E8ECEF',
-  borderLight: '#F1F3F5',
-  darkBg: '#121212',
-  darkCard: '#1E1E1E',
-  darkText: '#FFFFFF',
-  darkTextSecondary: '#B0B0B0',
-  darkBorder: '#333333',
 };
 
 

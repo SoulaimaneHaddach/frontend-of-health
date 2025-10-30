@@ -7,12 +7,10 @@ import {
   ScrollView, 
   TouchableOpacity, 
   StatusBar,
-  Alert,
   Modal,
   ActivityIndicator,
   Animated,
   Keyboard,
-  useColorScheme,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +20,7 @@ import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { CustomButton } from '../../components/CustomButton';
 import { InputField } from '../../components/InputField';
+import { useTheme } from '../../context/ThemeContext';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import ApiService, { DoctorRequestDto } from '../../services/api';
 
@@ -103,6 +102,23 @@ const DEFAULT_LOCATION: LocationData = {
 // ==========================================
 // UTILITY FUNCTIONS
 // ==========================================
+
+/**
+ * Custom alert helper that will use our custom modal
+ */
+const showCustomAlert = (
+  setAlertConfig: React.Dispatch<React.SetStateAction<any>>,
+  title: string,
+  message: string,
+  buttons: Array<{ text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }> = [{ text: 'OK' }]
+) => {
+  setAlertConfig({
+    visible: true,
+    title,
+    message,
+    buttons,
+  });
+};
 
 /**
  * Validates email format using regex
@@ -264,14 +280,24 @@ const LoadingOverlay: React.FC<{ visible: boolean; message?: string; isDark: boo
 
 export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ navigation }) => {
   // ========== STATE MANAGEMENT ==========
-  const systemColorScheme = useColorScheme();
-  const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
+  const { isDarkMode, toggleTheme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [specialtyModalVisible, setSpecialtyModalVisible] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: Array<{ text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }>;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    buttons: [],
+  });
   
   const [profileData, setProfileData] = useState<ProfileData>({
     id: '',
@@ -366,18 +392,20 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
       console.error('❌ Fetch profile error:', err.response || err);
       
       if (err.response?.status === 401) {
-        Alert.alert('Session Expired', 'Please log in again.');
-        ApiService.logout();
-        navigation.replace('Welcome');
+        showCustomAlert(setAlertConfig, 'Session Expired', 'Please log in again.', [
+          {
+            text: 'OK',
+            onPress: () => {
+              ApiService.logout();
+              navigation.replace('Welcome');
+            }
+          }
+        ]);
       } else {
-        Alert.alert(
-          'Error', 
-          'Failed to load profile. Please try again.',
-          [
-            { text: 'Retry', onPress: loadProfile },
-            { text: 'Cancel', style: 'cancel' }
-          ]
-        );
+        showCustomAlert(setAlertConfig, 'Error', 'Failed to load profile. Please try again.', [
+          { text: 'Retry', onPress: loadProfile },
+          { text: 'Cancel', style: 'cancel' }
+        ]);
       }
     } finally {
       setInitialLoading(false);
@@ -398,7 +426,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     // If there are validation errors, show alert and stop
     if (Object.keys(errors).length > 0) {
       const firstError = Object.values(errors)[0];
-      Alert.alert('Validation Error', firstError);
+      showCustomAlert(setAlertConfig, 'Validation Error', firstError);
       return;
     }
 
@@ -424,21 +452,23 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
       setIsEditing(false);
       setValidationErrors({});
       
-      Alert.alert(
-        'Success', 
-        'Profile updated successfully! ✓',
-        [{ text: 'OK', style: 'default' }]
-      );
+      showCustomAlert(setAlertConfig, 'Success', 'Profile updated successfully! ✓');
     } catch (err: any) {
       console.error('❌ Profile update error:', err.response || err);
       
       if (err.response?.status === 401) {
-        Alert.alert('Unauthorized', 'Your session has expired. Please log in again.');
-        ApiService.logout();
-        navigation.replace('Welcome');
+        showCustomAlert(setAlertConfig, 'Unauthorized', 'Your session has expired. Please log in again.', [
+          {
+            text: 'OK',
+            onPress: () => {
+              ApiService.logout();
+              navigation.replace('Welcome');
+            }
+          }
+        ]);
       } else {
         const errorMsg = err.response?.data?.message || 'Failed to update profile. Please try again.';
-        Alert.alert('Update Failed', errorMsg);
+        showCustomAlert(setAlertConfig, 'Update Failed', errorMsg);
       }
     } finally {
       setLoading(false);
@@ -449,21 +479,29 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
    * Handle logout with confirmation
    */
   const handleLogout = useCallback(() => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            ApiService.logout();
-            navigation.replace('Welcome');
-          },
+    showCustomAlert(setAlertConfig, 'Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setLoading(true);
+            // Ensure tokens/storage are cleared before navigating
+            await ApiService.logout();
+            // Small delay to ensure storage flush on some devices
+            setTimeout(() => {
+              setLoading(false);
+              navigation.replace('Welcome');
+            }, 150);
+          } catch (err) {
+            setLoading(false);
+            console.error('Logout failed', err);
+            showCustomAlert(setAlertConfig, 'Logout Failed', 'Unable to logout. Please try again.');
+          }
         },
-      ]
-    );
+      },
+    ]);
   }, [navigation]);
 
   /**
@@ -477,14 +515,10 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert(
-          'Permission Denied', 
-          'Location permission is required to use your current location.',
-          [
-            { text: 'OK', style: 'default' },
-            { text: 'Settings', onPress: () => Location.requestForegroundPermissionsAsync() }
-          ]
-        );
+        showCustomAlert(setAlertConfig, 'Permission Denied', 'Location permission is required to use your current location.', [
+          { text: 'OK', style: 'default' },
+          { text: 'Settings', onPress: () => Location.requestForegroundPermissionsAsync() }
+        ]);
         return;
       }
 
@@ -503,10 +537,10 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         },
       }));
 
-      Alert.alert('Success', 'Location updated! Remember to save changes.');
+      showCustomAlert(setAlertConfig, 'Success', 'Location updated! Remember to save changes.');
     } catch (error) {
       console.error('Location error:', error);
-      Alert.alert('Error', 'Failed to get your location. Please try again or select manually on the map.');
+      showCustomAlert(setAlertConfig, 'Error', 'Failed to get your location. Please try again or select manually on the map.');
     } finally {
       setLocationLoading(false);
     }
@@ -549,9 +583,9 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
   /**
    * Toggle dark mode
    */
-  const toggleDarkMode = useCallback(() => {
-    setIsDarkMode(prev => !prev);
-  }, []);
+  const toggleDarkModeLocal = useCallback(() => {
+    toggleTheme();
+  }, [toggleTheme]);
 
   // ========== STYLES ==========
   const styles = useMemo(() => createStyles(isDarkMode), [isDarkMode]);
@@ -599,7 +633,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
           <Text style={styles.headerTitle}>My Profile</Text>
           
           <View style={styles.headerActions}>
-            <TouchableOpacity onPress={toggleDarkMode} style={styles.iconButton}>
+            <TouchableOpacity onPress={toggleDarkModeLocal} style={styles.iconButton}>
               <Ionicons 
                 name={isDarkMode ? "sunny" : "moon"} 
                 size={22} 
@@ -874,6 +908,48 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                 />
               ))}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Custom Alert Modal - FIXED POSITIONING */}
+      <Modal
+        visible={alertConfig.visible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+      >
+        <View style={styles.alertOverlay}>
+          <View style={styles.alertContainer}>
+            <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+            <Text style={styles.alertMessage}>{alertConfig.message}</Text>
+            <View style={styles.alertButtonContainer}>
+              {alertConfig.buttons.map((button, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.alertButton,
+                    button.style === 'destructive' && styles.alertButtonDestructive,
+                    button.style === 'cancel' && styles.alertButtonCancel,
+                  ]}
+                  onPress={() => {
+                    setAlertConfig({ ...alertConfig, visible: false });
+                    button.onPress?.();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.alertButtonText,
+                      button.style === 'destructive' && styles.alertButtonTextDestructive,
+                      button.style === 'cancel' && styles.alertButtonTextCancel,
+                    ]}
+                  >
+                    {button.text}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
       </Modal>
@@ -1180,6 +1256,66 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     fontSize: FONT_SIZES.base,
     color: isDark ? COLORS.darkText : COLORS.textPrimary,
     fontWeight: '500',
+  },
+  // Custom Alert Modal Styles - CENTERED & PROPERLY POSITIONED
+  alertOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  alertContainer: {
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.xl,
+    minWidth: 280,
+    maxWidth: '90%',
+    ...SHADOWS.large,
+  },
+  alertTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    marginBottom: SPACING.sm,
+    textAlign: 'center',
+  },
+  alertMessage: {
+    fontSize: FONT_SIZES.base,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    marginBottom: SPACING.lg,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  alertButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: SPACING.sm,
+  },
+  alertButton: {
+    flex: 1,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
+    backgroundColor: isDark ? COLORS.darkPrimary : COLORS.primary,
+    alignItems: 'center',
+  },
+  alertButtonCancel: {
+    backgroundColor: isDark ? COLORS.darkBorder : COLORS.border,
+  },
+  alertButtonDestructive: {
+    backgroundColor: COLORS.error,
+  },
+  alertButtonText: {
+    fontSize: FONT_SIZES.base,
+    fontWeight: '600',
+    color: COLORS.white,
+  },
+  alertButtonTextCancel: {
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+  },
+  alertButtonTextDestructive: {
+    color: COLORS.white,
   },
 });
 
