@@ -1,5 +1,5 @@
 // src/components/DoctorCard.tsx
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { DoctorResponseDto } from '../services/api';
 
@@ -86,6 +87,9 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
   panResponder,
   userLocation,
 }) => {
+  const { isDarkMode } = useTheme();
+  const styles = useMemo(() => createStyles(isDarkMode), [isDarkMode]);
+
   if (!visible || !doctor) return null;
 
   const distance = userLocation && doctor.location
@@ -243,13 +247,13 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (isDark: boolean) => StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 60,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.white,
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingBottom: SPACING.lg,
@@ -264,7 +268,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: COLORS.border,
+    backgroundColor: isDark ? COLORS.darkBorder : COLORS.border,
     borderRadius: 2,
   },
   header: {
@@ -288,7 +292,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
     marginBottom: 6,
   },
   specialtyBadge: {
@@ -312,7 +316,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: COLORS.background,
+    backgroundColor: isDark ? COLORS.darkCardSecondary : COLORS.background,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.full,
@@ -321,7 +325,7 @@ const styles = StyleSheet.create({
   distanceText: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: isDark ? COLORS.darkPrimary : COLORS.primary,
   },
   section: {
     paddingHorizontal: SPACING.lg,
@@ -336,17 +340,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FONT_SIZES.base,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
   },
   addressText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textSecondary,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
     lineHeight: 22,
     marginLeft: 28,
   },
   contactText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.primary,
+    color: isDark ? COLORS.darkPrimary : COLORS.primary,
     fontWeight: '600',
     marginLeft: 28,
   },
@@ -365,13 +369,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   primaryButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: isDark ? COLORS.darkPrimary : COLORS.primary,
     ...SHADOWS.small,
   },
   secondaryButton: {
-    backgroundColor: COLORS.background,
+    backgroundColor: isDark ? COLORS.darkCardSecondary : COLORS.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
   },
   primaryButtonText: {
     fontSize: FONT_SIZES.base,
@@ -381,6 +385,6 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: isDark ? COLORS.darkPrimary : COLORS.primary,
   },
 });

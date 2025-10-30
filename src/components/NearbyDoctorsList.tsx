@@ -1,5 +1,5 @@
 // src/components/NearbyDoctorsModal.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { DoctorResponseDto } from '../services/api';
 
@@ -82,7 +83,9 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
   onClose,
   userLocation,
 }) => {
+  const { isDarkMode } = useTheme();
   const [sortBy, setSortBy] = useState<SortOption>('distance');
+  const styles = useMemo(() => createStyles(isDarkMode), [isDarkMode]);
 
   const sortedDoctors = [...doctors].sort((a, b) => {
     switch (sortBy) {
@@ -120,7 +123,7 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
         
         {/* Header */}
         <View style={styles.header}>
@@ -289,7 +292,11 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
                       )}
                     </View>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+                  <Ionicons 
+                    name="chevron-forward" 
+                    size={20} 
+                    color={isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary} 
+                  />
                 </TouchableOpacity>
               );
             })
@@ -300,10 +307,10 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: isDark ? COLORS.darkBg : COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -311,9 +318,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    backgroundColor: COLORS.white,
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: isDark ? COLORS.darkBorder : COLORS.border,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -325,7 +332,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primary,
+    backgroundColor: isDark ? COLORS.darkPrimary : COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...SHADOWS.small,
@@ -333,26 +340,26 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
   },
   subtitle: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
     marginTop: 2,
   },
   closeButton: {
     padding: 4,
   },
   sortContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
     paddingVertical: SPACING.sm,
     paddingLeft: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: isDark ? COLORS.darkBorder : COLORS.border,
   },
   sortLabel: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
     marginBottom: SPACING.xs,
     fontWeight: '600',
   },
@@ -368,17 +375,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.full,
-    backgroundColor: COLORS.background,
+    backgroundColor: isDark ? COLORS.darkCardSecondary : COLORS.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
   },
   sortButtonActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: isDark ? COLORS.darkPrimary : COLORS.primary,
+    borderColor: isDark ? COLORS.darkPrimary : COLORS.primary,
   },
   sortButtonText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
     fontWeight: '600',
   },
   sortButtonTextActive: {
@@ -389,7 +396,7 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   doctorCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
     flexDirection: 'row',
@@ -422,7 +429,7 @@ const styles = StyleSheet.create({
   doctorName: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
     flex: 1,
     marginRight: SPACING.sm,
   },
@@ -430,7 +437,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: COLORS.background,
+    backgroundColor: isDark ? COLORS.darkCardSecondary : COLORS.background,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: RADIUS.sm,
@@ -438,7 +445,7 @@ const styles = StyleSheet.create({
   distanceText: {
     fontSize: FONT_SIZES.xs,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: isDark ? COLORS.darkPrimary : COLORS.primary,
   },
   specialtyRow: {
     marginBottom: 6,
@@ -460,7 +467,7 @@ const styles = StyleSheet.create({
   },
   addressText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textLight,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textLight,
     flex: 1,
     lineHeight: 18,
   },
@@ -474,7 +481,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: COLORS.white,
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.lg,
@@ -483,12 +490,12 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
-    color: COLORS.textSecondary,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
     marginTop: SPACING.md,
   },
   emptySubText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textLight,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textLight,
     marginTop: SPACING.sm,
     textAlign: 'center',
     lineHeight: 22,
