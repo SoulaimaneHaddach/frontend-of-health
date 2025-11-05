@@ -44,8 +44,15 @@ export type Location = {
   address?: string;
 };
 
+export type WorkingHours = {
+  day: string;
+  openTime: string;
+  closeTime: string;
+  isClosed?: boolean;
+};
+
 export type DoctorResponseDto = {
-  [x: string]: string;
+  id: string;
   name: string;
   email: string;
   specialization: string;
@@ -53,6 +60,10 @@ export type DoctorResponseDto = {
   location: Location;
   rating: number;
   reviewsCount: number;
+  address?: string;
+  about?: string | null; // Doctor bio/profile description
+  hours?: WorkingHours[]; // Working hours schedule
+  services?: string[]; // Services offered
   createdAt: string; // ISO string representation of LocalDateTime
   updatedAt: string; // ISO string representation of LocalDateTime
 };

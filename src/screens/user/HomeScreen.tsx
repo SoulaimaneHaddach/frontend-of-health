@@ -294,6 +294,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   }, [selectedDoctor, hideDoctorCard]);
 
+  const goToMyLocation = useCallback(async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({});
+        const newRegion = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        };
+        setUserLocation(newRegion);
+        mapRef.current?.animateToRegion(newRegion, 500);
+      }
+    } catch (error) {
+      console.error('Error getting location:', error);
+    }
+  }, []);
+
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (!userLocation) {
@@ -522,6 +541,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <Text style={styles.zoomHint}>Zoom in to see doctors</Text>
             )}
           </View>
+
+          {/* My Location Button */}
+          <TouchableOpacity
+            style={styles.locationButton}
+            onPress={goToMyLocation}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="navigate" size={24} color={colors.primary} />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -824,6 +852,20 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: FONT_SIZES.xs,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  locationButton: {
+    position: 'absolute',
+    bottom: 150,
+    right: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOWS.medium,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 
   emptyText: {

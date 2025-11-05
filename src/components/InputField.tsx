@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity, TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONT_SIZES, RADIUS, SPACING } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface InputFieldProps extends TextInputProps {
   label?: string;
@@ -21,13 +22,34 @@ export const InputField: React.FC<InputFieldProps> = ({
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const { isDarkMode } = useTheme();
+
+  const dynamicContainerStyles = {
+    backgroundColor: isDarkMode ? COLORS.darkCard : COLORS.white,
+    borderColor: isDarkMode ? COLORS.darkBorder : COLORS.border,
+  } as const;
+
+  const dynamicLabelStyle = {
+    color: isDarkMode ? COLORS.darkText : COLORS.textPrimary,
+  } as const;
+
+  const dynamicInputStyle = {
+    color: isDarkMode ? COLORS.darkText : COLORS.textPrimary,
+  } as const;
+
+  const iconColor = isFocused
+    ? COLORS.primary
+    : (isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary);
+
+  const placeholderColor = isDarkMode ? COLORS.darkTextSecondary : COLORS.textLight;
 
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, dynamicLabelStyle]}>{label}</Text>}
       
       <View style={[
         styles.inputContainer,
+        dynamicContainerStyles,
         isFocused && styles.inputContainerFocused,
         error && styles.inputContainerError,
       ]}>
@@ -35,14 +57,14 @@ export const InputField: React.FC<InputFieldProps> = ({
           <Ionicons
             name={icon}
             size={20}
-            color={isFocused ? COLORS.primary : COLORS.textSecondary}
+            color={iconColor}
             style={styles.icon}
           />
         )}
         
         <TextInput
-          style={[styles.input, style]}
-          placeholderTextColor={COLORS.textLight}
+          style={[styles.input, dynamicInputStyle, style]}
+          placeholderTextColor={placeholderColor}
           secureTextEntry={isPassword && !isPasswordVisible}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -57,13 +79,13 @@ export const InputField: React.FC<InputFieldProps> = ({
             <Ionicons
               name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
               size={20}
-              color={COLORS.textSecondary}
+              color={isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary}
             />
           </TouchableOpacity>
         )}
       </View>
       
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text style={[styles.error, { color: COLORS.error }]}>{error}</Text>}
     </View>
   );
 };
@@ -81,10 +103,8 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
     paddingHorizontal: SPACING.md,
   },
   inputContainerFocused: {
@@ -101,14 +121,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: SPACING.md,
     fontSize: FONT_SIZES.base,
-    color: COLORS.textPrimary,
   },
   eyeIcon: {
     padding: SPACING.sm,
   },
   error: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.error,
     marginTop: SPACING.xs,
     marginLeft: SPACING.xs,
   },

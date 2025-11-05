@@ -1,12 +1,20 @@
 // src/services/api.ts - FIXED WITH TOKEN PERSISTENCE
 import axios, { AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BookingCreateRequest, BookingResponse, BookingStatus } from '../types/booking';
 
 export interface Location {
   latitude: number;
   longitude: number;
   address: string;
   city: string;
+}
+
+export interface WorkingHours {
+  day: string; // e.g., "Monday", "Mon - Fri", etc.
+  openTime: string; // e.g., "09:00"
+  closeTime: string; // e.g., "17:00"
+  isClosed?: boolean; // true if closed on this day
 }
 
 export interface DoctorRequestDto {
@@ -16,10 +24,15 @@ export interface DoctorRequestDto {
   specialization: string;
   phoneNumber: string;
   location: Location;
+  rating?: number;
+  reviewsCount?: number;
+  about?: string; // Doctor bio/profile description
+  hours?: WorkingHours[]; // Working hours schedule
+  services?: string[]; // Services offered (e.g., ["General Consultation", "Health Checkups"])
 }
 
 export interface DoctorResponseDto {
-  address: string;
+  address?: string;
   id: string;
   email: string;
   name: string;
@@ -28,6 +41,9 @@ export interface DoctorResponseDto {
   location: Location;
   rating: number;
   reviewsCount: number;
+  about?: string;
+  hours?: WorkingHours[]; // Working hours schedule
+  services?: string[]; // Services offered
   createdAt: string;
   updatedAt: string;
 }
@@ -60,11 +76,19 @@ const API_BASE_URL = 'https://vsrwljl6-8080.uks1.devtunnels.ms/api';
 
 class ApiService {
   private api: AxiosInstance;
+  private publicApi: AxiosInstance;
   private authToken: string | null = null;
   private isInitialized = false;
 
   constructor() {
     this.api = axios.create({
+      baseURL: API_BASE_URL,
+      timeout: 30000,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    // Public axios instance: never attaches Authorization
+    this.publicApi = axios.create({
       baseURL: API_BASE_URL,
       timeout: 30000,
       headers: { 'Content-Type': 'application/json' },
@@ -137,25 +161,57 @@ class ApiService {
     return response.data;
   }
 
+  // ⭐ NEW: Forgot/Reset Password flows (backend endpoints may vary)
+  async forgotPassword(email: string): Promise<{ message?: string }> {
+    const response = await this.api.post<{ message?: string }>(
+      '/auth/forgot-password',
+      { email }
+    );
+    return response.data;
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message?: string }> {
+    const response = await this.api.post<{ message?: string }>(
+      '/auth/reset-password',
+      { token, newPassword }
+    );
+    return response.data;
+  }
+
   async logout(): Promise<void> {
     await this.clearAuthToken();
   }
 
   async getMyProfile(): Promise<DoctorResponseDto> {
+    await this.initialize(); // 
     const response = await this.api.get<DoctorResponseDto>('/doctors/me');
     return response.data;
   }
 
   async updateMyProfile(doctorData: DoctorRequestDto): Promise<DoctorResponseDto> {
+    await this.initialize(); //
     const response = await this.api.put<DoctorResponseDto>('/doctors/me', doctorData);
     return response.data;
   }
 
-  async getDoctors(latitude: any, longitude: any, specialization?: string): Promise<DoctorResponseDto[]> {
+  async updateDoctorById(id: string, doctorData: DoctorRequestDto): Promise<DoctorResponseDto> {
+    await this.initialize(); // 
+    const response = await this.api.put<DoctorResponseDto>(`/doctors/${id}`, doctorData);
+    return response.data;
+  }
+
+
+  async getDoctors(
+    latitude?: number,
+    longitude?: number,
+    specialization?: string,
+    radiusKm?: number
+  ): Promise<DoctorResponseDto[]> {
     const params: Record<string, any> = {};
-    if (specialization) params.specialty = specialization;
-    params.latitude = latitude;
-    params.longitude = longitude;
+    if (specialization) params.specialization = specialization; 
+    if (typeof latitude === 'number') params.latitude = latitude;
+    if (typeof longitude === 'number') params.longitude = longitude;
+    if (typeof radiusKm === 'number') params.radiusKm = radiusKm;
 
     const response = await this.api.get<DoctorResponseDto[]>('/doctors', { params });
     return response.data;
@@ -165,6 +221,78 @@ class ApiService {
     const response = await this.api.get<DoctorResponseDto[]>('/doctors/search', {
       params: { q: query },
     });
+    return response.data;
+  }
+
+  // ⭐ BOOKINGS ENDPOINTS
+  
+  /**
+   * Get all bookings for a specific doctor (requires doctorId in query)
+   */
+  async getBookingsByDoctorId(doctorId: string): Promise<BookingResponse[]> {
+    await this.initialize(); // ⭐ Ensure token is loaded (not required but harmless)
+    // Per backend contract: GET /api/doctors/{doctorId}/bookings (no trailing slash)
+    const response = await this.api.get<BookingResponse[]>(`/doctors/${doctorId}/bookings`);
+    return response.data;
+  }
+
+  /**
+   * Create a new booking (patient-side, no auth required)
+   * Note: backend uses lowercase 'doctorid' in query param
+   */
+  async createBooking(
+    doctorId: string,
+    bookingData: BookingCreateRequest
+  ): Promise<BookingResponse> {
+    // Per backend contract: POST /api/doctors/{doctorId}/bookings (no trailing slash)
+    // Try anonymous first (desired product behavior), then fall back to authenticated if 401/403
+    try {
+      const res = await this.publicApi.post<BookingResponse>(
+        `/doctors/${doctorId}/bookings`,
+        bookingData,
+        { headers: { Accept: 'application/json' } }
+      );
+      return res.data;
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status !== 401 && status !== 403) throw err;
+      // Retry with auth if available
+      await this.initialize();
+      const res2 = await this.api.post<BookingResponse>(
+        `/doctors/${doctorId}/bookings`,
+        bookingData,
+        { headers: { Accept: 'application/json' } }
+      );
+      return res2.data;
+    }
+  }
+
+  // Helper: check if current token belongs to a doctor role
+  async isDoctor(): Promise<boolean> {
+    await this.initialize();
+    if (!this.authToken) return false;
+    try {
+      await this.api.get('/doctors/me');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Update booking status (doctor-side)
+   */
+  async updateBookingStatus(
+    bookingId: string,
+    status: BookingStatus
+  ): Promise<BookingResponse> {
+    await this.initialize(); // ⭐ Ensure token is loaded
+    // Per backend contract: PUT /api/bookings/{bookingId}/status?status=ACCEPTED
+    const response = await this.api.put<BookingResponse>(
+      `/bookings/${bookingId}/status`,
+      null,
+      { params: { status } }
+    );
     return response.data;
   }
 }

@@ -23,6 +23,7 @@ import {
   RADIUS,
 } from "../../constants/theme";
 import { DoctorResponseDto } from "../../types";
+import { BookingModal } from "../../components/BookingModal";
 
 type DoctorDetailsScreenProps = {
   navigation: NativeStackNavigationProp<any>;
@@ -41,6 +42,7 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
   const { isDarkMode, colors } = useTheme();
   const [scrollY] = useState(new Animated.Value(0));
   const [isScrolled, setIsScrolled] = useState(false);
+  const [bookingModalVisible, setBookingModalVisible] = useState(false);
 
   const handleCall = useCallback(() => {
     if (doctor.phoneNumber) {
@@ -213,13 +215,14 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
         </View>
 
         {/* About */}
-        <View style={styles.contentSection}>
-          <Text style={[styles.miniTitle, { color: colors.textSecondary }]}>ABOUT</Text>
-          <Text style={[styles.bodyText, { color: colors.text }]}>
-            Highly qualified {doctor.specialization} dedicated to providing exceptional 
-            medical care with the latest techniques and personalized treatment plans.
-          </Text>
-        </View>
+        {doctor.about && (
+          <View style={styles.contentSection}>
+            <Text style={[styles.miniTitle, { color: colors.textSecondary }]}>ABOUT</Text>
+            <Text style={[styles.bodyText, { color: colors.text }]}>
+              {doctor.about}
+            </Text>
+          </View>
+        )}
 
         {/* Contact Info */}
         <View style={styles.contentSection}>
@@ -282,33 +285,62 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
         </View>
 
         {/* Working Hours */}
-        <View style={styles.contentSection}>
-          <Text style={[styles.miniTitle, { color: colors.textSecondary }]}>HOURS</Text>
-          <View style={[styles.hoursGrid, { backgroundColor: colors.card }]}>
-            <HourItem day="Mon - Fri" time="09:00 - 17:00" colors={colors} />
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            <HourItem day="Saturday" time="09:00 - 13:00" colors={colors} />
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            <HourItem day="Sunday" time="Closed" colors={colors} isClosed />
+        {doctor.hours && Array.isArray(doctor.hours) && doctor.hours.length > 0 && (
+          <View style={styles.contentSection}>
+            <Text style={[styles.miniTitle, { color: colors.textSecondary }]}>HOURS</Text>
+            <View style={[styles.hoursGrid, { backgroundColor: colors.card }]}>
+              {doctor.hours.map((hour, index) => (
+                <React.Fragment key={index}>
+                  {index > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
+                  <HourItem 
+                    day={hour.day} 
+                    time={hour.isClosed ? "Closed" : `${hour.openTime} - ${hour.closeTime}`}
+                    colors={colors} 
+                    isClosed={hour.isClosed}
+                  />
+                </React.Fragment>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Services */}
-        <View style={styles.contentSection}>
-          <Text style={[styles.miniTitle, { color: colors.textSecondary }]}>SERVICES</Text>
-          <View style={[styles.servicesList, { backgroundColor: colors.card }]}>
-            <ServiceTag text="General Consultation" colors={colors} />
-            <ServiceTag text="Health Checkups" colors={colors} />
-            <ServiceTag text="Prescriptions" colors={colors} />
-            <ServiceTag text="Follow-up Care" colors={colors} />
+        {doctor.services && Array.isArray(doctor.services) && doctor.services.length > 0 && (
+          <View style={styles.contentSection}>
+            <Text style={[styles.miniTitle, { color: colors.textSecondary }]}>SERVICES</Text>
+            <View style={[styles.servicesList, { backgroundColor: colors.card }]}>
+              {doctor.services.map((service, index) => (
+                <ServiceTag key={index} text={service} colors={colors} />
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Bottom Spacing */}
         <View style={{ height: 100 }} />
       </Animated.ScrollView>
 
-      {/* Enhanced FAB */}
+      {/* Booking Modal */}
+      <BookingModal
+        visible={bookingModalVisible}
+        doctor={doctor}
+        onClose={() => setBookingModalVisible(false)}
+      />
+
+      {/* Book Appointment FAB */}
+      <TouchableOpacity 
+        style={[styles.bookFab, { 
+          backgroundColor: COLORS.success || '#10B981',
+          shadowColor: COLORS.success || '#10B981',
+        }]} 
+        onPress={() => setBookingModalVisible(true)}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="calendar" size={24} color={COLORS.white} />
+        <Text style={styles.bookFabText}>Book</Text>
+      </TouchableOpacity>
+
+      {/* Call FAB (secondary action, smaller) */}
       {doctor.phoneNumber && (
         <TouchableOpacity 
           style={[styles.fab, { 
@@ -543,10 +575,30 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.xs,
     fontWeight: "500",
   },
-  fab: {
+  bookFab: {
     position: "absolute",
     bottom: SPACING.xl,
     right: SPACING.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 28,
+    elevation: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  bookFabText: {
+    fontSize: FONT_SIZES.base,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+  fab: {
+    position: "absolute",
+    bottom: SPACING.xl,
+    right: SPACING.xl + 120, // Offset left of Book button
     width: 56,
     height: 56,
     borderRadius: 28,
