@@ -12,21 +12,26 @@ import {
   Animated,
   Keyboard,
   Platform,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Region } from 'react-native-maps';
+import ModernTabBar, { TabKey } from './components/ModernTabBar';
+import SectionCard from './components/SectionCard';
+import InfoSection from './components/InfoSection';
+import AboutSection from './components/AboutSection';
+import ServicesSection from './components/ServicesSection';
+import HoursSection from './components/HoursSection';
+import LocationSection from './components/LocationSection';
 import * as Location from 'expo-location';
-import { CustomButton } from '../../components/CustomButton';
-import { InputField } from '../../components/InputField';
+import { CustomButton } from '../../shared/components/CustomButton';
+import { InputField } from '../../shared/components/InputField';
 import { useTheme } from '../../context/ThemeContext';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
-import ApiService, { DoctorRequestDto } from '../../services/api';
-
-// ==========================================
-// TYPES & INTERFACES
-// ==========================================
+import { useAnalytics } from '../../shared/hooks/useAnalytics';
+import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
+import ApiService, { DoctorRequestDto, WorkingHours } from '../../services/api';
 
 type DoctorProfileScreenProps = { 
   navigation: NativeStackNavigationProp<any> 
@@ -46,6 +51,9 @@ interface ProfileData {
   email: string;
   phoneNumber: string;
   location: LocationData;
+  about?: string; 
+  hours?: WorkingHours[]; 
+  services?: string[];
 }
 
 interface Specialty {
@@ -62,11 +70,10 @@ interface ValidationErrors {
   specialization?: string;
   address?: string;
   city?: string;
+  about?: string;
+  hours?: string;
+  services?: string;
 }
-
-// ==========================================
-// CONSTANTS
-// ==========================================
 
 const SPECIALTIES: Specialty[] = [
   { label: 'Hearing', value: 'hearing', icon: 'ear', color: '#9B59B6' },
@@ -99,13 +106,6 @@ const DEFAULT_LOCATION: LocationData = {
   city: 'Tétouan',
 };
 
-// ==========================================
-// UTILITY FUNCTIONS
-// ==========================================
-
-/**
- * Custom alert helper that will use our custom modal
- */
 const showCustomAlert = (
   setAlertConfig: React.Dispatch<React.SetStateAction<any>>,
   title: string,
@@ -120,25 +120,16 @@ const showCustomAlert = (
   });
 };
 
-/**
- * Validates email format using regex
- */
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
 
-/**
- * Validates phone number format (international format)
- */
 const isValidPhoneNumber = (phone: string): boolean => {
   const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
   return phoneRegex.test(phone.replace(/\s/g, ''));
 };
 
-/**
- * Validates all profile form fields
- */
 const validateProfileData = (data: ProfileData): ValidationErrors => {
   const errors: ValidationErrors = {};
 
@@ -175,13 +166,6 @@ const validateProfileData = (data: ProfileData): ValidationErrors => {
   return errors;
 };
 
-// ==========================================
-// REUSABLE COMPONENTS
-// ==========================================
-
-/**
- * Info card component for displaying profile information
- */
 const InfoCard: React.FC<{ 
   icon: keyof typeof Ionicons.glyphMap; 
   label: string; 
@@ -281,12 +265,16 @@ const LoadingOverlay: React.FC<{ visible: boolean; message?: string; isDark: boo
 export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ navigation }) => {
   // ========== STATE MANAGEMENT ==========
   const { isDarkMode, toggleTheme } = useTheme();
+  const analytics = useAnalytics();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [specialtyModalVisible, setSpecialtyModalVisible] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  const [newService, setNewService] = useState(''); // For adding new services
+  const [hoursModalVisible, setHoursModalVisible] = useState(false); // Modal for editing hours
+  const [activeTab, setActiveTab] = useState<TabKey>('Info');
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
     title: string;
@@ -306,6 +294,9 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     email: '',
     phoneNumber: '',
     location: DEFAULT_LOCATION,
+    about: '',
+    hours: [],
+    services: [],
   });
 
   // ========== ANIMATIONS ==========
@@ -320,6 +311,8 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
    */
   useEffect(() => {
     loadProfile();
+    // Track profile view
+    analytics.trackProfileViewed();
   }, []);
 
   /**
@@ -348,11 +341,6 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }
   }, [initialLoading]);
 
-  // ========== MEMOIZED VALUES ==========
-  
-  /**
-   * Get selected specialty object based on current specialization
-   */
   const selectedSpecialtyObj = useMemo(() => 
     SPECIALTIES.find(
       s => s.label.toLowerCase() === profileData.specialization.toLowerCase() ||
@@ -388,8 +376,11 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
           address: data.address || '', 
         }
       });
+      
+      setInitialLoading(false); // ← FIX: Stop loading after success!
     } catch (err: any) {
       console.error('❌ Fetch profile error:', err.response || err);
+      setInitialLoading(false);
       
       if (err.response?.status === 401) {
         showCustomAlert(setAlertConfig, 'Session Expired', 'Please log in again.', [
@@ -407,23 +398,16 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
           { text: 'Cancel', style: 'cancel' }
         ]);
       }
-    } finally {
-      setInitialLoading(false);
     }
   }, [navigation]);
 
-  /**
-   * Handle profile save with validation
-   */
   const handleSave = useCallback(async () => {
-    // Dismiss keyboard
+
     Keyboard.dismiss();
 
-    // Validate all fields
+
     const errors = validateProfileData(profileData);
     setValidationErrors(errors);
-
-    // If there are validation errors, show alert and stop
     if (Object.keys(errors).length > 0) {
       const firstError = Object.values(errors)[0];
       showCustomAlert(setAlertConfig, 'Validation Error', firstError);
@@ -444,6 +428,9 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
           address: profileData.location.address.trim() || 'Not specified',
           city: profileData.location.city.trim() || 'Unknown',
         },
+        about: profileData.about?.trim() || '',
+        hours: profileData.hours || [],
+        services: profileData.services || [],
       };
 
       console.log('💾 Saving profile:', payload);
@@ -475,9 +462,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }
   }, [profileData, navigation]);
 
-  /**
-   * Handle logout with confirmation
-   */
+
   const handleLogout = useCallback(() => {
     showCustomAlert(setAlertConfig, 'Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
@@ -487,9 +472,9 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         onPress: async () => {
           try {
             setLoading(true);
-            // Ensure tokens/storage are cleared before navigating
+            
             await ApiService.logout();
-            // Small delay to ensure storage flush on some devices
+          
             setTimeout(() => {
               setLoading(false);
               navigation.replace('Welcome');
@@ -503,10 +488,6 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
       },
     ]);
   }, [navigation]);
-
-  /**
-   * Pick current location using GPS
-   */
   const handlePickLocation = useCallback(async () => {
     try {
       setLocationLoading(true);
@@ -546,9 +527,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }
   }, []);
 
-  /**
-   * Handle map press to update location
-   */
+
   const handleMapPress = useCallback((e: any) => {
     setProfileData(prev => ({
       ...prev,
@@ -560,37 +539,71 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }));
   }, []);
 
-  /**
-   * Toggle edit mode
-   */
   const toggleEditMode = useCallback(() => {
     if (isEditing) {
-      // Cancel editing - reset validation errors
+ 
       setValidationErrors({});
     }
     setIsEditing(prev => !prev);
   }, [isEditing]);
 
-  /**
-   * Handle specialty selection
-   */
+
   const handleSpecialtySelect = useCallback((specialty: Specialty) => {
     setProfileData(prev => ({ ...prev, specialization: specialty.label }));
     setSpecialtyModalVisible(false);
     setValidationErrors(prev => ({ ...prev, specialization: undefined }));
   }, []);
 
-  /**
-   * Toggle dark mode
-   */
   const toggleDarkModeLocal = useCallback(() => {
     toggleTheme();
   }, [toggleTheme]);
 
-  // ========== STYLES ==========
-  const styles = useMemo(() => createStyles(isDarkMode), [isDarkMode]);
+  const handleAddService = useCallback(() => {
+    if (newService.trim()) {
+      setProfileData(prev => ({
+        ...prev,
+        services: [...(prev.services || []), newService.trim()]
+      }));
+      setNewService('');
+    }
+  }, [newService]);
 
-  // ========== RENDER ==========
+  const handleRemoveService = useCallback((index: number) => {
+    setProfileData(prev => ({
+      ...prev,
+      services: prev.services?.filter((_, i) => i !== index) || []
+    }));
+  }, []);
+  const handleAddDefaultHours = useCallback(() => {
+    const defaultHours: WorkingHours[] = [
+      { day: 'Mon - Fri', openTime: '09:00', closeTime: '17:00', isClosed: false },
+      { day: 'Saturday', openTime: '09:00', closeTime: '13:00', isClosed: false },
+      { day: 'Sunday', openTime: '', closeTime: '', isClosed: true }
+    ];
+    setProfileData(prev => ({
+      ...prev,
+      hours: defaultHours
+    }));
+  }, []);
+
+
+  const handleUpdateHours = useCallback((index: number, field: keyof WorkingHours, value: string | boolean) => {
+    setProfileData(prev => ({
+      ...prev,
+      hours: prev.hours?.map((hour, i) => 
+        i === index ? { ...hour, [field]: value } : hour
+      ) || []
+    }));
+  }, []);
+
+  const handleRemoveHours = useCallback((index: number) => {
+    setProfileData(prev => ({
+      ...prev,
+      hours: prev.hours?.filter((_, i) => i !== index) || []
+    }));
+  }, []);
+
+  const styles = useMemo(() => createStyles(isDarkMode), [isDarkMode]);
 
   // Loading state
   if (initialLoading) {
@@ -674,157 +687,163 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                 <Text style={styles.specialtyBadgeText}>{selectedSpecialtyObj.label}</Text>
               </View>
             )}
+            
+            {/* Quick Actions */}
+            <View style={styles.quickActionsRow}>
+              <TouchableOpacity
+                style={styles.quickActionButton}
+                onPress={() => navigation.navigate('DoctorBookings')}
+              >
+                <Ionicons name="calendar" size={20} color={COLORS.primary} />
+                <Text style={styles.quickActionText}>My Bookings</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.quickActionButton}
+                onPress={handleLogout}
+              >
+                <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
+                <Text style={[styles.quickActionText, { color: COLORS.error }]}>Logout</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Profile Content */}
           {isEditing ? (
-            // ========== EDIT MODE ==========
             <View style={styles.formContainer}>
-              <Text style={styles.sectionTitle}>Personal Information</Text>
-              
-              <InputField 
-                label="Full Name" 
-                placeholder="Dr. John Doe"
-                value={profileData.name} 
-                onChangeText={(v) => {
-                  setProfileData({ ...profileData, name: v });
-                  setValidationErrors(prev => ({ ...prev, name: undefined }));
-                }}
-                icon="person"
-                error={validationErrors.name}
+              {/* Modern Tab Switcher */}
+              <ModernTabBar
+                isDark={isDarkMode}
+                activeKey={activeTab}
+                onChange={setActiveTab}
+                tabs={[
+                  { key: 'Info', icon: 'person-outline', label: 'Info' },
+                  { key: 'About', icon: 'document-text-outline', label: 'About' },
+                  { key: 'Services', icon: 'medical-outline', label: 'Services', badge: profileData.services?.length || 0 },
+                  { key: 'Hours', icon: 'time-outline', label: 'Hours', badge: profileData.hours?.length || 0 },
+                  { key: 'Location', icon: 'location-outline', label: 'Location' },
+                ]}
               />
 
-              {/* Specialty Picker */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Specialty *</Text>
-                <TouchableOpacity 
-                  style={[
-                    styles.pickerButton,
-                    validationErrors.specialization && styles.inputError
-                  ]}
-                  onPress={() => setSpecialtyModalVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.pickerContent}>
-                    {selectedSpecialtyObj ? (
-                      <>
-                        <View style={[styles.iconCircle, { backgroundColor: selectedSpecialtyObj.color }]}>
-                          <Ionicons name={selectedSpecialtyObj.icon} size={20} color={COLORS.white} />
-                        </View>
-                        <Text style={styles.pickerText}>{selectedSpecialtyObj.label}</Text>
-                      </>
-                    ) : (
-                      <Text style={styles.placeholderText}>Select your specialty</Text>
-                    )}
-                  </View>
-                  <Ionicons 
-                    name="chevron-down" 
-                    size={20} 
-                    color={isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary} 
+              {/* Info Tab */}
+              {activeTab === 'Info' && (
+                <Animated.View style={{ opacity: fadeAnim }}>
+                  <InfoSection
+                    isDark={isDarkMode}
+                    name={profileData.name}
+                    email={profileData.email}
+                    phoneNumber={profileData.phoneNumber}
+                    selectedSpecialty={selectedSpecialtyObj}
+                    errors={{
+                      name: validationErrors.name,
+                      email: validationErrors.email,
+                      phoneNumber: validationErrors.phoneNumber,
+                      specialization: validationErrors.specialization,
+                    }}
+                    onChangeName={(v) => {
+                      setProfileData({ ...profileData, name: v });
+                      setValidationErrors(prev => ({ ...prev, name: undefined }));
+                    }}
+                    onChangeEmail={(v) => {
+                      setProfileData({ ...profileData, email: v });
+                      setValidationErrors(prev => ({ ...prev, email: undefined }));
+                    }}
+                    onChangePhone={(v) => {
+                      setProfileData({ ...profileData, phoneNumber: v });
+                      setValidationErrors(prev => ({ ...prev, phoneNumber: undefined }));
+                    }}
+                    onOpenSpecialtyModal={() => setSpecialtyModalVisible(true)}
+                    styles={styles}
                   />
-                </TouchableOpacity>
-                {validationErrors.specialization && (
-                  <Text style={styles.errorText}>{validationErrors.specialization}</Text>
-                )}
-              </View>
-              
-              <InputField 
-                label="Email" 
-                placeholder="doctor@example.com"
-                value={profileData.email} 
-                onChangeText={(v) => {
-                  setProfileData({ ...profileData, email: v });
-                  setValidationErrors(prev => ({ ...prev, email: undefined }));
-                }}
-                keyboardType="email-address" 
-                autoCapitalize="none"
-                icon="mail"
-                error={validationErrors.email}
-              />
-              
-              <InputField 
-                label="Phone" 
-                placeholder="+212 123 456 789"
-                value={profileData.phoneNumber} 
-                onChangeText={(v) => {
-                  setProfileData({ ...profileData, phoneNumber: v });
-                  setValidationErrors(prev => ({ ...prev, phoneNumber: undefined }));
-                }}
-                keyboardType="phone-pad" 
-                icon="call"
-                error={validationErrors.phoneNumber}
-              />
+                </Animated.View>
+              )}             
+              {/* About Tab */}
+              {activeTab === 'About' && (
+                <Animated.View style={{ opacity: fadeAnim }}>
+                  <AboutSection
+                    isDark={isDarkMode}
+                    about={profileData.about || ''}
+                    onChangeAbout={(v) => {
+                      setProfileData({ ...profileData, about: v });
+                      setValidationErrors(prev => ({ ...prev, about: undefined }));
+                    }}
+                    error={validationErrors.about}
+                    styles={styles}
+                  />
+                </Animated.View>
+              )}
+              {/* Services Tab */}
+              {activeTab === 'Services' && (
+                <Animated.View style={{ opacity: fadeAnim }}>
+                  <ServicesSection
+                    isDark={isDarkMode}
+                    services={profileData.services || []}
+                    newService={newService}
+                    onChangeNewService={setNewService}
+                    onAddService={handleAddService}
+                    onRemoveService={handleRemoveService}
+                    styles={styles}
+                  />
+                </Animated.View>
+              )}
+              {/* Hours Tab */}
+              {activeTab === 'Hours' && (
+                <Animated.View style={{ opacity: fadeAnim }}>
+                  <HoursSection
+                    isDark={isDarkMode}
+                    hours={profileData.hours || []}
+                    onUpdate={handleUpdateHours}
+                    onRemove={handleRemoveHours}
+                    onAddDefault={handleAddDefaultHours}
+                    onAddNew={() => {
+                      setProfileData(prev => ({
+                        ...prev,
+                        hours: [...(prev.hours || []), { day: '', openTime: '', closeTime: '', isClosed: false }],
+                      }));
+                    }}
+                    styles={styles}
+                  />
+                </Animated.View>
+              )}
 
-              <Text style={styles.sectionTitle}>Clinic Location</Text>
-              
-              <InputField 
-                label="Address" 
-                placeholder="Street, Building"
-                value={profileData.location.address} 
-                onChangeText={(v) => {
-                  setProfileData({ ...profileData, location: { ...profileData.location, address: v } });
-                  setValidationErrors(prev => ({ ...prev, address: undefined }));
-                }}
-                icon="location"
-                error={validationErrors.address}
-              />
-              
-              <InputField 
-                label="City" 
-                placeholder="City name"
-                value={profileData.location.city} 
-                onChangeText={(v) => {
-                  setProfileData({ ...profileData, location: { ...profileData.location, city: v } });
-                  setValidationErrors(prev => ({ ...prev, city: undefined }));
-                }}
-                icon="business"
-                error={validationErrors.city}
-              />
+              {/* Location Tab */}
+              {activeTab === 'Location' && (
+                <Animated.View style={{ opacity: fadeAnim }}>
+                  <LocationSection
+                    isDark={isDarkMode}
+                    location={profileData.location}
+                    mapRegion={mapRegion}
+                    onChangeAddress={(v) => {
+                      setProfileData({ ...profileData, location: { ...profileData.location, address: v } });
+                      setValidationErrors(prev => ({ ...prev, address: undefined }));
+                    }}
+                    onChangeCity={(v) => {
+                      setProfileData({ ...profileData, location: { ...profileData.location, city: v } });
+                      setValidationErrors(prev => ({ ...prev, city: undefined }));
+                    }}
+                    onMapPress={handleMapPress}
+                    onUseCurrentLocation={handlePickLocation}
+                    locationLoading={locationLoading}
+                    errors={{ address: validationErrors.address, city: validationErrors.city }}
+                    styles={styles}
+                  />
+                </Animated.View>
+              )}
 
-              <Text style={styles.mapLabel}>📍 Pin Your Clinic Location</Text>
-              <Text style={styles.mapHint}>Tap on the map to set your clinic location</Text>
-              
-              <MapView
-                style={styles.map}
-                region={mapRegion}
-                onPress={handleMapPress}
-                showsUserLocation
-                showsMyLocationButton
-              >
-                <Marker 
-                  coordinate={{
-                    latitude: profileData.location.latitude,
-                    longitude: profileData.location.longitude,
-                  }}
-                  title="Your Clinic"
-                  description={profileData.location.address || 'Clinic Location'}
-                  pinColor={COLORS.primary}
+              {/* Sticky Save Button */}
+              <View style={styles.saveButtonContainer}>
+                <CustomButton 
+                  title="Save Changes" 
+                  onPress={handleSave} 
+                  variant="primary" 
+                  size="large" 
+                  fullWidth 
+                  loading={loading}
+                  disabled={loading}
                 />
-              </MapView>
-
-              <CustomButton 
-                title={locationLoading ? " Getting Location..." : "Use My Current Location"}
-                onPress={handlePickLocation} 
-                variant="secondary" 
-                size="large" 
-                fullWidth 
-                style={{ marginBottom: SPACING.md }} 
-                loading={locationLoading}
-                disabled={locationLoading}
-              />
-
-              <CustomButton 
-                title="Save Changes" 
-                onPress={handleSave} 
-                variant="primary" 
-                size="large" 
-                fullWidth 
-                loading={loading}
-                disabled={loading}
-              />
+              </View>
             </View>
           ) : (
-            // ========== VIEW MODE ==========
             <View style={styles.infoContainer}>
               <Text style={styles.sectionTitle}>Personal Information</Text>
               <InfoCard icon="person" label="Name" value={profileData.name} isDark={isDarkMode} />
@@ -832,6 +851,52 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
               <InfoCard icon="mail" label="Email" value={profileData.email} isDark={isDarkMode} />
               <InfoCard icon="call" label="Phone" value={profileData.phoneNumber} isDark={isDarkMode} />
               
+              {/* About Section */}
+              {profileData.about && (
+                <>
+                  <Text style={styles.sectionTitle}>About</Text>
+                  <View style={styles.infoCard}>
+                    <Text style={[styles.infoValue, { lineHeight: 22 }]}>
+                      {profileData.about}
+                    </Text>
+                  </View>
+                </>
+              )}
+              {/* Services Section */}
+              {profileData.services && profileData.services.length > 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>Services Offered</Text>
+                  <View style={styles.servicesContainer}>
+                    {profileData.services.map((service, index) => (
+                      <View key={index} style={styles.serviceTag}>
+                        <Text style={styles.serviceTagText}>{service}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
+              {/* Working Hours Section */}
+              {profileData.hours && profileData.hours.length > 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>Working Hours</Text>
+                  <View style={[styles.infoCard, { padding: 0 }]}>
+                    {profileData.hours.map((hour, index) => (
+                      <View 
+                        key={index} 
+                        style={[
+                          styles.hourDisplayItem,
+                          index !== profileData.hours!.length - 1 && styles.hourDisplayBorder
+                        ]}
+                      >
+                        <Text style={styles.hourDisplayDay}>{hour.day}</Text>
+                        <Text style={styles.hourDisplayTime}>
+                          {hour.isClosed ? 'Closed' : `${hour.openTime} - ${hour.closeTime}`}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
               <Text style={styles.sectionTitle}>Clinic Location</Text>
               <InfoCard icon="location" label="Address" value={profileData.location.address} isDark={isDarkMode} />
               <InfoCard icon="business" label="City" value={profileData.location.city} isDark={isDarkMode} />
@@ -1044,18 +1109,142 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
   },
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginTop: SPACING.lg,
+  },
+  quickActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.md,
+    backgroundColor: isDark ? COLORS.darkCardSecondary : COLORS.background,
+    borderWidth: 1,
+    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+  },
+  quickActionText: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
   sectionTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
     color: isDark ? COLORS.darkText : COLORS.textPrimary,
-    marginBottom: SPACING.md,
-    marginTop: SPACING.md,
   },
   formContainer: {
     paddingHorizontal: SPACING.lg,
   },
   infoContainer: {
     paddingHorizontal: SPACING.lg,
+  },
+  // Modern Tab Switcher
+  tabScrollContainer: {
+    marginBottom: SPACING.lg,
+  },
+  tabScrollContent: {
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  modernTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.full,
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    borderWidth: 1,
+    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+    ...SHADOWS.small,
+  },
+  modernTabActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+    ...SHADOWS.medium,
+  },
+  modernTabText: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '700',
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+  },
+  modernTabTextActive: {
+    color: COLORS.white,
+  },
+  badge: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 2,
+    borderRadius: RADIUS.full,
+    minWidth: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  // Modern Card Layout
+  modernCard: {
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
+    ...SHADOWS.medium,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
+  cardTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+  },
+  cardHint: {
+    fontSize: FONT_SIZES.sm,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    marginBottom: SPACING.md,
+    lineHeight: 20,
+  },
+  // Sticky Save Button
+  saveButtonContainer: {
+    marginTop: SPACING.xl,
+    paddingTop: SPACING.lg,
+    borderTopWidth: 1,
+    borderTopColor: isDark ? COLORS.darkBorder : COLORS.border,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.background,
+    padding: SPACING.xs,
+    borderRadius: RADIUS.full,
+    marginBottom: SPACING.lg,
+    gap: SPACING.xs,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+  },
+  tabItemActive: {
+    backgroundColor: COLORS.primary,
+  },
+  tabText: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '700',
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+  },
+  tabTextActive: {
+    color: COLORS.white,
   },
   infoCard: {
     flexDirection: 'row',
@@ -1187,6 +1376,282 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     marginTop: SPACING.xs,
     marginLeft: SPACING.xs,
   },
+  // Enhanced section card styles
+  sectionCard: {
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
+    marginHorizontal: SPACING.lg,
+    ...SHADOWS.medium,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
+    gap: SPACING.sm,
+  },
+  sectionHint: {
+    fontSize: FONT_SIZES.sm,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    marginBottom: SPACING.md,
+    lineHeight: 20,
+  },
+  // About section styles
+  textAreaWrapper: {
+    borderWidth: 1,
+    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderRadius: RADIUS.md,
+    backgroundColor: isDark ? COLORS.darkBg : COLORS.background,
+    padding: SPACING.sm,
+  },
+  characterCount: {
+    fontSize: FONT_SIZES.xs,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    textAlign: 'right',
+    marginTop: SPACING.xs,
+  },
+  // Services section styles
+  addServiceRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  serviceInputWrapper: {
+    flex: 1,
+  },
+  addServiceButton: {
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOWS.small,
+  },
+  addServiceButtonDisabled: {
+    backgroundColor: isDark ? COLORS.darkBorder : COLORS.border,
+    opacity: 0.5,
+  },
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  serviceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    gap: SPACING.xs,
+    ...SHADOWS.small,
+  },
+  serviceChipText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+  },
+  // Working hours styles
+  hourCard: {
+    backgroundColor: isDark ? COLORS.darkBg : COLORS.background,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+  },
+  hourCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  dayInputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteHourButton: {
+    padding: SPACING.xs,
+    borderRadius: RADIUS.sm,
+  },
+  closedToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  closedToggleLabel: {
+    fontSize: FONT_SIZES.sm,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    fontWeight: '500',
+  },
+  timeInputsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  timeInputGroup: {
+    flex: 1,
+  },
+  timeLabel: {
+    fontSize: FONT_SIZES.xs,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    marginBottom: SPACING.xs,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  timeInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+  },
+  timeArrow: {
+    paddingHorizontal: SPACING.xs,
+    paddingTop: 20,
+  },
+  addHourButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderStyle: 'dashed',
+    marginTop: SPACING.sm,
+  },
+  addHourButtonText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  // Empty state styles
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.xl,
+  },
+  emptyStateText: {
+    fontSize: FONT_SIZES.base,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    fontWeight: '600',
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+  },
+  emptyStateHint: {
+    fontSize: FONT_SIZES.sm,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    marginTop: SPACING.xs,
+  },
+  textAreaContainer: {
+    borderWidth: 1,
+    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderRadius: RADIUS.md,
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    padding: SPACING.sm,
+  },
+  serviceInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  addButton: {
+    padding: SPACING.xs,
+  },
+  servicesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  serviceTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: isDark ? COLORS.darkPrimary : COLORS.primary,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    gap: SPACING.xs,
+  },
+  serviceTagText: {
+    color: COLORS.white,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '500',
+  },
+  hourItem: {
+    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+  },
+  hourRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  timeSeparator: {
+    fontSize: FONT_SIZES.base,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    fontWeight: '600',
+    paddingHorizontal: SPACING.xs,
+  },
+  removeButton: {
+    padding: SPACING.xs,
+  },
+  closedText: {
+    fontSize: FONT_SIZES.base,
+    color: COLORS.error,
+    fontWeight: '600',
+    marginBottom: SPACING.sm,
+  },
+  closedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  closedToggleText: {
+    fontSize: FONT_SIZES.sm,
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+  },
+  hourDisplayItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: SPACING.md,
+  },
+  hourDisplayBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? COLORS.darkBorder : COLORS.border,
+  },
+  hourDisplayDay: {
+    fontSize: FONT_SIZES.base,
+    fontWeight: '600',
+    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+  },
+  hourDisplayTime: {
+    fontSize: FONT_SIZES.base,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1257,7 +1722,6 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     color: isDark ? COLORS.darkText : COLORS.textPrimary,
     fontWeight: '500',
   },
-  // Custom Alert Modal Styles - CENTERED & PROPERLY POSITIONED
   alertOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -1318,4 +1782,3 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     color: COLORS.white,
   },
 });
-

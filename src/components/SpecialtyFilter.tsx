@@ -9,8 +9,6 @@ type Props = {
 selected?: string;
 onSelect?: (s: string) => void;
 };
-
-
 export default function SpecialtyFilter({ selected = 'All', onSelect }: Props) {
 return (
 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
@@ -26,8 +24,6 @@ onPress={() => onSelect?.(s)}
 </ScrollView>
 );
 }
-
-
 const styles = StyleSheet.create({
 btn: {
 paddingHorizontal: 12,

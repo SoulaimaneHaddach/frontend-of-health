@@ -15,10 +15,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CustomButton } from '../../components/CustomButton';
-import { InputField } from '../../components/InputField';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
+import { CustomButton } from '../../shared/components/CustomButton';
+import { InputField } from '../../shared/components/InputField';
+import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import ApiService, { LoginRequestDTO, AuthResponse } from '../../services/api';
+import { useAnalytics } from '../../shared/hooks/useAnalytics';
 
 type DoctorLoginScreenProps = {
   navigation: NativeStackNavigationProp<any>;
@@ -29,6 +30,7 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const analytics = useAnalytics();
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -69,9 +71,15 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
         ['doctorEmail', authResponse.email],
         ['doctorId', authResponse.id],
       ]);
-
       console.log('✅ Login successful for:', authResponse.email);
-      
+      // Track successful login
+      analytics.trackLogin('email', 'doctor', true);
+      analytics.setUserId(authResponse.id);
+      analytics.setUserProperties({
+        email: authResponse.email,
+        userType: 'doctor',
+        lastLoginDate: new Date().toISOString(),
+      }); 
       Alert.alert('Success', 'Welcome back! 👋', [
         {
           text: 'Continue',
@@ -81,12 +89,16 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
     } catch (error: any) {
       console.error('❌ Login error:', error.response?.data || error.message);
       
+      // Track failed login
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+      analytics.trackLogin('email', 'doctor', false, errorMessage);
+      
       if (error.response) {
         const status = error.response.status;
         const errorData = error.response.data;
 
         if (status === 401 || status === 404 || status === 400) {
-          // ⭐ Don't specify if email or password is wrong for security
+        
           Alert.alert(
             'Login Failed',
             'Invalid email or password. Please check your credentials and try again.',
@@ -179,7 +191,7 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
               error={errors.password}
             />
 
-            {/* ⭐ FORGOT PASSWORD BUTTON */}
+            {/* FORGOT PASSWORD BUTTON */}
             <TouchableOpacity 
               style={styles.forgotPassword}
               onPress={() => navigation.navigate('ForgotPassword')}

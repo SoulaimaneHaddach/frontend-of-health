@@ -12,8 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CustomButton } from '../components/CustomButton';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { CustomButton } from '../shared/components/CustomButton';
+import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -48,14 +48,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
       }),
     ]).start();
 
-    // Icon rotation - one time only
+    // Icon rotation
     Animated.timing(iconRotate, {
       toValue: 1,
       duration: 1200,
       useNativeDriver: true,
     }).start();
 
-    // Pulse animation - one time only
+    // Pulse animation
     Animated.sequence([
       Animated.timing(pulseAnim, {
         toValue: 1.15,

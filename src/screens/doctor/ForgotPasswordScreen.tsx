@@ -14,9 +14,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { CustomButton } from '../../components/CustomButton';
-import { InputField } from '../../components/InputField';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
+import { CustomButton } from '../../shared/components/CustomButton';
+import { InputField } from '../../shared/components/InputField';
+import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
+import ApiService from '../../services/api';
 
 type ForgotPasswordScreenProps = {
   navigation: NativeStackNavigationProp<any>;
@@ -46,11 +47,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
 
     setLoading(true);
     try {
-      // TODO: Replace with actual API call when backend is ready
-      // await ApiService.forgotPassword(email);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await ApiService.forgotPassword(email.trim());
 
       setEmailSent(true);
       Alert.alert(

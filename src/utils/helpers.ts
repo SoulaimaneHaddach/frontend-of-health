@@ -1,1 +1,0 @@
-export const formatRating = (r?: number) => (r ? r.toFixed(1) : '—');

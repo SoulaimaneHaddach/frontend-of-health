@@ -1,5 +1,5 @@
 // src/components/DoctorCard.tsx
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, memo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../constants/theme';
-import { DoctorResponseDto } from '../services/api';
+import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
+
+import { DoctorMapDto } from '../services/api';
 
 interface DoctorCardProps {
-  doctor: DoctorResponseDto | null;
+  doctor: DoctorMapDto | null;
   visible: boolean;
   onClose: () => void;
   onViewDetails: () => void;
@@ -77,7 +78,7 @@ const calculateDistance = (
   return R * c;
 };
 
-export const DoctorCard: React.FC<DoctorCardProps> = ({
+const DoctorCardComponent: React.FC<DoctorCardProps> = ({
   doctor,
   visible,
   onClose,
@@ -90,29 +91,31 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
   const { isDarkMode } = useTheme();
   const styles = useMemo(() => createStyles(isDarkMode), [isDarkMode]);
 
-  if (!visible || !doctor) return null;
+  // Memoize distance calculation
+  const distance = useMemo(() => {
+    if (!userLocation || !doctor?.location) return null;
+    return calculateDistance(
+      userLocation.latitude,
+      userLocation.longitude,
+      doctor.location.latitude,
+      doctor.location.longitude
+    );
+  }, [userLocation, doctor?.location]);
 
-  const distance = userLocation && doctor.location
-    ? calculateDistance(
-        userLocation.latitude,
-        userLocation.longitude,
-        doctor.location.latitude,
-        doctor.location.longitude
-      )
-    : null;
+  // Memoize specialty config
+  const specialtyIcon = useMemo(
+    () => getSpecialtyIcon(doctor?.specialization),
+    [doctor?.specialization]
+  );
 
-  const handleCall = () => {
-    const phoneNumber = doctor.phoneNumber || '+212600000000';
-    const url = Platform.OS === 'ios' ? `telprompt:${phoneNumber}` : `tel:${phoneNumber}`;
-    Linking.canOpenURL(url).then((supported) => {
-      if (supported) {
-        Linking.openURL(url);
-      }
-    });
-  };
+  const specialtyColor = useMemo(
+    () => getSpecialtyColor(doctor?.specialization),
+    [doctor?.specialization]
+  );
 
-  const handleDirections = () => {
-    if (doctor.location) {
+  // Memoize callback
+  const handleDirections = useCallback(() => {
+    if (doctor?.location) {
       const url = Platform.select({
         ios: `maps:0,0?q=${doctor.location.latitude},${doctor.location.longitude}`,
         android: `geo:0,0?q=${doctor.location.latitude},${doctor.location.longitude}(${doctor.name})`,
@@ -128,7 +131,9 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
         });
       }
     }
-  };
+  }, [doctor]);
+
+  if (!visible || !doctor) return null;
 
   return (
     <Animated.View
@@ -150,11 +155,11 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
         <View
           style={[
             styles.avatar,
-            { backgroundColor: getSpecialtyColor(doctor.specialization) },
+            { backgroundColor: specialtyColor },
           ]}
         >
           <Ionicons
-            name={getSpecialtyIcon(doctor.specialization)}
+            name={specialtyIcon}
             size={40}
             color={COLORS.white}
           />
@@ -165,11 +170,11 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
           </Text>
           <View style={[
             styles.specialtyBadge,
-            { backgroundColor: getSpecialtyColor(doctor.specialization) + '20' }
+            { backgroundColor: specialtyColor + '20' }
           ]}>
             <Text style={[
               styles.specialty,
-              { color: getSpecialtyColor(doctor.specialization) }
+              { color: specialtyColor }
             ]}>
               {doctor.specialization}
             </Text>
@@ -387,4 +392,13 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     fontWeight: '600',
     color: isDark ? COLORS.darkPrimary : COLORS.primary,
   },
+});
+
+export const DoctorCard = memo(DoctorCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.visible === nextProps.visible &&
+    prevProps.doctor?.id === nextProps.doctor?.id &&
+    prevProps.userLocation?.latitude === nextProps.userLocation?.latitude &&
+    prevProps.userLocation?.longitude === nextProps.userLocation?.longitude
+  );
 });

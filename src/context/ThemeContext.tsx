@@ -1,57 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS } from '../constants/theme';
+import { 
+  LIGHT_THEME, 
+  DARK_THEME, 
+  SPACING, 
+  RADIUS, 
+  FONT_SIZES, 
+  SHADOWS 
+} from '../shared/constants/theme';
+import { ThemeContextValue, ThemeMode } from '../shared/constants/theme.types';
 
-type ThemeMode = 'light' | 'dark' | 'auto';
+const THEME_STORAGE_KEY = '@theme_mode';
 
-interface ThemeContextType {
-  isDarkMode: boolean;
-  themeMode: ThemeMode;
-  setThemeMode: (mode: ThemeMode) => void;
-  toggleTheme: () => void;
-  colors: typeof lightColors;
-}
-
-// Define your color schemes using the enhanced theme colors
-const lightColors = {
-  background: COLORS.background,
-  surface: COLORS.background,
-  card: COLORS.cardBackground,
-  white: COLORS.white,
-  text: COLORS.textPrimary,
-  textSecondary: COLORS.textSecondary,
-  primary: COLORS.primary,
-  border: COLORS.border,
-  borderLight: COLORS.borderLight,
-  error: COLORS.error,
-  success: COLORS.success,
-  warning: COLORS.warning,
-  secondary: COLORS.secondary,
-  accent: COLORS.accent,
-  shadow: COLORS.shadow,
-};
-
-const darkColors = {
-  background: COLORS.darkBg,
-  surface: COLORS.darkCard,
-  card: COLORS.darkCard,
-  cardSecondary: COLORS.darkCardSecondary,
-  white: COLORS.white,
-  text: COLORS.darkText,
-  textSecondary: COLORS.darkTextSecondary,
-  primary: COLORS.darkPrimary,
-  border: COLORS.darkBorder,
-  borderLight: COLORS.darkBorder,
-  error: COLORS.error,
-  success: COLORS.success,
-  warning: COLORS.warning,
-  secondary: COLORS.darkSecondary,
-  accent: COLORS.darkAccent,
-  shadow: COLORS.darkShadow,
-};
-
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const systemColorScheme = useColorScheme();
@@ -72,8 +34,8 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const loadThemePreference = async () => {
     try {
-      const savedTheme = await AsyncStorage.getItem('themeMode');
-      if (savedTheme) {
+      const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+      if (savedTheme && ['light', 'dark', 'auto'].includes(savedTheme)) {
         setThemeModeState(savedTheme as ThemeMode);
       }
     } catch (error) {
@@ -84,21 +46,35 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const setThemeMode = async (mode: ThemeMode) => {
     try {
       setThemeModeState(mode);
-      await AsyncStorage.setItem('themeMode', mode);
+      await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
     } catch (error) {
       console.error('Failed to save theme preference:', error);
     }
   };
 
   const toggleTheme = () => {
-    const newMode = isDarkMode ? 'light' : 'dark';
+    const newMode: ThemeMode = isDarkMode ? 'light' : 'dark';
     setThemeMode(newMode);
   };
 
-  const colors = isDarkMode ? darkColors : lightColors;
+  const theme = isDarkMode ? DARK_THEME : LIGHT_THEME;
+  const colors = theme.colors;
+
+  const value: ThemeContextValue = {
+    isDarkMode,
+    themeMode,
+    theme,
+    colors,
+    spacing: SPACING,
+    radius: RADIUS,
+    fontSizes: FONT_SIZES,
+    shadows: SHADOWS,
+    setThemeMode,
+    toggleTheme,
+  };
 
   return (
-    <ThemeContext.Provider value={{ isDarkMode, themeMode, setThemeMode, toggleTheme, colors }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );
@@ -111,3 +87,4 @@ export const useTheme = () => {
   }
   return context;
 };
+

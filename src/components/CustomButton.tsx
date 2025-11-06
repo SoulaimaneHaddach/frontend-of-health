@@ -1,7 +1,7 @@
 // src/components/CustomButton.tsx
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
-import { COLORS, FONT_SIZES, RADIUS, SPACING, SHADOWS } from '../constants/theme';
+import { COLORS, FONT_SIZES, RADIUS, SPACING, SHADOWS } from '../shared/constants/theme';
 
 interface CustomButtonProps {
   title: string;
@@ -15,7 +15,6 @@ interface CustomButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
 }
-
 export const CustomButton: React.FC<CustomButtonProps> = ({
   title,
   onPress,
@@ -36,7 +35,6 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
     disabled && styles.disabled,
     style,
   ];
-
   const textStyleCombined = [
     styles.text,
     styles[`text_${variant}`],
@@ -44,7 +42,6 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
     disabled && styles.textDisabled,
     textStyle,
   ];
-
   return (
     <TouchableOpacity
       style={buttonStyle}
@@ -73,7 +70,6 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   
-  // Variants
   primary: {
     backgroundColor: COLORS.primary,
     ...SHADOWS.small,

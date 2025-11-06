@@ -2,9 +2,9 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 import { useTheme } from '../context/ThemeContext';
-import { SpecialtyType } from '../types';
+import { SpecialtyType } from '../shared/types';
 
 interface BottomNavBarProps {
   selectedSpecialty: SpecialtyType;
@@ -68,7 +68,6 @@ const specialties: { label: string; type: SpecialtyType; icon: keyof typeof Ioni
               size={20}
               color={selectedSpecialty === item.type ? colors.white : colors.primary}
             />
-
             <Text style={{
               color: selectedSpecialty === item.type ? colors.white : colors.primary,
               marginLeft: 4,
@@ -79,7 +78,6 @@ const specialties: { label: string; type: SpecialtyType; icon: keyof typeof Ioni
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
