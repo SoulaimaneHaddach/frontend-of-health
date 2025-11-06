@@ -18,16 +18,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Region } from 'react-native-maps';
+import ModernTabBar, { TabKey } from './components/ModernTabBar';
+import SectionCard from './components/SectionCard';
+import InfoSection from './components/InfoSection';
+import AboutSection from './components/AboutSection';
+import ServicesSection from './components/ServicesSection';
+import HoursSection from './components/HoursSection';
+import LocationSection from './components/LocationSection';
 import * as Location from 'expo-location';
-import { CustomButton } from '../../components/CustomButton';
-import { InputField } from '../../components/InputField';
+import { CustomButton } from '../../shared/components/CustomButton';
+import { InputField } from '../../shared/components/InputField';
 import { useTheme } from '../../context/ThemeContext';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
+import { useAnalytics } from '../../shared/hooks/useAnalytics';
+import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import ApiService, { DoctorRequestDto, WorkingHours } from '../../services/api';
-
-// ==========================================
-// TYPES & INTERFACES
-// ==========================================
 
 type DoctorProfileScreenProps = { 
   navigation: NativeStackNavigationProp<any> 
@@ -47,9 +51,9 @@ interface ProfileData {
   email: string;
   phoneNumber: string;
   location: LocationData;
-  about?: string; // Doctor bio/profile description
-  hours?: WorkingHours[]; // Working hours schedule
-  services?: string[]; // Services offered
+  about?: string; 
+  hours?: WorkingHours[]; 
+  services?: string[];
 }
 
 interface Specialty {
@@ -70,10 +74,6 @@ interface ValidationErrors {
   hours?: string;
   services?: string;
 }
-
-// ==========================================
-// CONSTANTS
-// ==========================================
 
 const SPECIALTIES: Specialty[] = [
   { label: 'Hearing', value: 'hearing', icon: 'ear', color: '#9B59B6' },
@@ -106,13 +106,6 @@ const DEFAULT_LOCATION: LocationData = {
   city: 'Tétouan',
 };
 
-// ==========================================
-// UTILITY FUNCTIONS
-// ==========================================
-
-/**
- * Custom alert helper that will use our custom modal
- */
 const showCustomAlert = (
   setAlertConfig: React.Dispatch<React.SetStateAction<any>>,
   title: string,
@@ -127,25 +120,16 @@ const showCustomAlert = (
   });
 };
 
-/**
- * Validates email format using regex
- */
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
 
-/**
- * Validates phone number format (international format)
- */
 const isValidPhoneNumber = (phone: string): boolean => {
   const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
   return phoneRegex.test(phone.replace(/\s/g, ''));
 };
 
-/**
- * Validates all profile form fields
- */
 const validateProfileData = (data: ProfileData): ValidationErrors => {
   const errors: ValidationErrors = {};
 
@@ -182,13 +166,6 @@ const validateProfileData = (data: ProfileData): ValidationErrors => {
   return errors;
 };
 
-// ==========================================
-// REUSABLE COMPONENTS
-// ==========================================
-
-/**
- * Info card component for displaying profile information
- */
 const InfoCard: React.FC<{ 
   icon: keyof typeof Ionicons.glyphMap; 
   label: string; 
@@ -288,6 +265,7 @@ const LoadingOverlay: React.FC<{ visible: boolean; message?: string; isDark: boo
 export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ navigation }) => {
   // ========== STATE MANAGEMENT ==========
   const { isDarkMode, toggleTheme } = useTheme();
+  const analytics = useAnalytics();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -296,7 +274,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [newService, setNewService] = useState(''); // For adding new services
   const [hoursModalVisible, setHoursModalVisible] = useState(false); // Modal for editing hours
-  const [activeTab, setActiveTab] = useState<'Info' | 'About' | 'Services' | 'Hours' | 'Location'>('Info');
+  const [activeTab, setActiveTab] = useState<TabKey>('Info');
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
     title: string;
@@ -333,6 +311,8 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
    */
   useEffect(() => {
     loadProfile();
+    // Track profile view
+    analytics.trackProfileViewed();
   }, []);
 
   /**
@@ -361,11 +341,6 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }
   }, [initialLoading]);
 
-  // ========== MEMOIZED VALUES ==========
-  
-  /**
-   * Get selected specialty object based on current specialization
-   */
   const selectedSpecialtyObj = useMemo(() => 
     SPECIALTIES.find(
       s => s.label.toLowerCase() === profileData.specialization.toLowerCase() ||
@@ -401,8 +376,11 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
           address: data.address || '', 
         }
       });
+      
+      setInitialLoading(false); // ← FIX: Stop loading after success!
     } catch (err: any) {
       console.error('❌ Fetch profile error:', err.response || err);
+      setInitialLoading(false);
       
       if (err.response?.status === 401) {
         showCustomAlert(setAlertConfig, 'Session Expired', 'Please log in again.', [
@@ -420,23 +398,16 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
           { text: 'Cancel', style: 'cancel' }
         ]);
       }
-    } finally {
-      setInitialLoading(false);
     }
   }, [navigation]);
 
-  /**
-   * Handle profile save with validation
-   */
   const handleSave = useCallback(async () => {
-    // Dismiss keyboard
+
     Keyboard.dismiss();
 
-    // Validate all fields
+
     const errors = validateProfileData(profileData);
     setValidationErrors(errors);
-
-    // If there are validation errors, show alert and stop
     if (Object.keys(errors).length > 0) {
       const firstError = Object.values(errors)[0];
       showCustomAlert(setAlertConfig, 'Validation Error', firstError);
@@ -491,9 +462,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }
   }, [profileData, navigation]);
 
-  /**
-   * Handle logout with confirmation
-   */
+
   const handleLogout = useCallback(() => {
     showCustomAlert(setAlertConfig, 'Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
@@ -503,9 +472,9 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         onPress: async () => {
           try {
             setLoading(true);
-            // Ensure tokens/storage are cleared before navigating
+            
             await ApiService.logout();
-            // Small delay to ensure storage flush on some devices
+          
             setTimeout(() => {
               setLoading(false);
               navigation.replace('Welcome');
@@ -519,10 +488,6 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
       },
     ]);
   }, [navigation]);
-
-  /**
-   * Pick current location using GPS
-   */
   const handlePickLocation = useCallback(async () => {
     try {
       setLocationLoading(true);
@@ -562,9 +527,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }
   }, []);
 
-  /**
-   * Handle map press to update location
-   */
+
   const handleMapPress = useCallback((e: any) => {
     setProfileData(prev => ({
       ...prev,
@@ -576,36 +539,25 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }));
   }, []);
 
-  /**
-   * Toggle edit mode
-   */
   const toggleEditMode = useCallback(() => {
     if (isEditing) {
-      // Cancel editing - reset validation errors
+ 
       setValidationErrors({});
     }
     setIsEditing(prev => !prev);
   }, [isEditing]);
 
-  /**
-   * Handle specialty selection
-   */
+
   const handleSpecialtySelect = useCallback((specialty: Specialty) => {
     setProfileData(prev => ({ ...prev, specialization: specialty.label }));
     setSpecialtyModalVisible(false);
     setValidationErrors(prev => ({ ...prev, specialization: undefined }));
   }, []);
 
-  /**
-   * Toggle dark mode
-   */
   const toggleDarkModeLocal = useCallback(() => {
     toggleTheme();
   }, [toggleTheme]);
 
-  /**
-   * Add a new service
-   */
   const handleAddService = useCallback(() => {
     if (newService.trim()) {
       setProfileData(prev => ({
@@ -616,19 +568,12 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }
   }, [newService]);
 
-  /**
-   * Remove a service
-   */
   const handleRemoveService = useCallback((index: number) => {
     setProfileData(prev => ({
       ...prev,
       services: prev.services?.filter((_, i) => i !== index) || []
     }));
   }, []);
-
-  /**
-   * Add default working hours
-   */
   const handleAddDefaultHours = useCallback(() => {
     const defaultHours: WorkingHours[] = [
       { day: 'Mon - Fri', openTime: '09:00', closeTime: '17:00', isClosed: false },
@@ -641,9 +586,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }));
   }, []);
 
-  /**
-   * Update working hours
-   */
+
   const handleUpdateHours = useCallback((index: number, field: keyof WorkingHours, value: string | boolean) => {
     setProfileData(prev => ({
       ...prev,
@@ -653,9 +596,6 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }));
   }, []);
 
-  /**
-   * Remove working hours entry
-   */
   const handleRemoveHours = useCallback((index: number) => {
     setProfileData(prev => ({
       ...prev,
@@ -663,10 +603,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }));
   }, []);
 
-  // ========== STYLES ==========
   const styles = useMemo(() => createStyles(isDarkMode), [isDarkMode]);
-
-  // ========== RENDER ==========
 
   // Loading state
   if (initialLoading) {
@@ -773,436 +710,123 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
 
           {/* Profile Content */}
           {isEditing ? (
-            // ========== EDIT MODE ==========
             <View style={styles.formContainer}>
               {/* Modern Tab Switcher */}
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                style={styles.tabScrollContainer}
-                contentContainerStyle={styles.tabScrollContent}
-              >
-                {[
-                  { key: 'Info' as const, icon: 'person-outline', label: 'Info' },
-                  { key: 'About' as const, icon: 'document-text-outline', label: 'About' },
-                  { key: 'Services' as const, icon: 'medical-outline', label: 'Services', badge: profileData.services?.length },
-                  { key: 'Hours' as const, icon: 'time-outline', label: 'Hours', badge: profileData.hours?.length },
-                  { key: 'Location' as const, icon: 'location-outline', label: 'Location' },
-                ].map((tab) => {
-                  const isActive = activeTab === tab.key;
-                  return (
-                    <TouchableOpacity
-                      key={tab.key}
-                      style={[styles.modernTab, isActive && styles.modernTabActive]}
-                      onPress={() => setActiveTab(tab.key)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons 
-                        name={tab.icon as any} 
-                        size={20} 
-                        color={isActive ? COLORS.white : (isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary)} 
-                      />
-                      <Text style={[styles.modernTabText, isActive && styles.modernTabTextActive]}>
-                        {tab.label}
-                      </Text>
-                      {tab.badge !== undefined && tab.badge > 0 && (
-                        <View style={styles.badge}>
-                          <Text style={styles.badgeText}>{tab.badge}</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              <ModernTabBar
+                isDark={isDarkMode}
+                activeKey={activeTab}
+                onChange={setActiveTab}
+                tabs={[
+                  { key: 'Info', icon: 'person-outline', label: 'Info' },
+                  { key: 'About', icon: 'document-text-outline', label: 'About' },
+                  { key: 'Services', icon: 'medical-outline', label: 'Services', badge: profileData.services?.length || 0 },
+                  { key: 'Hours', icon: 'time-outline', label: 'Hours', badge: profileData.hours?.length || 0 },
+                  { key: 'Location', icon: 'location-outline', label: 'Location' },
+                ]}
+              />
 
               {/* Info Tab */}
               {activeTab === 'Info' && (
                 <Animated.View style={{ opacity: fadeAnim }}>
-                  <View style={styles.modernCard}>
-                    <View style={styles.cardHeader}>
-                      <Ionicons name="person" size={24} color={COLORS.primary} />
-                      <Text style={styles.cardTitle}>Personal Information</Text>
-                    </View>
-                    
-                    <InputField 
-                      label="Full Name" 
-                      placeholder="Dr. John Doe"
-                      value={profileData.name} 
-                      onChangeText={(v) => {
-                        setProfileData({ ...profileData, name: v });
-                        setValidationErrors(prev => ({ ...prev, name: undefined }));
-                      }}
-                      icon="person"
-                      error={validationErrors.name}
-                    />
-
-                    {/* Specialty Picker */}
-                    <View style={styles.inputContainer}>
-                      <Text style={styles.label}>Specialty *</Text>
-                      <TouchableOpacity 
-                        style={[
-                          styles.pickerButton,
-                          validationErrors.specialization && styles.inputError
-                        ]}
-                        onPress={() => setSpecialtyModalVisible(true)}
-                        activeOpacity={0.7}
-                      >
-                        <View style={styles.pickerContent}>
-                          {selectedSpecialtyObj ? (
-                            <>
-                              <View style={[styles.iconCircle, { backgroundColor: selectedSpecialtyObj.color }]}>
-                                <Ionicons name={selectedSpecialtyObj.icon} size={20} color={COLORS.white} />
-                              </View>
-                              <Text style={styles.pickerText}>{selectedSpecialtyObj.label}</Text>
-                            </>
-                          ) : (
-                            <Text style={styles.placeholderText}>Select your specialty</Text>
-                          )}
-                        </View>
-                        <Ionicons 
-                          name="chevron-down" 
-                          size={20} 
-                          color={isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary} 
-                        />
-                      </TouchableOpacity>
-                      {validationErrors.specialization && (
-                        <Text style={styles.errorText}>{validationErrors.specialization}</Text>
-                      )}
-                    </View>
-                    
-                    <InputField 
-                      label="Email" 
-                      placeholder="doctor@example.com"
-                      value={profileData.email} 
-                      onChangeText={(v) => {
-                        setProfileData({ ...profileData, email: v });
-                        setValidationErrors(prev => ({ ...prev, email: undefined }));
-                      }}
-                      keyboardType="email-address" 
-                      autoCapitalize="none"
-                      icon="mail"
-                      error={validationErrors.email}
-                    />
-                    
-                    <InputField 
-                      label="Phone" 
-                      placeholder="+212 123 456 789"
-                      value={profileData.phoneNumber} 
-                      onChangeText={(v) => {
-                        setProfileData({ ...profileData, phoneNumber: v });
-                        setValidationErrors(prev => ({ ...prev, phoneNumber: undefined }));
-                      }}
-                      keyboardType="phone-pad" 
-                      icon="call"
-                      error={validationErrors.phoneNumber}
-                    />
-                  </View>
+                  <InfoSection
+                    isDark={isDarkMode}
+                    name={profileData.name}
+                    email={profileData.email}
+                    phoneNumber={profileData.phoneNumber}
+                    selectedSpecialty={selectedSpecialtyObj}
+                    errors={{
+                      name: validationErrors.name,
+                      email: validationErrors.email,
+                      phoneNumber: validationErrors.phoneNumber,
+                      specialization: validationErrors.specialization,
+                    }}
+                    onChangeName={(v) => {
+                      setProfileData({ ...profileData, name: v });
+                      setValidationErrors(prev => ({ ...prev, name: undefined }));
+                    }}
+                    onChangeEmail={(v) => {
+                      setProfileData({ ...profileData, email: v });
+                      setValidationErrors(prev => ({ ...prev, email: undefined }));
+                    }}
+                    onChangePhone={(v) => {
+                      setProfileData({ ...profileData, phoneNumber: v });
+                      setValidationErrors(prev => ({ ...prev, phoneNumber: undefined }));
+                    }}
+                    onOpenSpecialtyModal={() => setSpecialtyModalVisible(true)}
+                    styles={styles}
+                  />
                 </Animated.View>
-              )}
-              
+              )}             
               {/* About Tab */}
               {activeTab === 'About' && (
-              <Animated.View style={{ opacity: fadeAnim }}>
-                <View style={styles.modernCard}>
-                  <View style={styles.cardHeader}>
-                    <Ionicons name="document-text" size={24} color={COLORS.primary} />
-                    <Text style={styles.cardTitle}>About You</Text>
-                  </View>
-                  <Text style={styles.cardHint}>
-                    Share your experience, qualifications, and approach to patient care
-                  </Text>
-                  <View style={[
-                    styles.textAreaWrapper,
-                    validationErrors.about && styles.inputError
-                  ]}>
-                    <InputField 
-                      placeholder="e.g., Board-certified cardiologist with 15+ years of experience in treating cardiovascular diseases..."
-                      value={profileData.about || ''} 
-                      onChangeText={(v) => {
-                        setProfileData({ ...profileData, about: v });
-                        setValidationErrors(prev => ({ ...prev, about: undefined }));
-                      }}
-                      multiline
-                      numberOfLines={6}
-                      style={{ minHeight: 120, textAlignVertical: 'top' }}
-                    />
-                    <Text style={styles.characterCount}>
-                      {(profileData.about || '').length}/500
-                    </Text>
-                  </View>
-                  {validationErrors.about && (
-                    <Text style={styles.errorText}>{validationErrors.about}</Text>
-                  )}
-                </View>
-              </Animated.View>
+                <Animated.View style={{ opacity: fadeAnim }}>
+                  <AboutSection
+                    isDark={isDarkMode}
+                    about={profileData.about || ''}
+                    onChangeAbout={(v) => {
+                      setProfileData({ ...profileData, about: v });
+                      setValidationErrors(prev => ({ ...prev, about: undefined }));
+                    }}
+                    error={validationErrors.about}
+                    styles={styles}
+                  />
+                </Animated.View>
               )}
-
               {/* Services Tab */}
               {activeTab === 'Services' && (
-              <Animated.View style={{ opacity: fadeAnim }}>
-                <View style={styles.modernCard}>
-                  <View style={styles.cardHeader}>
-                    <Ionicons name="medical" size={24} color={COLORS.primary} />
-                    <Text style={styles.cardTitle}>Services Offered</Text>
-                  </View>
-                  <Text style={styles.cardHint}>
-                    List the medical services you provide to patients
-                  </Text>
-                  
-                  <View style={styles.addServiceRow}>
-                    <View style={styles.serviceInputWrapper}>
-                      <InputField 
-                        placeholder="e.g., General Consultation, ECG Testing"
-                        value={newService} 
-                        onChangeText={setNewService}
-                        onSubmitEditing={handleAddService}
-                        returnKeyType="done"
-                      />
-                    </View>
-                    <TouchableOpacity 
-                      style={[styles.addServiceButton, !newService.trim() && styles.addServiceButtonDisabled]}
-                      onPress={handleAddService}
-                      activeOpacity={0.7}
-                      disabled={!newService.trim()}
-                    >
-                      <Ionicons name="add" size={24} color={COLORS.white} />
-                    </TouchableOpacity>
-                  </View>
-                  
-                  {/* Services List */}
-                  {profileData.services && profileData.services.length > 0 ? (
-                    <View style={styles.servicesGrid}>
-                      {profileData.services.map((service, index) => (
-                        <View key={index} style={styles.serviceChip}>
-                          <Ionicons name="checkmark-circle" size={16} color={COLORS.white} />
-                          <Text style={styles.serviceChipText}>{service}</Text>
-                          <TouchableOpacity 
-                            onPress={() => handleRemoveService(index)}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                          >
-                            <Ionicons name="close" size={18} color={COLORS.white} />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                    </View>
-                  ) : (
-                    <View style={styles.emptyState}>
-                      <Ionicons name="medical-outline" size={48} color={isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary} />
-                      <Text style={styles.emptyStateText}>No services added yet</Text>
-                      <Text style={styles.emptyStateHint}>Add your first service above</Text>
-                    </View>
-                  )}
-                </View>
-              </Animated.View>
+                <Animated.View style={{ opacity: fadeAnim }}>
+                  <ServicesSection
+                    isDark={isDarkMode}
+                    services={profileData.services || []}
+                    newService={newService}
+                    onChangeNewService={setNewService}
+                    onAddService={handleAddService}
+                    onRemoveService={handleRemoveService}
+                    styles={styles}
+                  />
+                </Animated.View>
               )}
-
               {/* Hours Tab */}
               {activeTab === 'Hours' && (
-              <Animated.View style={{ opacity: fadeAnim }}>
-                <View style={styles.modernCard}>
-                  <View style={styles.cardHeader}>
-                    <Ionicons name="time" size={24} color={COLORS.primary} />
-                    <Text style={styles.cardTitle}>Working Hours</Text>
-                  </View>
-                  <Text style={styles.cardHint}>
-                    Set your clinic's operating schedule
-                  </Text>
-                
-                {profileData.hours && profileData.hours.length > 0 ? (
-                  <>
-                    {profileData.hours.map((hour, index) => (
-                      <View key={index} style={styles.hourCard}>
-                        <View style={styles.hourCardHeader}>
-                          <View style={styles.dayInputWrapper}>
-                            <Ionicons name="calendar-outline" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
-                            <TextInput
-                              placeholder="Day (e.g., Mon-Fri)"
-                              value={hour.day} 
-                              onChangeText={(v: string) => handleUpdateHours(index, 'day', v)}
-                              style={{
-                                flex: 1,
-                                fontSize: FONT_SIZES.base,
-                                color: isDarkMode ? COLORS.darkText : COLORS.textPrimary,
-                                paddingVertical: SPACING.sm,
-                              }}
-                              placeholderTextColor={COLORS.textLight}
-                            />
-                          </View>
-                          <TouchableOpacity 
-                            style={styles.deleteHourButton}
-                            onPress={() => handleRemoveHours(index)}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                          >
-                            <Ionicons name="trash-outline" size={20} color={COLORS.error} />
-                          </TouchableOpacity>
-                        </View>
-                        
-                        <TouchableOpacity 
-                          style={styles.closedToggleButton}
-                          onPress={() => handleUpdateHours(index, 'isClosed', !hour.isClosed)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons 
-                            name={hour.isClosed ? "checkbox" : "square-outline"} 
-                            size={22} 
-                            color={hour.isClosed ? COLORS.error : COLORS.primary} 
-                          />
-                          <Text style={[styles.closedToggleLabel, hour.isClosed && { color: COLORS.error }]}>
-                            Closed on this day
-                          </Text>
-                        </TouchableOpacity>
-                        
-                        {!hour.isClosed && (
-                          <View style={styles.timeInputsRow}>
-                            <View style={styles.timeInputGroup}>
-                              <Text style={styles.timeLabel}>Open</Text>
-                              <View style={styles.timeInputWrapper}>
-                                <Ionicons name="time-outline" size={18} color={COLORS.primary} />
-                                <TextInput 
-                                  placeholder="09:00"
-                                  value={hour.openTime} 
-                                  onChangeText={(v: string) => handleUpdateHours(index, 'openTime', v)}
-                                  keyboardType="numbers-and-punctuation"
-                                  placeholderTextColor={COLORS.textLight}
-                                  style={{
-                                    flex: 1,
-                                    marginLeft: 8,
-                                    fontSize: FONT_SIZES.base,
-                                    color: isDarkMode ? COLORS.darkText : COLORS.textPrimary,
-                                    paddingVertical: SPACING.sm,
-                                  }}
-                                />
-                              </View>
-                            </View>
-                            
-                            <View style={styles.timeArrow}>
-                              <Ionicons name="arrow-forward" size={20} color={isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary} />
-                            </View>
-                            
-                            <View style={styles.timeInputGroup}>
-                              <Text style={styles.timeLabel}>Close</Text>
-                              <View style={styles.timeInputWrapper}>
-                                <Ionicons name="time-outline" size={18} color={COLORS.primary} />
-                                <TextInput 
-                                  placeholder="17:00"
-                                  value={hour.closeTime} 
-                                  onChangeText={(v: string) => handleUpdateHours(index, 'closeTime', v)}
-                                  keyboardType="numbers-and-punctuation"
-                                  placeholderTextColor={COLORS.textLight}
-                                  style={{
-                                    flex: 1,
-                                    marginLeft: 8,
-                                    fontSize: FONT_SIZES.base,
-                                    color: isDarkMode ? COLORS.darkText : COLORS.textPrimary,
-                                    paddingVertical: SPACING.sm,
-                                  }}
-                                />
-                              </View>
-                            </View>
-                          </View>
-                        )}
-                      </View>
-                    ))}
-                    
-                    <TouchableOpacity 
-                      style={styles.addHourButton}
-                      onPress={() => {
-                        setProfileData(prev => ({
-                          ...prev,
-                          hours: [...(prev.hours || []), { day: '', openTime: '', closeTime: '', isClosed: false }]
-                        }));
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
-                      <Text style={styles.addHourButtonText}>Add Another Day</Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <View style={styles.emptyState}>
-                    <Ionicons name="time-outline" size={48} color={isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary} />
-                    <Text style={styles.emptyStateText}>No working hours set</Text>
-                    <CustomButton 
-                      title="Add Default Hours" 
-                      onPress={handleAddDefaultHours} 
-                      variant="secondary" 
-                      size="medium" 
-                      fullWidth 
-                      icon={<Ionicons name="time" size={18} color={COLORS.white} />}
-                      style={{ marginTop: SPACING.md }}
-                    />
-                    <Text style={styles.emptyStateHint}>Mon-Fri: 9-5, Sat: 9-1, Sun: Closed</Text>
-                  </View>
-                )}
-                </View>
-              </Animated.View>
+                <Animated.View style={{ opacity: fadeAnim }}>
+                  <HoursSection
+                    isDark={isDarkMode}
+                    hours={profileData.hours || []}
+                    onUpdate={handleUpdateHours}
+                    onRemove={handleRemoveHours}
+                    onAddDefault={handleAddDefaultHours}
+                    onAddNew={() => {
+                      setProfileData(prev => ({
+                        ...prev,
+                        hours: [...(prev.hours || []), { day: '', openTime: '', closeTime: '', isClosed: false }],
+                      }));
+                    }}
+                    styles={styles}
+                  />
+                </Animated.View>
               )}
 
               {/* Location Tab */}
               {activeTab === 'Location' && (
                 <Animated.View style={{ opacity: fadeAnim }}>
-                  <View style={styles.modernCard}>
-                    <View style={styles.cardHeader}>
-                      <Ionicons name="location" size={24} color={COLORS.primary} />
-                      <Text style={styles.cardTitle}>Clinic Location</Text>
-                    </View>
-                    
-                    <InputField 
-                      label="Address" 
-                      placeholder="Street, Building"
-                      value={profileData.location.address} 
-                      onChangeText={(v) => {
-                        setProfileData({ ...profileData, location: { ...profileData.location, address: v } });
-                        setValidationErrors(prev => ({ ...prev, address: undefined }));
-                      }}
-                      icon="location"
-                      error={validationErrors.address}
-                    />
-                    
-                    <InputField 
-                      label="City" 
-                      placeholder="City name"
-                      value={profileData.location.city} 
-                      onChangeText={(v) => {
-                        setProfileData({ ...profileData, location: { ...profileData.location, city: v } });
-                        setValidationErrors(prev => ({ ...prev, city: undefined }));
-                      }}
-                      icon="business"
-                      error={validationErrors.city}
-                    />
-
-                    <Text style={styles.mapLabel}>📍 Pin Your Clinic Location</Text>
-                    <Text style={styles.mapHint}>Tap on the map to set your clinic location</Text>
-                  
-                  <MapView
-                    style={styles.map}
-                    region={mapRegion}
-                    onPress={handleMapPress}
-                    showsUserLocation
-                    showsMyLocationButton
-                  >
-                    <Marker 
-                      coordinate={{
-                        latitude: profileData.location.latitude,
-                        longitude: profileData.location.longitude,
-                      }}
-                      title="Your Clinic"
-                      description={profileData.location.address || 'Clinic Location'}
-                      pinColor={COLORS.primary}
-                    />
-                  </MapView>
-
-                  <CustomButton 
-                    title={locationLoading ? " Getting Location..." : "Use My Current Location"}
-                    onPress={handlePickLocation} 
-                    variant="secondary" 
-                    size="large" 
-                    fullWidth 
-                    style={{ marginBottom: SPACING.md }} 
-                    loading={locationLoading}
-                    disabled={locationLoading}
+                  <LocationSection
+                    isDark={isDarkMode}
+                    location={profileData.location}
+                    mapRegion={mapRegion}
+                    onChangeAddress={(v) => {
+                      setProfileData({ ...profileData, location: { ...profileData.location, address: v } });
+                      setValidationErrors(prev => ({ ...prev, address: undefined }));
+                    }}
+                    onChangeCity={(v) => {
+                      setProfileData({ ...profileData, location: { ...profileData.location, city: v } });
+                      setValidationErrors(prev => ({ ...prev, city: undefined }));
+                    }}
+                    onMapPress={handleMapPress}
+                    onUseCurrentLocation={handlePickLocation}
+                    locationLoading={locationLoading}
+                    errors={{ address: validationErrors.address, city: validationErrors.city }}
+                    styles={styles}
                   />
-                  </View>
                 </Animated.View>
               )}
 
@@ -1220,7 +844,6 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
               </View>
             </View>
           ) : (
-            // ========== VIEW MODE ==========
             <View style={styles.infoContainer}>
               <Text style={styles.sectionTitle}>Personal Information</Text>
               <InfoCard icon="person" label="Name" value={profileData.name} isDark={isDarkMode} />
@@ -1239,7 +862,6 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                   </View>
                 </>
               )}
-
               {/* Services Section */}
               {profileData.services && profileData.services.length > 0 && (
                 <>
@@ -1253,7 +875,6 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                   </View>
                 </>
               )}
-
               {/* Working Hours Section */}
               {profileData.hours && profileData.hours.length > 0 && (
                 <>
@@ -1276,7 +897,6 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                   </View>
                 </>
               )}
-              
               <Text style={styles.sectionTitle}>Clinic Location</Text>
               <InfoCard icon="location" label="Address" value={profileData.location.address} isDark={isDarkMode} />
               <InfoCard icon="business" label="City" value={profileData.location.city} isDark={isDarkMode} />
@@ -1600,7 +1220,6 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: isDark ? COLORS.darkBorder : COLORS.border,
   },
-  // Old Tabs (deprecated but kept for compatibility)
   tabBar: {
     flexDirection: 'row',
     backgroundColor: isDark ? COLORS.darkCard : COLORS.background,
@@ -1934,7 +1553,6 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
     marginTop: SPACING.xs,
   },
-  // Old styles for About, Hours, and Services (kept for backward compatibility in view mode)
   textAreaContainer: {
     borderWidth: 1,
     borderColor: isDark ? COLORS.darkBorder : COLORS.border,
@@ -2104,7 +1722,6 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     color: isDark ? COLORS.darkText : COLORS.textPrimary,
     fontWeight: '500',
   },
-  // Custom Alert Modal Styles - CENTERED & PROPERLY POSITIONED
   alertOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -2165,4 +1782,3 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     color: COLORS.white,
   },
 });
-

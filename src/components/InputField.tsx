@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity, TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONT_SIZES, RADIUS, SPACING } from '../constants/theme';
+import { COLORS, FONT_SIZES, RADIUS, SPACING } from '../shared/constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
 interface InputFieldProps extends TextInputProps {

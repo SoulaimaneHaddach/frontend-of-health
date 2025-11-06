@@ -15,16 +15,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { CustomButton } from '../../components/CustomButton';
-import { InputField } from '../../components/InputField';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
+import { CustomButton } from '../../shared/components/CustomButton';
+import { InputField } from '../../shared/components/InputField';
+import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import ApiService from '../../services/api';
+import { useAnalytics } from '../../shared/hooks/useAnalytics';
 
 type DoctorRegisterScreenProps = {
   navigation: NativeStackNavigationProp<any>;
 };
 
-// ⭐ SPECIALTIES LIST (matches BottomNavBar)
 const SPECIALTIES = [
   { label: 'Hearing', value: 'hearing', icon: 'ear' as const, color: '#9B59B6' },
   { label: 'Orthopedic', value: 'orthopedic', icon: 'fitness' as const, color: '#F39C12' },
@@ -60,6 +60,7 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [specialtyModalVisible, setSpecialtyModalVisible] = useState(false);
+  const analytics = useAnalytics();
 
   const updateField = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });
@@ -84,7 +85,6 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
     if (!validateForm()) return;
     setLoading(true);
     try {
-      // ⭐ FIX: Send the LABEL instead of value if backend expects capitalized names
       const selectedSpecialty = SPECIALTIES.find(s => s.value === formData.specialty);
       const specializationToSend = selectedSpecialty ? selectedSpecialty.label : formData.specialty;
 
@@ -99,20 +99,27 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        specialization: specializationToSend, // ⭐ Send label (e.g., "Cardiology")
+        specialization: specializationToSend, 
         phoneNumber: formData.phone,
         latitude: 0,
         longitude: 0,
         address: 'Not specified',
       });
       
+      // Track successful registration
+      analytics.trackRegister('email', 'doctor', true);
+      
       Alert.alert('Success', 'Account created successfully. Please log in.');
       navigation.replace('DoctorLogin');
     } catch (error: any) {
       console.error('❌ Registration error:', error.response?.data || error.message);
+      
+      // Track failed registration
       const errorMessage = error.response?.data?.message 
         || error.response?.data?.error
         || 'Registration failed. Please try again.';
+      analytics.trackRegister('email', 'doctor', false, errorMessage);
+      
       Alert.alert('Registration Failed', errorMessage);
     } finally {
       setLoading(false);
@@ -169,7 +176,7 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
             error={errors.phone} 
           />
           
-          {/* ⭐ SPECIALTY PICKER */}
+          {/*  SPECIALTY PICKER */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Specialty *</Text>
             <TouchableOpacity 
@@ -234,7 +241,7 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ⭐ SPECIALTY MODAL */}
+      {/*  SPECIALTY MODAL */}
       <Modal
         visible={specialtyModalVisible}
         animationType="slide"

@@ -1,11 +1,32 @@
 // src/config/env.ts
-// Lightweight env accessor without external deps.
-// You can override at runtime via: (globalThis as any).API_BASE_URL = 'http://10.0.2.2:8080/api'
 
-const fromGlobal = (globalThis as any)?.API_BASE_URL;
+const ENV_CONFIG = {
+  dev: {
+    API_URL: __DEV__ 
+      ? 'https://vsrwljl6-8080.uks1.devtunnels.ms/api'
+      : 'https://vsrwljl6-8080.uks1.devtunnels.ms/api',
+    ENABLE_LOGGING: true,
+    API_TIMEOUT: 30000,
+  },
+  staging: {
+    API_URL: 'https://staging-api.yourapp.com/api',
+    ENABLE_LOGGING: true,
+    API_TIMEOUT: 30000,
+  },
+  prod: {
+    API_URL: 'https://api.yourapp.com/api',
+    ENABLE_LOGGING: false,
+    API_TIMEOUT: 15000,
+  },
+};
 
-export const API_BASE_URL: string =
-  (typeof fromGlobal === 'string' && fromGlobal.trim()) ||
-  'https://vsrwljl6-8080.uks1.devtunnels.ms/api';
+function getEnvVars() {
+  return ENV_CONFIG.dev;
+}
 
-export default { API_BASE_URL };
+const ENV = getEnvVars();
+
+// Backwards compatibility
+export const API_BASE_URL = ENV.API_URL;
+
+export default ENV;

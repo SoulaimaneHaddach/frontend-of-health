@@ -12,13 +12,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../constants/theme';
-import { DoctorResponseDto } from '../services/api';
+import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
+import { DoctorResponseDto, DoctorMapDto } from '../services/api';
 
 interface NearbyDoctorsModalProps {
-  doctors: DoctorResponseDto[];
+  doctors: Array<DoctorResponseDto | DoctorMapDto>;
   visible: boolean;
-  onDoctorPress: (doctor: DoctorResponseDto) => void;
+  onDoctorPress: (doctor: DoctorResponseDto | DoctorMapDto) => void;
   onClose: () => void;
   userLocation?: { latitude: number; longitude: number };
 }
@@ -65,7 +65,7 @@ const calculateDistance = (
   lat2: number,
   lon2: number
 ): number => {
-  const R = 6371; // Earth's radius in km
+  const R = 6371; 
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a =
@@ -114,7 +114,6 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
         return 0;
     }
   });
-
   return (
     <Modal
       visible={visible}
@@ -124,7 +123,6 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
     >
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
-        
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -142,7 +140,6 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
             <Ionicons name="close-circle" size={32} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
-
         {/* Sort Options */}
         {doctors.length > 0 && (
           <View style={styles.sortContainer}>
@@ -203,7 +200,6 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
             </ScrollView>
           </View>
         )}
-
         {/* List */}
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -306,7 +302,6 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
     </Modal>
   );
 };
-
 const createStyles = (isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,

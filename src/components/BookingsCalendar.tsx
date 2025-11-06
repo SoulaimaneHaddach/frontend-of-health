@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONT_SIZES, SPACING, RADIUS } from '../constants/theme';
+import { COLORS, FONT_SIZES, SPACING, RADIUS } from '../shared/constants/theme';
 import { BookingResponse } from '../types/booking';
 import ApiService from '../services/api';
 
@@ -59,7 +59,6 @@ export const BookingsCalendar: React.FC<BookingsCalendarProps> = ({ doctorId, co
       </View>
     );
   }
-
   if (bookings.length === 0) {
     return (
       <View style={styles.emptyContainer}>
@@ -68,13 +67,11 @@ export const BookingsCalendar: React.FC<BookingsCalendarProps> = ({ doctorId, co
       </View>
     );
   }
-
   return (
     <View style={styles.container}>
       {displayedBookings.map((booking, index) => {
         const { day, date, month, time } = formatDate(booking.appointmentTime);
         const isAccepted = booking.status === 'ACCEPTED';
-
         return (
           <View
             key={booking.id}
@@ -97,7 +94,6 @@ export const BookingsCalendar: React.FC<BookingsCalendarProps> = ({ doctorId, co
                 {month}
               </Text>
             </View>
-
             <View style={styles.bookingDetails}>
               <View style={styles.timeRow}>
                 <Ionicons name="time-outline" size={14} color={COLORS.textSecondary} />
@@ -119,7 +115,6 @@ export const BookingsCalendar: React.FC<BookingsCalendarProps> = ({ doctorId, co
           </View>
         );
       })}
-
       {bookings.length > 3 && (
         <TouchableOpacity
           style={styles.showMoreButton}
@@ -138,7 +133,6 @@ export const BookingsCalendar: React.FC<BookingsCalendarProps> = ({ doctorId, co
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     gap: SPACING.sm,

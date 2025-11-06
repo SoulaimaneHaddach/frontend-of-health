@@ -99,7 +99,7 @@ describe('BookingModal', () => {
 
     fireEvent.changeText(nameInput, 'John Doe');
     fireEvent.changeText(emailInput, 'john@example.com');
-    fireEvent.changeText(phoneInput, '123'); // Too short
+    fireEvent.changeText(phoneInput, '123');
 
     const submitButton = getByText('Book Appointment');
     fireEvent.press(submitButton);
@@ -110,7 +110,6 @@ describe('BookingModal', () => {
   });
 
   it('prevents self-booking for doctors', async () => {
-    // Mock AsyncStorage to return the same doctor ID
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue('1');
     
     jest.spyOn(Alert, 'alert');
@@ -145,7 +144,6 @@ describe('BookingModal', () => {
       <BookingModal visible={true} doctor={mockDoctor} onClose={onClose} />
     );
 
-    // Note: You'll need to add testID="close-button" to the close button in BookingModal
     const closeButton = getByTestId('close-button');
     fireEvent.press(closeButton);
 

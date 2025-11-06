@@ -21,8 +21,8 @@ import {
   FONT_SIZES,
   SPACING,
   RADIUS,
-} from "../../constants/theme";
-import { DoctorResponseDto } from "../../types";
+} from "../../shared/constants/theme";
+import { DoctorResponseDto } from "../../shared/types";
 import { BookingModal } from "../../components/BookingModal";
 
 type DoctorDetailsScreenProps = {
@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     bottom: SPACING.xl,
-    right: SPACING.xl + 120, // Offset left of Book button
+    right: SPACING.xl + 120, 
     width: 56,
     height: 56,
     borderRadius: 28,

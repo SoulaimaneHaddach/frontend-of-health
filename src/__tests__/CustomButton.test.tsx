@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { CustomButton } from '../components/CustomButton';
+import { CustomButton } from '../shared/components/CustomButton';
 
 describe('CustomButton', () => {
   it('renders correctly with title', () => {
@@ -70,8 +70,6 @@ describe('CustomButton', () => {
       <CustomButton title="Loading" onPress={jest.fn()} loading />
     );
 
-    // Button text should not be visible when loading
-    // ActivityIndicator should be rendered instead
     expect(queryByText('Loading')).toBeFalsy();
   });
 });

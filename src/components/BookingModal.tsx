@@ -15,12 +15,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { InputField } from './InputField';
-import { CustomButton } from './CustomButton';
+import { InputField } from '../shared/components/InputField';
+import { CustomButton } from '../shared/components/CustomButton';
 // import { CustomAlert } from './CustomAlert'; // TODO: Use custom alert in future for better design
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 import ApiService from '../services/api';
-import { DoctorResponseDto } from '../types';
+import { DoctorResponseDto } from '../shared/types';
 
 interface BookingModalProps {
   visible: boolean;
@@ -131,7 +131,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       phone,
       appointmentISO: appointmentDate.toISOString(),
     });
-    // Backend expects LocalDateTime (no timezone). Format as YYYY-MM-DDTHH:mm:ss in local time.
+
     const toLocalDateTimeString = (d: Date) => {
       const pad = (n: number) => n.toString().padStart(2, '0');
       const yyyy = d.getFullYear();
@@ -151,7 +151,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         appointmentTime: toLocalDateTimeString(appointmentDate),
       });
 
-      // Single clean success message
       Alert.alert(
         'Booking Sent! ✓',
         `Your appointment request with Dr. ${doctor.name} has been sent successfully.\n\nThe doctor will review your request and contact you directly via phone or email to confirm.`,
@@ -179,7 +178,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           ? 'Booking is blocked by the server for guests. Please log in (doctor) to continue, or try again later.'
           : 'Failed to create booking. Please try again.');
 
-      // Show error alert
       Alert.alert(
         'Booking Failed',
         message,
@@ -202,7 +200,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const onConfirmDate = (selectedDate: Date) => {
     setShowDatePicker(false);
     const newDate = new Date(selectedDate);
-    // Keep the current time
     newDate.setHours(appointmentDate.getHours());
     newDate.setMinutes(appointmentDate.getMinutes());
     console.log('✅ Date updated to:', newDate.toLocaleString());
@@ -218,7 +215,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const onConfirmTime = (selectedDate: Date) => {
     setShowTimePicker(false);
     const newDate = new Date(appointmentDate);
-    // Update only time
     newDate.setHours(selectedDate.getHours());
     newDate.setMinutes(selectedDate.getMinutes());
     console.log('✅ Time updated to:', newDate.toLocaleString());
@@ -228,9 +224,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       setErrors(rest);
     }
   };
-
   const onCancelTime = () => setShowTimePicker(false);
-
   const formatDate = (date: Date) => {
     try {
       if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
@@ -394,7 +388,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               error={errors.phone}
             />
           </View>
-
           {/* Info Box */}
           <View style={styles.infoBox}>
             <Ionicons name="information-circle" size={20} color={COLORS.info || COLORS.primary} />
@@ -402,7 +395,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               The doctor will review your request and contact you directly to confirm your appointment.
             </Text>
           </View>
-
           {/* Submit Button */}
           <CustomButton
             title="Send Booking Request"
@@ -414,7 +406,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             style={styles.submitButton}
           />
         </ScrollView>
-
         {/* Cross-platform modal pickers */}
         <DateTimePickerModal
           isVisible={showDatePicker}

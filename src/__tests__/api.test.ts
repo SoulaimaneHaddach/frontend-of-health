@@ -77,11 +77,9 @@ describe('API Service', () => {
   });
 
   it('should format appointment time correctly', () => {
-    const date = new Date('2025-11-06T10:00:00Z'); // Use UTC to avoid timezone issues
-    const formatted = date.toISOString().slice(0, 19); // Remove milliseconds and Z
-    
+    const date = new Date('2025-11-06T10:00:00Z');
+    const formatted = date.toISOString().slice(0, 19);
     expect(formatted).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/);
-    // Just verify the format is correct, not the exact time (timezone dependent)
     expect(formatted.split('T')[0]).toBe('2025-11-06');
   });
 });

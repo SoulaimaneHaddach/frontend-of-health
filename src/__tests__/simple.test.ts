@@ -16,7 +16,6 @@ describe('Basic Math Tests', () => {
   });
 });
 
-// Format rating function test (inline to avoid imports)
 const formatRating = (r?: number) => (r !== undefined && r !== null ? r.toFixed(1) : '—');
 
 describe('formatRating function', () => {

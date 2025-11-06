@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { InputField } from '../components/InputField';
+import { InputField } from '../shared/components/InputField';
 
 describe('InputField', () => {
   it('renders correctly with placeholder', () => {
