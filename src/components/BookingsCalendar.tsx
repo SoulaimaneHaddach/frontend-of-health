@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONT_SIZES, SPACING, RADIUS } from '../shared/constants/theme';
-import { BookingResponse } from '../types/booking';
+import { BookingResponse } from '../shared/types/booking';
 import ApiService from '../services/api';
 
 interface BookingsCalendarProps {

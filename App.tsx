@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from './src/context/ThemeContext';
+import { LanguageProvider } from './src/context/LanguageContext';
 import { AnalyticsProvider } from './src/context/AnalyticsContext';
 import { ErrorBoundary } from './src/shared/components/ErrorBoundary';
 import { OfflineIndicator } from './src/shared/components/OfflineIndicator';
@@ -32,12 +33,14 @@ export default function App() {
       }}
     >
       <SafeAreaProvider>
-        <ThemeProvider>
-          <AnalyticsProvider debug={__DEV__}>
-            <OfflineIndicator />
-            <AppNavigator />
-          </AnalyticsProvider>
-        </ThemeProvider>
+        <LanguageProvider>
+          <ThemeProvider>
+            <AnalyticsProvider debug={__DEV__}>
+              <OfflineIndicator />
+              <AppNavigator />
+            </AnalyticsProvider>
+          </ThemeProvider>
+        </LanguageProvider>
       </SafeAreaProvider>
     </ErrorBoundary>
   );

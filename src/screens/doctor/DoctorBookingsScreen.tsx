@@ -16,9 +16,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
-import { BookingResponse, BookingStatus } from '../../types/booking';
+import { BookingResponse, BookingStatus } from '../../shared/types/booking';
 import ApiService from '../../services/api';
-
 type DoctorBookingsScreenProps = {
   navigation: NativeStackNavigationProp<any>;
 };

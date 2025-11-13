@@ -29,6 +29,7 @@ import * as Location from 'expo-location';
 import { CustomButton } from '../../shared/components/CustomButton';
 import { InputField } from '../../shared/components/InputField';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { useAnalytics } from '../../shared/hooks/useAnalytics';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import ApiService, { DoctorRequestDto, WorkingHours } from '../../services/api';
@@ -97,6 +98,12 @@ const SPECIALTIES: Specialty[] = [
   { label: 'Rheumatology', value: 'rheumatology', icon: 'trending-up', color: '#FF5722' },
   { label: 'Allergy', value: 'allergy', icon: 'medkit', color: '#CDDC39' },
 ];
+
+// Helper function to get translated specialty label
+const getTranslatedSpecialty = (value: string, t: any): string => {
+  const specialtyKey = value.toLowerCase() as keyof typeof t;
+  return (t[specialtyKey] as string) || value;
+};
 
 // Default location for Tétouan, Morocco
 const DEFAULT_LOCATION: LocationData = {
@@ -195,7 +202,9 @@ const SpecialtyOption: React.FC<{
   isSelected: boolean;
   onPress: () => void;
   isDark: boolean;
-}> = React.memo(({ specialty, isSelected, onPress, isDark }) => {
+  translatedLabel: string;
+  isRTL: boolean;
+}> = React.memo(({ specialty, isSelected, onPress, isDark, translatedLabel, isRTL }) => {
   const styles = createStyles(isDark);
   
   return (
@@ -207,7 +216,7 @@ const SpecialtyOption: React.FC<{
       <View style={[styles.iconCircle, { backgroundColor: specialty.color }]}>
         <Ionicons name={specialty.icon} size={24} color={COLORS.white} />
       </View>
-      <Text style={styles.specialtyOptionText}>{specialty.label}</Text>
+      <Text style={[styles.specialtyOptionText, isRTL && { textAlign: 'right' }]}>{translatedLabel}</Text>
       {isSelected && (
         <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
       )}
@@ -265,6 +274,7 @@ const LoadingOverlay: React.FC<{ visible: boolean; message?: string; isDark: boo
 export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ navigation }) => {
   // ========== STATE MANAGEMENT ==========
   const { isDarkMode, toggleTheme } = useTheme();
+  const { t, isRTL } = useLanguage();
   const analytics = useAnalytics();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -377,25 +387,33 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         }
       });
       
-      setInitialLoading(false); // ← FIX: Stop loading after success!
+      setInitialLoading(false);
     } catch (err: any) {
       console.error('❌ Fetch profile error:', err.response || err);
       setInitialLoading(false);
       
       if (err.response?.status === 401) {
-        showCustomAlert(setAlertConfig, 'Session Expired', 'Please log in again.', [
+        showCustomAlert(setAlertConfig, t.sessionExpired, t.sessionExpired, [
           {
-            text: 'OK',
+            text: t.ok,
             onPress: () => {
               ApiService.logout();
               navigation.replace('Welcome');
             }
           }
         ]);
+      } else if (err.response?.status === 500) {
+        showCustomAlert(setAlertConfig, t.sessionExpired, t.serverError, [
+          { 
+            text: t.logout, 
+            onPress: () => { navigation.replace('DoctorLoginScreen'); ApiService.logout(); },
+            style: 'cancel'
+          },
+        ]);
       } else {
-        showCustomAlert(setAlertConfig, 'Error', 'Failed to load profile. Please try again.', [
-          { text: 'Retry', onPress: loadProfile },
-          { text: 'Cancel', style: 'cancel' }
+        showCustomAlert(setAlertConfig, t.error, t.error, [
+          { text: t.retry, onPress: loadProfile },
+          { text: t.cancel, style: 'cancel', onPress: () => navigation.goBack() }
         ]);
       }
     }
@@ -410,7 +428,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     setValidationErrors(errors);
     if (Object.keys(errors).length > 0) {
       const firstError = Object.values(errors)[0];
-      showCustomAlert(setAlertConfig, 'Validation Error', firstError);
+      showCustomAlert(setAlertConfig, t.error, firstError);
       return;
     }
 
@@ -439,14 +457,14 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
       setIsEditing(false);
       setValidationErrors({});
       
-      showCustomAlert(setAlertConfig, 'Success', 'Profile updated successfully! ✓');
+      showCustomAlert(setAlertConfig, t.success, t.success);
     } catch (err: any) {
       console.error('❌ Profile update error:', err.response || err);
       
       if (err.response?.status === 401) {
-        showCustomAlert(setAlertConfig, 'Unauthorized', 'Your session has expired. Please log in again.', [
+        showCustomAlert(setAlertConfig, t.error, t.sessionExpired, [
           {
-            text: 'OK',
+            text: t.ok,
             onPress: () => {
               ApiService.logout();
               navigation.replace('Welcome');
@@ -454,8 +472,8 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
           }
         ]);
       } else {
-        const errorMsg = err.response?.data?.message || 'Failed to update profile. Please try again.';
-        showCustomAlert(setAlertConfig, 'Update Failed', errorMsg);
+        const errorMsg = err.response?.data?.message || t.error;
+        showCustomAlert(setAlertConfig, t.error, errorMsg);
       }
     } finally {
       setLoading(false);
@@ -464,10 +482,10 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
 
 
   const handleLogout = useCallback(() => {
-    showCustomAlert(setAlertConfig, 'Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
+    showCustomAlert(setAlertConfig, t.logout, t.logout, [
+      { text: t.cancel, style: 'cancel' },
       {
-        text: 'Logout',
+        text: t.logout,
         style: 'destructive',
         onPress: async () => {
           try {
@@ -482,12 +500,12 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
           } catch (err) {
             setLoading(false);
             console.error('Logout failed', err);
-            showCustomAlert(setAlertConfig, 'Logout Failed', 'Unable to logout. Please try again.');
+            showCustomAlert(setAlertConfig, t.error, t.error);
           }
         },
       },
     ]);
-  }, [navigation]);
+  }, [navigation, t]);
   const handlePickLocation = useCallback(async () => {
     try {
       setLocationLoading(true);
@@ -496,9 +514,9 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
-        showCustomAlert(setAlertConfig, 'Permission Denied', 'Location permission is required to use your current location.', [
-          { text: 'OK', style: 'default' },
-          { text: 'Settings', onPress: () => Location.requestForegroundPermissionsAsync() }
+        showCustomAlert(setAlertConfig, t.error, t.error, [
+          { text: t.ok, style: 'default' },
+          { text: t.ok, onPress: () => Location.requestForegroundPermissionsAsync() }
         ]);
         return;
       }
@@ -518,14 +536,14 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         },
       }));
 
-      showCustomAlert(setAlertConfig, 'Success', 'Location updated! Remember to save changes.');
+      showCustomAlert(setAlertConfig, t.success, t.save);
     } catch (error) {
       console.error('Location error:', error);
-      showCustomAlert(setAlertConfig, 'Error', 'Failed to get your location. Please try again or select manually on the map.');
+      showCustomAlert(setAlertConfig, t.error, t.error);
     } finally {
       setLocationLoading(false);
     }
-  }, []);
+  }, [t]);
 
 
   const handleMapPress = useCallback((e: any) => {
@@ -615,7 +633,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          <Text style={styles.loadingText}>{t.loading}</Text>
         </View>
       </SafeAreaView>
     );
@@ -637,22 +655,15 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.replace('Home')} activeOpacity={0.7}>
             <Ionicons 
-              name="arrow-back" 
+              name={isRTL ? "arrow-forward" : "arrow-back"} 
               size={24} 
               color={isDarkMode ? COLORS.darkText : COLORS.textPrimary} 
             />
           </TouchableOpacity>
           
-          <Text style={styles.headerTitle}>My Profile</Text>
+          <Text style={[styles.headerTitle, isRTL && { textAlign: 'right' }]}>{t.profile}</Text>
           
           <View style={styles.headerActions}>
-            <TouchableOpacity onPress={toggleDarkModeLocal} style={styles.iconButton}>
-              <Ionicons 
-                name={isDarkMode ? "sunny" : "moon"} 
-                size={22} 
-                color={isDarkMode ? COLORS.darkText : COLORS.textPrimary} 
-              />
-            </TouchableOpacity>
             
             <TouchableOpacity onPress={toggleEditMode} style={styles.iconButton}>
               <Ionicons 
@@ -680,11 +691,11 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                 {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'D'}
               </Text>
             </View>
-            <Text style={styles.profileName}>{profileData.name || 'Doctor'}</Text>
+            <Text style={[styles.profileName, isRTL && { textAlign: 'right' }]}>{profileData.name || t.name}</Text>
             {selectedSpecialtyObj && (
               <View style={styles.specialtyBadge}>
                 <Ionicons name={selectedSpecialtyObj.icon} size={16} color={COLORS.white} />
-                <Text style={styles.specialtyBadgeText}>{selectedSpecialtyObj.label}</Text>
+                <Text style={styles.specialtyBadgeText}>{getTranslatedSpecialty(selectedSpecialtyObj.value, t)}</Text>
               </View>
             )}
             
@@ -695,7 +706,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                 onPress={() => navigation.navigate('DoctorBookings')}
               >
                 <Ionicons name="calendar" size={20} color={COLORS.primary} />
-                <Text style={styles.quickActionText}>My Bookings</Text>
+                <Text style={styles.quickActionText}>{t.myBookings}</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
@@ -703,7 +714,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                 onPress={handleLogout}
               >
                 <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
-                <Text style={[styles.quickActionText, { color: COLORS.error }]}>Logout</Text>
+                <Text style={[styles.quickActionText, { color: COLORS.error }]}>{t.logout}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -717,11 +728,11 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                 activeKey={activeTab}
                 onChange={setActiveTab}
                 tabs={[
-                  { key: 'Info', icon: 'person-outline', label: 'Info' },
-                  { key: 'About', icon: 'document-text-outline', label: 'About' },
-                  { key: 'Services', icon: 'medical-outline', label: 'Services', badge: profileData.services?.length || 0 },
-                  { key: 'Hours', icon: 'time-outline', label: 'Hours', badge: profileData.hours?.length || 0 },
-                  { key: 'Location', icon: 'location-outline', label: 'Location' },
+                  { key: 'Info', icon: 'person-outline', label: t.info },
+                  { key: 'About', icon: 'document-text-outline', label: t.about },
+                  { key: 'Services', icon: 'medical-outline', label: t.services, badge: profileData.services?.length || 0 },
+                  { key: 'Hours', icon: 'time-outline', label: t.hours, badge: profileData.hours?.length || 0 },
+                  { key: 'Location', icon: 'location-outline', label: t.location },
                 ]}
               />
 
@@ -833,7 +844,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
               {/* Sticky Save Button */}
               <View style={styles.saveButtonContainer}>
                 <CustomButton 
-                  title="Save Changes" 
+                  title={t.save} 
                   onPress={handleSave} 
                   variant="primary" 
                   size="large" 
@@ -845,16 +856,17 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
             </View>
           ) : (
             <View style={styles.infoContainer}>
-              <Text style={styles.sectionTitle}>Personal Information</Text>
-              <InfoCard icon="person" label="Name" value={profileData.name} isDark={isDarkMode} />
-              <InfoCard icon="fitness" label="Specialization" value={profileData.specialization} isDark={isDarkMode} />
-              <InfoCard icon="mail" label="Email" value={profileData.email} isDark={isDarkMode} />
-              <InfoCard icon="call" label="Phone" value={profileData.phoneNumber} isDark={isDarkMode} />
+              <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>{t.name}</Text>
+              <InfoCard icon="person" label={t.name} value={profileData.name} isDark={isDarkMode} />
+              <InfoCard icon="fitness" label={t.specialty} value={getTranslatedSpecialty(profileData.specialization.toLowerCase(), t)} isDark={isDarkMode} />
+              <InfoCard icon="mail" label={t.email} value={profileData.email} isDark={isDarkMode} />
+              <InfoCard icon="call" label={t.phone} value={profileData.phoneNumber} isDark={isDarkMode} />
+              <InfoCard icon="location" label={t.address} value={profileData.location.address} isDark={isDarkMode} />
               
               {/* About Section */}
               {profileData.about && (
                 <>
-                  <Text style={styles.sectionTitle}>About</Text>
+                  <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>{t.about}</Text>
                   <View style={styles.infoCard}>
                     <Text style={[styles.infoValue, { lineHeight: 22 }]}>
                       {profileData.about}
@@ -865,7 +877,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
               {/* Services Section */}
               {profileData.services && profileData.services.length > 0 && (
                 <>
-                  <Text style={styles.sectionTitle}>Services Offered</Text>
+                  <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>{t.servicesOffered}</Text>
                   <View style={styles.servicesContainer}>
                     {profileData.services.map((service, index) => (
                       <View key={index} style={styles.serviceTag}>
@@ -878,7 +890,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
               {/* Working Hours Section */}
               {profileData.hours && profileData.hours.length > 0 && (
                 <>
-                  <Text style={styles.sectionTitle}>Working Hours</Text>
+                  <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>{t.workingHours}</Text>
                   <View style={[styles.infoCard, { padding: 0 }]}>
                     {profileData.hours.map((hour, index) => (
                       <View 
@@ -890,16 +902,16 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                       >
                         <Text style={styles.hourDisplayDay}>{hour.day}</Text>
                         <Text style={styles.hourDisplayTime}>
-                          {hour.isClosed ? 'Closed' : `${hour.openTime} - ${hour.closeTime}`}
+                          {hour.isClosed ? t.closed : `${hour.openTime} - ${hour.closeTime}`}
                         </Text>
                       </View>
                     ))}
                   </View>
                 </>
               )}
-              <Text style={styles.sectionTitle}>Clinic Location</Text>
-              <InfoCard icon="location" label="Address" value={profileData.location.address} isDark={isDarkMode} />
-              <InfoCard icon="business" label="City" value={profileData.location.city} isDark={isDarkMode} />
+              <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>{t.clinicLocation}</Text>
+              <InfoCard icon="location" label={t.address} value={profileData.location.address} isDark={isDarkMode} />
+              <InfoCard icon="business" label={t.location} value={profileData.location.city} isDark={isDarkMode} />
 
               {/* Map Preview */}
               <View style={styles.mapPreviewContainer}>
@@ -931,7 +943,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
             activeOpacity={0.7}
           >
             <Ionicons name="log-out" size={20} color={COLORS.error} />
-            <Text style={styles.logoutText}>Logout</Text>
+            <Text style={styles.logoutText}>{t.logout}</Text>
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>
@@ -946,7 +958,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Specialty</Text>
+              <Text style={[styles.modalTitle, isRTL && { textAlign: 'right' }]}>{t.selectSpecialty}</Text>
               <TouchableOpacity 
                 onPress={() => setSpecialtyModalVisible(false)}
                 activeOpacity={0.7}
@@ -970,6 +982,8 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                   isSelected={profileData.specialization.toLowerCase() === specialty.label.toLowerCase()}
                   onPress={() => handleSpecialtySelect(specialty)}
                   isDark={isDarkMode}
+                  translatedLabel={getTranslatedSpecialty(specialty.value, t)}
+                  isRTL={isRTL}
                 />
               ))}
             </ScrollView>
@@ -977,46 +991,56 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         </View>
       </Modal>
 
-      {/* Custom Alert Modal - FIXED POSITIONING */}
+      {/* Custom Alert Modal */}
       <Modal
         visible={alertConfig.visible}
         animationType="fade"
         transparent={true}
         onRequestClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+        statusBarTranslucent
       >
-        <View style={styles.alertOverlay}>
-          <View style={styles.alertContainer}>
-            <Text style={styles.alertTitle}>{alertConfig.title}</Text>
-            <Text style={styles.alertMessage}>{alertConfig.message}</Text>
-            <View style={styles.alertButtonContainer}>
-              {alertConfig.buttons.map((button, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.alertButton,
-                    button.style === 'destructive' && styles.alertButtonDestructive,
-                    button.style === 'cancel' && styles.alertButtonCancel,
-                  ]}
-                  onPress={() => {
-                    setAlertConfig({ ...alertConfig, visible: false });
-                    button.onPress?.();
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text
+        <TouchableOpacity 
+          style={styles.alertOverlay}
+          activeOpacity={1}
+          onPress={() => setAlertConfig({ ...alertConfig, visible: false })}
+        >
+          <TouchableOpacity 
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.alertContainer}>
+              <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+              <Text style={styles.alertMessage}>{alertConfig.message}</Text>
+              <View style={styles.alertButtonContainer}>
+                {alertConfig.buttons.map((button, index) => (
+                  <TouchableOpacity
+                    key={index}
                     style={[
-                      styles.alertButtonText,
-                      button.style === 'destructive' && styles.alertButtonTextDestructive,
-                      button.style === 'cancel' && styles.alertButtonTextCancel,
+                      styles.alertButton,
+                      button.style === 'destructive' && styles.alertButtonDestructive,
+                      button.style === 'cancel' && styles.alertButtonCancel,
                     ]}
+                    onPress={() => {
+                      setAlertConfig({ ...alertConfig, visible: false });
+                      button.onPress?.();
+                    }}
+                    activeOpacity={0.7}
                   >
-                    {button.text}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.alertButtonText,
+                        button.style === 'destructive' && styles.alertButtonTextDestructive,
+                        button.style === 'cancel' && styles.alertButtonTextCancel,
+                      ]}
+                    >
+                      {button.text}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
 
       {/* Loading Overlay */}

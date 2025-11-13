@@ -15,10 +15,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import { SpecialtyType } from '../../shared/types';
 import { DoctorResponseDto, DoctorMapDto } from '../../services/api';
@@ -78,6 +80,7 @@ const getSpecialtyIcon = (specialty?: string): keyof typeof Ionicons.glyphMap =>
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { isDarkMode, toggleTheme, colors } = useTheme();
+  const { t, isRTL } = useLanguage();
   const analytics = useAnalytics();
 
   const [selectedSpecialty, setSelectedSpecialty] = useState<SpecialtyType>('all');
@@ -93,6 +96,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const slideAnim = useRef(new Animated.Value(CARD_HEIGHT)).current;
   const panY = useRef(new Animated.Value(0)).current;
   const mapRef = useRef<MapView | null>(null);
+  const initialLocationSet = useRef(false);
+  const isFetchingRef = useRef(false);
 
   const [userLocation, setUserLocation] = useState<Region>({
     latitude: 35.7595,
@@ -130,6 +135,43 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     return map[normalized] || colors.primary;
   }, [colors.primary]);
 
+  const fetchDoctors = useCallback(async () => {
+    // Prevent multiple simultaneous fetches
+    if (isFetchingRef.current) {
+      console.log('⏳ Already fetching doctors, skipping...');
+      return;
+    }
+
+    isFetchingRef.current = true;
+    setLoading(true);
+    
+    try {
+      console.log('🔍 Fetching doctors at:', {
+        lat: userLocation.latitude,
+        lng: userLocation.longitude,
+        specialty: selectedSpecialty
+      });
+      
+      const data = await api.getDoctorsMap(
+        userLocation.latitude,
+        userLocation.longitude,
+        selectedSpecialty === 'all' ? undefined : selectedSpecialty,
+        25 
+      );
+      const safeData = Array.isArray(data) ? data : (data as any)?.data || [];
+      
+      console.log('✅ Fetched doctors:', safeData.length);
+      setDoctors(safeData);
+    } catch (error) {
+      console.error('❌ Error fetching doctors:', error);
+      setDoctors([]);
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
+    }
+  }, [userLocation.latitude, userLocation.longitude, selectedSpecialty]);
+
+  // Get user location on mount and center map
   useEffect(() => {
     let mounted = true;
     
@@ -138,12 +180,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       if (status === 'granted' && mounted) {
         const location = await Location.getCurrentPositionAsync({});
         if (mounted) {
-          setUserLocation({
+          const newRegion = {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
             latitudeDelta: 0.05,
             longitudeDelta: 0.05,
-          });
+          };
+          
+          console.log('📍 User location acquired:', newRegion);
+          setUserLocation(newRegion);
+          
+          // Only animate to user location on initial load
+          if (!initialLocationSet.current) {
+            setTimeout(() => {
+              mapRef.current?.animateToRegion(newRegion, 1000);
+            }, 500);
+            initialLocationSet.current = true;
+          }
         }
       }
     })();
@@ -151,28 +204,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     return () => { mounted = false; };
   }, []);
 
+  // Fetch doctors when location or specialty changes
   useEffect(() => {
-    fetchDoctors();
+    console.log('⏰ Fetch triggered - Location or specialty changed');
+    
+    const timer = setTimeout(() => {
+      fetchDoctors();
+    }, 200); // Small delay to debounce
+
+    return () => clearTimeout(timer);
   }, [userLocation.latitude, userLocation.longitude, selectedSpecialty]);
 
-  const fetchDoctors = async () => {
-    setLoading(true);
-    try {
-      const data = await api.getDoctorsMap(
-        userLocation.latitude,
-        userLocation.longitude,
-        selectedSpecialty === 'all' ? undefined : selectedSpecialty,
-        25 
-      );
-      const safeData = Array.isArray(data) ? data : (data as any)?.data || [];
-      setDoctors(safeData);
-    } catch (error) {
-      console.error('Error fetching doctors:', error);
-      setDoctors([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Refetch doctors when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 Screen focused, refetching doctors...');
+      fetchDoctors();
+    }, [fetchDoctors])
+  );
 
   const filteredDoctors = useMemo(() => {
     const q = (searchQuery ?? '').trim().toLowerCase();
@@ -306,8 +355,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         };
-        setUserLocation(newRegion);
-        mapRef.current?.animateToRegion(newRegion, 500);
+        
+        // Only animate the map, don't update userLocation state
+        // This prevents double fetching of doctors
+        mapRef.current?.animateToRegion(newRegion, 1000);
       }
     } catch (error) {
       console.error('Error getting location:', error);
@@ -333,13 +384,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Find Your Doctor</Text>
+        <Text style={[styles.headerTitle, isRTL && { textAlign: 'right' }]}>{t.findDoctors}</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={toggleTheme} style={styles.iconButton}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('LanguageSelection')}
+            style={styles.iconButton}
+          >
             <Ionicons 
-              name={isDarkMode ? "sunny" : "moon"} 
-              size={26} 
-              color={colors.text} 
+              name="language" 
+              size={28} 
+              color={colors.primary} 
             />
           </TouchableOpacity>
           
@@ -363,8 +417,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               color={colors.textSecondary} 
             />
             <TextInput
-              style={styles.searchInput}
-              placeholder="Search doctors or specialties..."
+              style={[styles.searchInput, isRTL && { textAlign: 'right' }]}
+              placeholder={t.searchDoctors}
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholderTextColor={colors.textSecondary}
@@ -391,10 +445,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <View style={styles.searchResultsHeader}>
             <View style={styles.searchHeaderTop}>
               <Ionicons name="search" size={20} color={colors.primary} />
-              <Text style={styles.searchResultsTitle}>Search Results</Text>
+              <Text style={[styles.searchResultsTitle, isRTL && { textAlign: 'right' }]}>{t.search}</Text>
             </View>
-            <Text style={styles.searchResultsCount}>
-              {filteredDoctors.length} {filteredDoctors.length === 1 ? 'doctor' : 'doctors'} found
+            <Text style={[styles.searchResultsCount, isRTL && { textAlign: 'right' }]}>
+              {filteredDoctors.length} {filteredDoctors.length === 1 ? t.nearbyDoctors.slice(0, -1) : t.nearbyDoctors}
             </Text>
           </View>
           
@@ -411,8 +465,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   size={48} 
                   color={colors.textSecondary} 
                 />
-                <Text style={styles.emptyText}>No doctors found</Text>
-                <Text style={styles.emptySubText}>Try a different search term</Text>
+                <Text style={[styles.emptyText, isRTL && { textAlign: 'center' }]}>{t.nearbyDoctors}</Text>
+                <Text style={[styles.emptySubText, isRTL && { textAlign: 'center' }]}>{t.searchDoctors}</Text>
               </View>
             ) : (
               filteredDoctors.map((doctor, index) => (
@@ -538,11 +592,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </MapView>
 
           <View style={styles.mapOverlay}>
-            <Text style={styles.resultsText}>
-              {filteredDoctors.length} {filteredDoctors.length === 1 ? 'doctor' : 'doctors'}
+            <Text style={[styles.resultsText, isRTL && { textAlign: 'right' }]}>
+              {filteredDoctors.length} {filteredDoctors.length === 1 ? t.nearbyDoctors.slice(0, -1) : t.nearbyDoctors}
             </Text>
             {currentZoomLevel > MAX_ZOOM_DELTA && (
-              <Text style={styles.zoomHint}>Zoom in to see doctors</Text>
+              <Text style={[styles.zoomHint, isRTL && { textAlign: 'right' }]}>{t.searchDoctors}</Text>
             )}
           </View>
 

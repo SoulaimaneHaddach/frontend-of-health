@@ -1,4 +1,3 @@
-// src/screens/user/DoctorDetailsScreen.tsx
 import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
@@ -16,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
+import { useLanguage } from "../../context/LanguageContext";
 import {
   COLORS,
   FONT_SIZES,
@@ -40,6 +40,7 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
 }) => {
   const { doctor } = route.params;
   const { isDarkMode, colors } = useTheme();
+  const { t, isRTL } = useLanguage();
   const [scrollY] = useState(new Animated.Value(0));
   const [isScrolled, setIsScrolled] = useState(false);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
@@ -47,15 +48,15 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
   const handleCall = useCallback(() => {
     if (doctor.phoneNumber) {
       Alert.alert(
-        "Call Doctor",
-        `Call Dr. ${doctor.name}?`,
+        t.phone,
+        `${t.phone} Dr. ${doctor.name}?`,
         [
-          { text: "Cancel", style: "cancel" },
-          { text: "Call", onPress: () => Linking.openURL(`tel:${doctor.phoneNumber}`) }
+          { text: t.cancel, style: "cancel" },
+          { text: t.phone, onPress: () => Linking.openURL(`tel:${doctor.phoneNumber}`) }
         ]
       );
     }
-  }, [doctor.phoneNumber, doctor.name]);
+  }, [doctor.phoneNumber, doctor.name, t]);
 
   const handleEmail = useCallback(() => {
     if (doctor.email) {
@@ -74,44 +75,44 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
   const handleShare = useCallback(async () => {
     try {
       await Share.share({
-        message: `Check out Dr. ${doctor.name} - ${doctor.specialization}\n${doctor.phoneNumber ? `Phone: ${doctor.phoneNumber}` : ''}${doctor.email ? `\nEmail: ${doctor.email}` : ''}`,
+        message: `${t.findDoctors} Dr. ${doctor.name} - ${doctor.specialization}\n${doctor.phoneNumber ? `${t.phone}: ${doctor.phoneNumber}` : ''}${doctor.email ? `\n${t.email}: ${doctor.email}` : ''}`,
         title: `Dr. ${doctor.name}`,
       });
     } catch (error) {
       console.log(error);
     }
-  }, [doctor.name, doctor.specialization, doctor.phoneNumber, doctor.email]);
+  }, [doctor.name, doctor.specialization, doctor.phoneNumber, doctor.email, t]);
 
   const quickActions = useMemo(() => [
     { 
       icon: "call" as const, 
-      label: "Call",
+      label: t.phone,
       color: "#10B981", 
       onPress: handleCall,
       available: !!doctor.phoneNumber 
     },
     { 
       icon: "mail" as const,
-      label: "Email", 
+      label: t.email, 
       color: "#3B82F6", 
       onPress: handleEmail,
       available: !!doctor.email 
     },
     { 
       icon: "navigate" as const,
-      label: "Navigate", 
+      label: t.address, 
       color: "#EF4444", 
       onPress: handleDirections,
       available: !!(doctor.location?.latitude && doctor.location?.longitude)
     },
     { 
       icon: "share-social" as const,
-      label: "Share", 
+      label: t.search, 
       color: "#F59E0B", 
       onPress: handleShare,
       available: true 
     },
-  ].filter(action => action.available), [handleCall, handleEmail, handleDirections, handleShare, doctor]);
+  ].filter(action => action.available), [handleCall, handleEmail, handleDirections, handleShare, doctor, t]);
 
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 100],
@@ -144,7 +145,7 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
           style={[styles.headerBtn, { backgroundColor: colors.card + 'DD' }]}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={colors.text} />
         </TouchableOpacity>
         <TouchableOpacity 
           onPress={handleShare}
@@ -217,8 +218,8 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
         {/* About */}
         {doctor.about && (
           <View style={styles.contentSection}>
-            <Text style={[styles.miniTitle, { color: colors.textSecondary }]}>ABOUT</Text>
-            <Text style={[styles.bodyText, { color: colors.text }]}>
+            <Text style={[styles.miniTitle, { color: colors.textSecondary }, isRTL && { textAlign: 'right' }]}>{t.about}</Text>
+            <Text style={[styles.bodyText, { color: colors.text }, isRTL && { textAlign: 'right' }]}>
               {doctor.about}
             </Text>
           </View>
@@ -226,11 +227,11 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
 
         {/* Contact Info */}
         <View style={styles.contentSection}>
-          <Text style={[styles.miniTitle, { color: colors.textSecondary }]}>CONTACT</Text>
+          <Text style={[styles.miniTitle, { color: colors.textSecondary }, isRTL && { textAlign: 'right' }]}>{t.phone}</Text>
           
           {doctor.phoneNumber && (
             <TouchableOpacity 
-              style={[styles.compactCard, { backgroundColor: colors.card }]}
+              style={[styles.compactCard, { backgroundColor: colors.card }, isRTL && { flexDirection: 'row-reverse' }]}
               onPress={handleCall}
               activeOpacity={0.7}
             >
@@ -238,16 +239,16 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
                 <Ionicons name="call" size={18} color="#10B981" />
               </View>
               <View style={styles.cardContent}>
-                <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Phone</Text>
-                <Text style={[styles.cardValue, { color: colors.text }]}>{doctor.phoneNumber}</Text>
+                <Text style={[styles.cardLabel, { color: colors.textSecondary }, isRTL && { textAlign: 'right' }]}>{t.phone}</Text>
+                <Text style={[styles.cardValue, { color: colors.text }, isRTL && { textAlign: 'right' }]}>{doctor.phoneNumber}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+              <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
           
           {doctor.email && (
             <TouchableOpacity 
-              style={[styles.compactCard, { backgroundColor: colors.card }]}
+              style={[styles.compactCard, { backgroundColor: colors.card }, isRTL && { flexDirection: 'row-reverse' }]}
               onPress={handleEmail}
               activeOpacity={0.7}
             >
@@ -255,18 +256,18 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
                 <Ionicons name="mail" size={18} color="#3B82F6" />
               </View>
               <View style={styles.cardContent}>
-                <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Email</Text>
-                <Text style={[styles.cardValue, { color: colors.text }]} numberOfLines={1}>
+                <Text style={[styles.cardLabel, { color: colors.textSecondary }, isRTL && { textAlign: 'right' }]}>{t.email}</Text>
+                <Text style={[styles.cardValue, { color: colors.text }, isRTL && { textAlign: 'right' }]} numberOfLines={1}>
                   {doctor.email}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+              <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
           
           {doctor.location?.address && (
             <TouchableOpacity 
-              style={[styles.compactCard, { backgroundColor: colors.card }]}
+              style={[styles.compactCard, { backgroundColor: colors.card }, isRTL && { flexDirection: 'row-reverse' }]}
               onPress={handleDirections}
               activeOpacity={0.7}
             >
@@ -274,8 +275,8 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
                 <Ionicons name="location" size={18} color="#EF4444" />
               </View>
               <View style={styles.cardContent}>
-                <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Location</Text>
-                <Text style={[styles.cardValue, { color: colors.text }]} numberOfLines={1}>
+                <Text style={[styles.cardLabel, { color: colors.textSecondary }, isRTL && { textAlign: 'right' }]}>{t.address}</Text>
+                <Text style={[styles.cardValue, { color: colors.text }, isRTL && { textAlign: 'right' }]} numberOfLines={1}>
                   {doctor.location.address}
                 </Text>
               </View>
@@ -287,16 +288,17 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
         {/* Working Hours */}
         {doctor.hours && Array.isArray(doctor.hours) && doctor.hours.length > 0 && (
           <View style={styles.contentSection}>
-            <Text style={[styles.miniTitle, { color: colors.textSecondary }]}>HOURS</Text>
+            <Text style={[styles.miniTitle, { color: colors.textSecondary }, isRTL && { textAlign: 'right' }]}>{t.workingHours}</Text>
             <View style={[styles.hoursGrid, { backgroundColor: colors.card }]}>
               {doctor.hours.map((hour, index) => (
                 <React.Fragment key={index}>
                   {index > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
                   <HourItem 
                     day={hour.day} 
-                    time={hour.isClosed ? "Closed" : `${hour.openTime} - ${hour.closeTime}`}
+                    time={hour.isClosed ? t.cancel : `${hour.openTime} - ${hour.closeTime}`}
                     colors={colors} 
                     isClosed={hour.isClosed}
+                    isRTL={isRTL}
                   />
                 </React.Fragment>
               ))}
@@ -337,22 +339,8 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
         activeOpacity={0.85}
       >
         <Ionicons name="calendar" size={24} color={COLORS.white} />
-        <Text style={styles.bookFabText}>Book</Text>
+        <Text style={styles.bookFabText}>{t.bookAppointment}</Text>
       </TouchableOpacity>
-
-      {/* Call FAB (secondary action, smaller) */}
-      {doctor.phoneNumber && (
-        <TouchableOpacity 
-          style={[styles.fab, { 
-            backgroundColor: colors.primary,
-            shadowColor: colors.primary,
-          }]} 
-          onPress={handleCall}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="call" size={24} color={COLORS.white} />
-        </TouchableOpacity>
-      )}
     </SafeAreaView>
   );
 };
@@ -363,13 +351,14 @@ const HourItem = React.memo<{
   time: string;
   colors: any;
   isClosed?: boolean;
-}>(({ day, time, colors, isClosed }) => (
-  <View style={styles.hourItem}>
-    <Text style={[styles.hourDay, { color: colors.text }]}>{day}</Text>
+  isRTL?: boolean;
+}>(({ day, time, colors, isClosed, isRTL }) => (
+  <View style={[styles.hourItem, isRTL && { flexDirection: 'row-reverse' }]}>
+    <Text style={[styles.hourDay, { color: colors.text }, isRTL && { textAlign: 'right' }]}>{day}</Text>
     <Text style={[styles.hourTime, { 
       color: isClosed ? colors.error : colors.primary,
       fontWeight: '600'
-    }]}>
+    }, isRTL && { textAlign: 'left' }]}>
       {time}
     </Text>
   </View>

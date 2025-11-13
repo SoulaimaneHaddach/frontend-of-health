@@ -13,6 +13,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CustomButton } from '../shared/components/CustomButton';
+import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -22,6 +24,8 @@ type WelcomeScreenProps = {
 };
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
+  const { t, isRTL } = useLanguage();
+  const { isDarkMode, colors } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -77,11 +81,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={isDarkMode ? colors.primary : COLORS.primary} />
       
       {/* Gradient Background */}
       <LinearGradient
-        colors={[COLORS.primary, '#4A90E2', '#5C6BC0']}
+        colors={isDarkMode ? [COLORS.darkBg, '#2C3E50', '#34495E'] : [COLORS.primary, '#4A90E2', '#5C6BC0']}
         style={styles.gradientBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -129,32 +133,35 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
           </Animated.View>
           
           <Text style={styles.title}>DocBook</Text>
-          <Text style={styles.subtitle}>Your trusted healthcare companion</Text>
+          <Text style={[styles.subtitle, isRTL && styles.rtlText]}>{t.welcome}</Text>
         </Animated.View>
         
         {/* Features Section - Compact */}
         <View style={styles.featuresSection}>
           <FeatureItem
             icon="search"
-            title="Find Specialists"
-            description="Connect with verified doctors"
+            title={t.findDoctors}
+            description={isRTL ? "تواصل مع أطباء معتمدين" : "Connect with verified doctors"}
+            isRTL={isRTL}
           />
           <FeatureItem
             icon="location"
-            title="Nearby Doctors"
-            description="Healthcare near you"
+            title={t.nearbyDoctors}
+            description={isRTL ? "رعاية صحية بالقرب منك" : "Healthcare near you"}
+            isRTL={isRTL}
           />
           <FeatureItem
-            icon="time"
-            title="24/7 Support"
-            description="Help when you need it"
+            icon="calendar"
+            title={t.bookAppointments}
+            description={isRTL ? "احجز موعدك بسهولة" : "Book appointments easily"}
+            isRTL={isRTL}
           />
         </View>
         
         {/* Bottom Section */}
         <View style={styles.bottomSection}>
           <CustomButton
-            title="Get Started"
+            title={t.getStarted}
             onPress={() => navigation.navigate('RoleSelection')}
             variant="primary"
             size="large"
@@ -185,14 +192,15 @@ const FeatureItem: React.FC<{
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   description: string;
-}> = ({ icon, title, description }) => (
-  <View style={styles.featureItem}>
+  isRTL?: boolean;
+}> = ({ icon, title, description, isRTL = false }) => (
+  <View style={[styles.featureItem, isRTL && styles.featureItemRTL]}>
     <View style={styles.featureIcon}>
       <Ionicons name={icon} size={20} color={COLORS.primary} />
     </View>
     <View style={styles.featureText}>
-      <Text style={styles.featureTitle}>{title}</Text>
-      <Text style={styles.featureDescription}>{description}</Text>
+      <Text style={[styles.featureTitle, isRTL && styles.rtlText]}>{title}</Text>
+      <Text style={[styles.featureDescription, isRTL && styles.rtlText]}>{description}</Text>
     </View>
   </View>
 );
@@ -344,5 +352,12 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.xs,
     color: COLORS.textSecondary,
     fontWeight: '500',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  featureItemRTL: {
+    flexDirection: 'row-reverse',
   },
 });

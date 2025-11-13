@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 import api from '../services/api';
 
@@ -13,6 +15,8 @@ type RoleSelectionScreenProps = {
 };
 
 export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({ navigation }) => {
+  const { t, isRTL } = useLanguage();
+  const { isDarkMode, colors } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -88,11 +92,11 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({ naviga
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.background} />
       
       <TouchableOpacity onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+        <Ionicons name="arrow-back" size={24} color={colors.text} />
       </TouchableOpacity>
 
       <Animated.View 
@@ -104,8 +108,10 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({ naviga
           }
         ]}
       >
-        <Text style={styles.title}>I am a...</Text>
-        <Text style={styles.subtitle}>Select your role to continue</Text>
+        <Text style={[styles.title, isRTL && styles.rtlText, { color: colors.text }]}>{t.selectRole}</Text>
+        <Text style={[styles.subtitle, isRTL && styles.rtlText, { color: colors.textSecondary }]}>
+          {isRTL ? 'اختر دورك للمتابعة' : 'Select your role to continue'}
+        </Text>
       </Animated.View>
       
       <Animated.View 
@@ -119,20 +125,26 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({ naviga
       >
         <RoleCard
           icon="person"
-          title="Patient"
-          description="Find and connect with healthcare professionals"
+          title={t.imAPatient}
+          description={t.patientDescription}
           color={COLORS.primary}
           onPress={() => navigation.replace('Home')}
           pulseAnim={pulseAnim1}
+          isRTL={isRTL}
+          isDark={isDarkMode}
+          cardBg={colors.card}
         />
         
         <RoleCard
           icon="medical"
-          title="Doctor"
-          description="Manage your practice and connect with patients"
+          title={t.imADoctor}
+          description={t.doctorDescription}
           color={COLORS.secondary}
           onPress={handleProfilePress}
           pulseAnim={pulseAnim2}
+          isRTL={isRTL}
+          isDark={isDarkMode}
+          cardBg={colors.card}
         />
       </Animated.View>
     </SafeAreaView>
@@ -146,9 +158,12 @@ const RoleCard: React.FC<{
   color: string;
   onPress: () => void;
   pulseAnim: Animated.Value;
-}> = ({ icon, title, description, color, onPress, pulseAnim }) => (
+  isRTL?: boolean;
+  isDark?: boolean;
+  cardBg?: string;
+}> = ({ icon, title, description, color, onPress, pulseAnim, isRTL = false, isDark = false, cardBg = COLORS.white }) => (
   <TouchableOpacity
-    style={[styles.card, { borderColor: color }]}
+    style={[styles.card, { borderColor: color, backgroundColor: cardBg }]}
     onPress={onPress}
     activeOpacity={0.7}
   >
@@ -177,8 +192,8 @@ const RoleCard: React.FC<{
       />
     </Animated.View>
     
-    <Text style={styles.cardTitle}>{title}</Text>
-    <Text style={styles.cardDescription}>{description}</Text>
+    <Text style={[styles.cardTitle, isRTL && styles.rtlText, { color: isDark ? COLORS.darkText : COLORS.textPrimary }]}>{title}</Text>
+    <Text style={[styles.cardDescription, isRTL && styles.rtlText, { color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary }]}>{description}</Text>
   </TouchableOpacity>
 );
 
@@ -257,5 +272,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.textSecondary,
     lineHeight: FONT_SIZES.base * 1.5,
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

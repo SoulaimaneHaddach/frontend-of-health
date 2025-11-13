@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import SectionCard from './SectionCard';
 import { InputField } from '../../../shared/components/InputField';
 import { COLORS } from '../../../shared/constants/theme';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface ServicesSectionProps {
   isDark: boolean;
@@ -25,14 +26,16 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
   onRemoveService,
   styles,
 }) => {
+  const { t, isRTL } = useLanguage();
+  
   return (
     <SectionCard 
-      title="Services Offered" 
+      title={t.servicesOffered} 
       icon="medical" 
       isDark={isDark}
-      hint="List the medical services you provide to patients"
+      hint={t.servicesOffered}
     >
-      <View style={styles.addServiceRow}>
+      <View style={[styles.addServiceRow, isRTL && { flexDirection: 'row-reverse' }]}>
         <View style={styles.serviceInputWrapper}>
           <InputField 
             placeholder="e.g., General Consultation, ECG Testing"
@@ -55,7 +58,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
       {services && services.length > 0 ? (
         <View style={styles.servicesGrid}>
           {services.map((service, index) => (
-            <View key={index} style={styles.serviceChip}>
+            <View key={index} style={[styles.serviceChip, isRTL && { flexDirection: 'row-reverse' }]}>
               <Ionicons name="checkmark-circle" size={16} color={COLORS.white} />
               <Text style={styles.serviceChipText}>{service}</Text>
               <TouchableOpacity 
@@ -70,8 +73,8 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
       ) : (
         <View style={styles.emptyState}>
           <Ionicons name="medical-outline" size={48} color={isDark ? COLORS.darkTextSecondary : COLORS.textSecondary} />
-          <Text style={styles.emptyStateText}>No services added yet</Text>
-          <Text style={styles.emptyStateHint}>Add your first service above</Text>
+          <Text style={styles.emptyStateText}>{t.noBookings}</Text>
+          <Text style={styles.emptyStateHint}>{t.services}</Text>
         </View>
       )}
     </SectionCard>

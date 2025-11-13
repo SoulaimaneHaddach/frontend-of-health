@@ -17,6 +17,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomButton } from '../../shared/components/CustomButton';
 import { InputField } from '../../shared/components/InputField';
+import { useLanguage } from '../../context/LanguageContext';
+import { useTheme } from '../../context/ThemeContext';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import ApiService from '../../services/api';
 import { useAnalytics } from '../../shared/hooks/useAnalytics';
@@ -49,6 +51,8 @@ const SPECIALTIES = [
 ];
 
 export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navigation }) => {
+  const { t, isRTL } = useLanguage();
+  const { isDarkMode, colors } = useTheme();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -129,8 +133,8 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
   const selectedSpecialtyObj = SPECIALTIES.find(s => s.value === formData.specialty);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.background} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView 
           contentContainerStyle={{ paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xl }} 
@@ -140,14 +144,14 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
             onPress={() => navigation.goBack()} 
             style={{ marginTop: SPACING.md, marginBottom: SPACING.lg }}
           >
-            <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+            <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={colors.text} />
           </TouchableOpacity>
           
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join as a healthcare professional</Text>
+          <Text style={[styles.title, isRTL && { textAlign: 'right' }, { color: colors.text }]}>{t.createAccount}</Text>
+          <Text style={[styles.subtitle, isRTL && { textAlign: 'right' }, { color: colors.textSecondary }]}>{t.doctorDescription}</Text>
 
           <InputField 
-            label="Full Name" 
+            label={t.name} 
             placeholder="Dr. John Doe" 
             value={formData.name} 
             onChangeText={(v) => updateField('name', v)} 
@@ -156,7 +160,7 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
           />
           
           <InputField 
-            label="Email Address" 
+            label={t.email} 
             placeholder="doctor@example.com" 
             value={formData.email} 
             onChangeText={(v) => updateField('email', v)} 
@@ -167,7 +171,7 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
           />
           
           <InputField 
-            label="Phone Number" 
+            label={t.phone} 
             placeholder="+212 123 456 789" 
             value={formData.phone} 
             onChangeText={(v) => updateField('phone', v)} 
@@ -178,34 +182,35 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
           
           {/*  SPECIALTY PICKER */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Specialty *</Text>
+            <Text style={[styles.label, isRTL && { textAlign: 'right' }]}>{t.specialty} *</Text>
             <TouchableOpacity 
               style={[
                 styles.pickerButton,
-                errors.specialty && styles.pickerButtonError
+                errors.specialty && styles.pickerButtonError,
+                isRTL && { flexDirection: 'row-reverse' }
               ]}
               onPress={() => setSpecialtyModalVisible(true)}
             >
-              <View style={styles.pickerContent}>
+              <View style={[styles.pickerContent, isRTL && { flexDirection: 'row-reverse' }]}>
                 {selectedSpecialtyObj ? (
                   <>
                     <View style={[styles.iconCircle, { backgroundColor: selectedSpecialtyObj.color }]}>
                       <Ionicons name={selectedSpecialtyObj.icon} size={20} color={COLORS.white} />
                     </View>
-                    <Text style={styles.pickerText}>{selectedSpecialtyObj.label}</Text>
+                    <Text style={[styles.pickerText, isRTL && { textAlign: 'right' }]}>{selectedSpecialtyObj.label}</Text>
                   </>
                 ) : (
-                  <Text style={styles.placeholderText}>Select your specialty</Text>
+                  <Text style={[styles.placeholderText, isRTL && { textAlign: 'right' }]}>{t.specialty}</Text>
                 )}
               </View>
               <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
             </TouchableOpacity>
-            {errors.specialty && <Text style={styles.errorText}>{errors.specialty}</Text>}
+            {errors.specialty && <Text style={[styles.errorText, isRTL && { textAlign: 'right' }]}>{errors.specialty}</Text>}
           </View>
           
           <InputField 
-            label="Password" 
-            placeholder="Create a strong password" 
+            label={t.password} 
+            placeholder={t.password} 
             value={formData.password} 
             onChangeText={(v) => updateField('password', v)} 
             isPassword 
@@ -214,8 +219,8 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
           />
           
           <InputField 
-            label="Confirm Password" 
-            placeholder="Re-enter your password" 
+            label={t.confirmPassword} 
+            placeholder={t.confirmPassword} 
             value={formData.confirmPassword} 
             onChangeText={(v) => updateField('confirmPassword', v)} 
             isPassword 
@@ -224,7 +229,7 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
           />
 
           <CustomButton 
-            title="Create Account" 
+            title={t.createAccount} 
             onPress={handleRegister} 
             variant="secondary" 
             size="large" 
@@ -232,10 +237,10 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
             loading={loading} 
           />
           
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
+          <View style={[styles.footer, isRTL && { flexDirection: 'row-reverse' }]}>
+            <Text style={styles.footerText}>{t.alreadyHaveAccount} </Text>
             <TouchableOpacity onPress={() => navigation.navigate('DoctorLogin')}>
-              <Text style={styles.signInText}>Sign In</Text>
+              <Text style={styles.signInText}>{t.signIn}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -251,7 +256,7 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Specialty</Text>
+              <Text style={[styles.modalTitle, isRTL && { textAlign: 'right' }]}>{t.specialty}</Text>
               <TouchableOpacity onPress={() => setSpecialtyModalVisible(false)}>
                 <Ionicons name="close" size={24} color={COLORS.textPrimary} />
               </TouchableOpacity>

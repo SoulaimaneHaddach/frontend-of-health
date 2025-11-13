@@ -3,6 +3,7 @@ import React, { ReactNode, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONT_SIZES, RADIUS, SHADOWS, SPACING } from '../../../shared/constants/theme';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface SectionCardProps {
   title: string;
@@ -13,7 +14,8 @@ interface SectionCardProps {
 }
 
 export const SectionCard: React.FC<SectionCardProps> = ({ title, icon, hint, isDark, children }) => {
-  const styles = useMemo(() => createStyles(isDark), [isDark]);
+  const { isRTL } = useLanguage();
+  const styles = useMemo(() => createStyles(isDark, isRTL), [isDark, isRTL]);
 
   return (
     <View style={styles.card}>
@@ -27,7 +29,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({ title, icon, hint, isD
   );
 };
 
-const createStyles = (isDark: boolean) => StyleSheet.create({
+const createStyles = (isDark: boolean, isRTL: boolean) => StyleSheet.create({
   card: {
     backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
     borderRadius: RADIUS.lg,
@@ -36,7 +38,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     ...SHADOWS.medium,
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     gap: SPACING.sm,
     marginBottom: SPACING.xs,
@@ -45,12 +47,15 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
     color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    textAlign: isRTL ? 'right' : 'left',
+    flex: 1,
   },
   hint: {
     fontSize: FONT_SIZES.sm,
     color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
     marginBottom: SPACING.md,
     lineHeight: 20,
+    textAlign: isRTL ? 'right' : 'left',
   },
 });
 

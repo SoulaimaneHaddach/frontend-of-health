@@ -16,6 +16,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomButton } from '../../shared/components/CustomButton';
 import { InputField } from '../../shared/components/InputField';
+import { useLanguage } from '../../context/LanguageContext';
+import { useTheme } from '../../context/ThemeContext';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import ApiService from '../../services/api';
 
@@ -24,6 +26,8 @@ type ForgotPasswordScreenProps = {
 };
 
 export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation }) => {
+  const { t, isRTL } = useLanguage();
+  const { isDarkMode, colors } = useTheme();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -31,11 +35,11 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
 
   const validateEmail = () => {
     if (!email.trim()) {
-      setError('Email is required');
+      setError(t.requiredField);
       return false;
     }
     if (!/\S+@\S+\.\S+/.test(email)) {
-      setError('Please enter a valid email address');
+      setError(t.invalidEmail);
       return false;
     }
     setError('');
@@ -51,16 +55,16 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
 
       setEmailSent(true);
       Alert.alert(
-        'Email Sent! ✓',
-        `Password reset instructions have been sent to ${email}. Please check your inbox.`,
-        [{ text: 'OK' }]
+        t.success,
+        `${t.success}`,
+        [{ text: t.ok }]
       );
     } catch (err: any) {
       console.error('❌ Password reset error:', err);
       Alert.alert(
-        'Error',
-        err.response?.data?.message || 'Failed to send reset email. Please try again.',
-        [{ text: 'OK' }]
+        t.error,
+        err.response?.data?.message || t.error,
+        [{ text: t.ok }]
       );
     } finally {
       setLoading(false);
@@ -73,8 +77,8 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -86,18 +90,18 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
           keyboardShouldPersistTaps="handled"
         >
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+            <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={colors.text} />
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, { backgroundColor: colors.card }]}>
               <Ionicons name="lock-closed" size={50} color={COLORS.secondary} />
             </View>
-            <Text style={styles.title}>Forgot Password?</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, isRTL && { textAlign: 'right' }, { color: colors.text }]}>{t.forgotPassword}</Text>
+            <Text style={[styles.subtitle, isRTL && { textAlign: 'right' }, { color: colors.textSecondary }]}>
               {emailSent 
-                ? 'Check your email for reset instructions'
-                : 'Enter your email and we\'ll send you instructions to reset your password'
+                ? t.email
+                : t.email
               }
             </Text>
           </View>
@@ -105,8 +109,8 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
           {!emailSent ? (
             <View style={styles.form}>
               <InputField
-                label="Email Address"
-                placeholder="doctor@example.com"
+                label={t.email}
+                placeholder={t.email}
                 value={email}
                 onChangeText={handleEmailChange}
                 keyboardType="email-address"
@@ -117,7 +121,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
               />
 
               <CustomButton
-                title="Send Reset Link"
+                title={t.submit}
                 onPress={handleResetPassword}
                 variant="secondary"
                 size="large"
@@ -126,10 +130,10 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
                 style={styles.resetButton}
               />
 
-              <View style={styles.infoBox}>
+              <View style={[styles.infoBox, isRTL && { flexDirection: 'row-reverse' }]}>
                 <Ionicons name="information-circle" size={20} color={COLORS.info} />
-                <Text style={styles.infoText}>
-                  We'll send you an email with a link to reset your password
+                <Text style={[styles.infoText, isRTL && { textAlign: 'right' }]}>
+                  {t.email}
                 </Text>
               </View>
             </View>
@@ -162,7 +166,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
               </View>
 
               <CustomButton
-                title="Back to Login"
+                title={t.back}
                 onPress={() => navigation.navigate('DoctorLogin')}
                 variant="secondary"
                 size="large"
@@ -177,15 +181,15 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
                   setEmail('');
                 }}
               >
-                <Text style={styles.resendText}>Didn't receive the email? Send again</Text>
+                <Text style={[styles.resendText, isRTL && { textAlign: 'center' }]}>{t.retry}</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Remember your password? </Text>
+          <View style={[styles.footer, isRTL && { flexDirection: 'row-reverse' }]}>
+            <Text style={styles.footerText}>{t.alreadyHaveAccount} </Text>
             <TouchableOpacity onPress={() => navigation.navigate('DoctorLogin')}>
-              <Text style={styles.signInText}>Sign In</Text>
+              <Text style={styles.signInText}>{t.signIn}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

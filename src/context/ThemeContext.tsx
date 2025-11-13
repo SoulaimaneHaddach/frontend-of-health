@@ -26,8 +26,10 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   useEffect(() => {
     if (themeMode === 'auto') {
+      console.log('🎨 Auto theme mode - System is:', systemColorScheme);
       setIsDarkMode(systemColorScheme === 'dark');
     } else {
+      console.log('🎨 Manual theme mode:', themeMode);
       setIsDarkMode(themeMode === 'dark');
     }
   }, [themeMode, systemColorScheme]);
@@ -35,8 +37,11 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const loadThemePreference = async () => {
     try {
       const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+      console.log('💾 Loaded saved theme:', savedTheme || 'none (using auto)');
       if (savedTheme && ['light', 'dark', 'auto'].includes(savedTheme)) {
         setThemeModeState(savedTheme as ThemeMode);
+      } else {
+        console.log('💾 No saved theme, defaulting to auto');
       }
     } catch (error) {
       console.error('Failed to load theme preference:', error);
