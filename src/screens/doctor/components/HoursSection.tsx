@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import SectionCard from './SectionCard';
 import { COLORS, FONT_SIZES, SPACING } from '../../../shared/constants/theme';
 import { WorkingHours } from '../../../services/api';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface HoursSectionProps {
   isDark: boolean;
@@ -25,12 +26,14 @@ export const HoursSection: React.FC<HoursSectionProps> = ({
   onAddNew,
   styles,
 }) => {
+  const { t, isRTL } = useLanguage();
+  
   return (
     <SectionCard 
-      title="Working Hours" 
+      title={t.workingHours} 
       icon="time" 
       isDark={isDark}
-      hint="Set your clinic's operating schedule"
+      hint={t.workingHours}
     >
       {hours && hours.length > 0 ? (
         <>
@@ -71,8 +74,8 @@ export const HoursSection: React.FC<HoursSectionProps> = ({
                   size={22}
                   color={hour.isClosed ? COLORS.error : COLORS.primary}
                 />
-                <Text style={[styles.closedToggleLabel, hour.isClosed && { color: COLORS.error }]}>
-                  Closed on this day
+                <Text style={[styles.closedToggleLabel, hour.isClosed && { color: COLORS.error }, isRTL && { textAlign: 'right' }]}>
+                  {t.closed}
                 </Text>
               </TouchableOpacity>
 

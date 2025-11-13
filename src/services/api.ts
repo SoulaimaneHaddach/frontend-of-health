@@ -22,6 +22,7 @@ import { networkService } from '../shared/services/networkService';
 import { offlineStorageService } from '../shared/services/offlineStorageService';
 import { requestQueueService } from '../shared/services/requestQueueService';
 import { CachePriority } from '../shared/types/network.types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Re-export types for backwards compatibility
 export type {
@@ -250,7 +251,37 @@ class ApiService {
   }
 
   async logout(): Promise<void> {
-    await this.clearAuthToken();
+    try {
+      console.log('🔄 Starting logout...');
+      
+      // 1. Clear auth token from memory and storage
+      this.authToken = null;
+      await TokenStorage.removeToken();
+      
+      // 2. Clear doctor ID from AsyncStorage
+      await AsyncStorage.removeItem('doctorId');
+      
+      // 3. Clear any cached user data
+      await offlineStorageService.removeByTag('user');
+      await offlineStorageService.removeByTag('profile');
+      await offlineStorageService.removeByTag('doctor');
+      
+      // 4. Clear request queue
+      await requestQueueService.clearAll();
+      
+      // 5. Reset initialization state
+      this.isInitialized = false;
+
+      console.log('✅ Logout completed successfully');
+      console.log('📝 Token cleared:', this.authToken === null);
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      // Force clear token even if other operations fail
+      this.authToken = null;
+      await TokenStorage.removeToken().catch(() => {});
+      await AsyncStorage.removeItem('doctorId').catch(() => {});
+      throw error;
+    }
   }
 
   async getMyProfile(): Promise<DoctorResponseDto> {
@@ -414,9 +445,18 @@ class ApiService {
     bookingData: BookingCreateRequest
   ): Promise<BookingResponse> {
     // Validate: Doctor cannot book themselves
-    const currentUser = await this.getMyProfile().catch(() => null);
-    if (currentUser && currentUser.id === doctorId) {
-      throw new Error('Doctors cannot book appointments with themselves');
+    // Only check if user has a token (might be logged in as doctor)
+    const token = await TokenStorage.getToken();
+    if (token) {
+      try {
+        const currentUser = await this.getMyProfile();
+        if (currentUser && currentUser.id === doctorId) {
+          throw new Error('Doctors cannot book appointments with themselves');
+        }
+      } catch (error: any) {
+        // If 500/404/403, user is not a doctor - allow booking to proceed
+        console.log('ℹ️ User is not a doctor, allowing booking');
+      }
     }
 
     // If offline, queue the request
@@ -473,7 +513,8 @@ class ApiService {
     try {
       await this.api.get('/doctors/me');
       return true;
-    } catch {
+    } catch (error: any) {
+      console.log('ℹ️ isDoctor check: User is not a doctor or error occurred');
       return false;
     }
   }

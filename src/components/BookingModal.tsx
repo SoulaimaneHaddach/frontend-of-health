@@ -17,6 +17,7 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { InputField } from '../shared/components/InputField';
 import { CustomButton } from '../shared/components/CustomButton';
+import { useLanguage } from '../context/LanguageContext';
 // import { CustomAlert } from './CustomAlert'; // TODO: Use custom alert in future for better design
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 import ApiService from '../services/api';
@@ -35,6 +36,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { t, isRTL } = useLanguage();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -63,24 +65,24 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (!name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = t.requiredField;
     }
 
     if (!email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = t.requiredField;
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email';
+      newErrors.email = t.invalidEmail;
     }
 
     if (!phone.trim()) {
-      newErrors.phone = 'Phone number is required';
+      newErrors.phone = t.requiredField;
     } else if (!/^\+?[0-9\s-]{8,}$/.test(phone)) {
-      newErrors.phone = 'Please enter a valid phone number';
+      newErrors.phone = t.invalidPhone;
     }
 
     // Check if appointment is in the past
     if (appointmentDate < new Date()) {
-      newErrors.date = 'Appointment must be in the future';
+      newErrors.date = t.error;
     }
 
     setErrors(newErrors);
@@ -115,9 +117,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       const myDoctorId = await AsyncStorage.getItem('doctorId');
       if (myDoctorId && myDoctorId === doctor.id) {
         Alert.alert(
-          'Not Allowed',
-          'You cannot book an appointment with yourself.',
-          [{ text: 'OK' }]
+          t.error,
+          t.error,
+          [{ text: t.ok }]
         );
         return;
       }
@@ -152,11 +154,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       });
 
       Alert.alert(
-        'Booking Sent! ✓',
-        `Your appointment request with Dr. ${doctor.name} has been sent successfully.\n\nThe doctor will review your request and contact you directly via phone or email to confirm.`,
+        t.bookingSuccess,
+        `${t.bookingSuccess}\n\n${t.bookingDetails}`,
         [
           {
-            text: 'Done',
+            text: t.ok,
             onPress: () => {
               handleClose();
               onSuccess?.();
@@ -179,9 +181,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           : 'Failed to create booking. Please try again.');
 
       Alert.alert(
-        'Booking Failed',
+        t.bookingFailed,
         message,
-        [{ text: 'OK' }]
+        [{ text: t.ok }]
       );
     } finally {
       setLoading(false);
@@ -229,7 +231,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     try {
       if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
         console.error('❌ Invalid date object:', date);
-        return 'Select Date';
+        return t.selectDate;
       }
       return date.toLocaleDateString('en-US', {
         weekday: 'short',
@@ -239,7 +241,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       });
     } catch (error) {
       console.error('❌ Error formatting date:', error);
-      return 'Select Date';
+      return t.selectDate;
     }
   };
 
@@ -247,7 +249,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     try {
       if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
         console.error('❌ Invalid date object:', date);
-        return 'Select Time';
+        return t.selectTime;
       }
       return date.toLocaleTimeString('en-US', {
         hour: '2-digit',
@@ -255,7 +257,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       });
     } catch (error) {
       console.error('❌ Error formatting time:', error);
-      return 'Select Time';
+      return t.selectTime;
     }
   };
 
@@ -273,7 +275,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
             <Ionicons name="close" size={28} color={COLORS.textSecondary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>New Appointment</Text>
+          <Text style={[styles.headerTitle, isRTL && { textAlign: 'right' }]}>{t.bookAppointment}</Text>
           <View style={{ width: 28 }} />
         </View>
 
@@ -285,67 +287,26 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           keyboardDismissMode="on-drag"
         >
           {/* Doctor Info Card */}
-          <View style={styles.doctorCard}>
+          <View style={[styles.doctorCard, isRTL && { flexDirection: 'row-reverse' }]}>
             <View style={styles.doctorAvatar}>
-              <Text style={styles.doctorAvatarText}>{doctor.name.charAt(0).toUpperCase()}</Text>
+              <Ionicons name="medical" size={32} color={COLORS.white} />
             </View>
             <View style={styles.doctorInfo}>
-              <Text style={styles.doctorLabel}>Booking with</Text>
-              <Text style={styles.doctorName}>Dr. {doctor.name}</Text>
-              <Text style={styles.doctorSpecialty}>{doctor.specialization}</Text>
+              <Text style={[styles.doctorLabel, isRTL && { textAlign: 'right' }]}>{t.bookingDetails}</Text>
+              <Text style={[styles.doctorName, isRTL && { textAlign: 'right' }]}>Dr. {doctor.name}</Text>
+              <Text style={[styles.doctorSpecialty, isRTL && { textAlign: 'right' }]}>{doctor.specialization}</Text>
             </View>
           </View>
 
-          {/* Date & Time Selection */}
+          {/* Patient Info - MOVED TO TOP */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Select Date & Time</Text>
-
-            {/* Date Selection Card */}
-            <TouchableOpacity
-              style={styles.selectionCard}
-              onPress={() => setShowDatePicker(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.selectionHeader}>
-                <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
-                <Text style={styles.selectionLabel}>Appointment Date</Text>
-              </View>
-              <View style={styles.selectionValueContainer}>
-                <Text style={styles.selectionValue}>
-                  {formatDate(appointmentDate)}
-                </Text>
-                <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
-              </View>
-            </TouchableOpacity>
-
-            {/* Time Selection Card */}
-            <TouchableOpacity
-              style={styles.selectionCard}
-              onPress={() => setShowTimePicker(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.selectionHeader}>
-                <Ionicons name="time-outline" size={20} color={COLORS.primary} />
-                <Text style={styles.selectionLabel}>Appointment Time</Text>
-              </View>
-              <View style={styles.selectionValueContainer}>
-                <Text style={styles.selectionValue}>
-                  {formatTime(appointmentDate)}
-                </Text>
-                <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
-              </View>
-            </TouchableOpacity>
-
-            {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
-          </View>
-
-          {/* Patient Info */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Information</Text>
+            <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>
+              <Ionicons name="person-outline" size={18} color={COLORS.primary} /> {t.patientName}
+            </Text>
 
             <InputField
-              label="Full Name"
-              placeholder="John Doe"
+              label={t.name}
+              placeholder={t.name}
               value={name}
               onChangeText={(text) => {
                 setName(text);
@@ -358,8 +319,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             />
 
             <InputField
-              label="Email Address"
-              placeholder="patient@example.com"
+              label={t.email}
+              placeholder={t.email}
               value={email}
               onChangeText={(text) => {
                 setEmail(text);
@@ -374,8 +335,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             />
 
             <InputField
-              label="Phone Number"
-              placeholder="+212 123 456 789"
+              label={t.phone}
+              placeholder={t.phone}
               value={phone}
               onChangeText={(text) => {
                 setPhone(text);
@@ -388,16 +349,51 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               error={errors.phone}
             />
           </View>
-          {/* Info Box */}
-          <View style={styles.infoBox}>
-            <Ionicons name="information-circle" size={20} color={COLORS.info || COLORS.primary} />
-            <Text style={styles.infoText}>
-              The doctor will review your request and contact you directly to confirm your appointment.
+
+          {/* Date & Time Selection - MOVED TO BOTTOM */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>
+              <Ionicons name="calendar-outline" size={18} color={COLORS.primary} /> {t.selectDate} & {t.selectTime}
             </Text>
+
+            <View style={styles.dateTimeRow}>
+              {/* Date Selection Card */}
+              <TouchableOpacity
+                style={styles.halfCard}
+                onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="calendar" size={22} color={COLORS.primary} />
+                </View>
+                <Text style={[styles.cardLabel, isRTL && { textAlign: 'right' }]}>{t.selectDate}</Text>
+                <Text style={[styles.cardValue, isRTL && { textAlign: 'right' }]} numberOfLines={2}>
+                  {formatDate(appointmentDate)}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Time Selection Card */}
+              <TouchableOpacity
+                style={styles.halfCard}
+                onPress={() => setShowTimePicker(true)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.iconCircle}>
+                  <Ionicons name="time" size={22} color={COLORS.secondary} />
+                </View>
+                <Text style={[styles.cardLabel, isRTL && { textAlign: 'right' }]}>{t.selectTime}</Text>
+                <Text style={[styles.cardValue, isRTL && { textAlign: 'right' }]}>
+                  {formatTime(appointmentDate)}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {errors.date && <Text style={[styles.errorText, isRTL && { textAlign: 'right' }]}>{errors.date}</Text>}
           </View>
+
           {/* Submit Button */}
           <CustomButton
-            title="Send Booking Request"
+            title={t.confirmBooking}
             onPress={handleSubmit}
             variant="primary"
             size="large"
@@ -419,8 +415,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           themeVariant="light"
           textColor="#000000"
           pickerContainerStyleIOS={{ backgroundColor: '#FFFFFF' }}
-          confirmTextIOS="Confirm"
-          cancelTextIOS="Cancel"
+          confirmTextIOS={t.confirm}
+          cancelTextIOS={t.cancel}
         />
         <DateTimePickerModal
           isVisible={showTimePicker}
@@ -433,8 +429,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           themeVariant="light"
           textColor="#000000"
           pickerContainerStyleIOS={{ backgroundColor: '#FFFFFF' }}
-          confirmTextIOS="Confirm"
-          cancelTextIOS="Cancel"
+          confirmTextIOS={t.confirm}
+          cancelTextIOS={t.cancel}
         />
 
         {/* Custom Alert - Preserved for future use */}
@@ -484,18 +480,17 @@ const styles = StyleSheet.create({
   doctorCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary + '08',
+    backgroundColor: COLORS.primary,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
-    marginBottom: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.primary + '20',
+    marginBottom: SPACING.xl,
+    ...SHADOWS.medium,
   },
   doctorAvatar: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: COLORS.primary + '20',
+    backgroundColor: COLORS.white + '20',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.md,
@@ -503,26 +498,26 @@ const styles = StyleSheet.create({
   doctorAvatarText: {
     fontSize: FONT_SIZES.xxxl,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: COLORS.white,
   },
   doctorInfo: {
     flex: 1,
   },
   doctorLabel: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
+    color: COLORS.white + 'CC',
     fontWeight: '600',
     marginBottom: 2,
   },
   doctorName: {
     fontSize: FONT_SIZES.xl,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: COLORS.white,
     marginBottom: 2,
   },
   doctorSpecialty: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: COLORS.white + 'DD',
     fontWeight: '500',
   },
   section: {
@@ -534,40 +529,42 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     marginBottom: SPACING.md,
   },
-  selectionCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    ...SHADOWS.small,
-  },
-  selectionHeader: {
+  dateTimeRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
+    gap: SPACING.md,
     marginBottom: SPACING.sm,
   },
-  selectionLabel: {
-    fontSize: FONT_SIZES.sm,
+  halfCard: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    ...SHADOWS.medium,
+  },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary + '10',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.sm,
+  },
+  cardLabel: {
+    fontSize: FONT_SIZES.xs,
     fontWeight: '600',
     color: COLORS.textSecondary,
+    marginBottom: SPACING.xs,
+    textAlign: 'center',
   },
-  selectionValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.background,
-    borderRadius: RADIUS.sm,
-    padding: SPACING.md,
-    minHeight: 48,
-  },
-  selectionValue: {
-    fontSize: FONT_SIZES.base,
-    fontWeight: '600',
+  cardValue: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '700',
     color: COLORS.textPrimary,
-    flex: 1,
+    textAlign: 'center',
   },
   errorText: {
     fontSize: FONT_SIZES.xs,

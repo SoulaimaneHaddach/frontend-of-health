@@ -1,8 +1,10 @@
 // src/navigation/AppNavigator.tsx
-import React, { useRef } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { NavigationContainer, NavigationState } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAnalytics } from '../shared/hooks/useAnalytics';
+import { LanguageSelectionScreen } from '../screens/LanguageSelectionScreen';
 import { WelcomeScreen } from '../screens/WelcomeScreen';
 import { RoleSelectionScreen } from '../screens/RoleSelectionScreen';
 import { DoctorLoginScreen } from '../screens/doctor/DoctorLoginScreen';
@@ -14,6 +16,7 @@ import { HomeScreen } from '../screens/user/HomeScreen';
 import { DoctorDetailsScreen } from '../screens/user/DoctorDetailsScreen';
 
 export type RootStackParamList = {
+  LanguageSelection: undefined;
   Welcome: undefined;
   RoleSelection: undefined;
   DoctorLogin: undefined;
@@ -31,6 +34,29 @@ export const AppNavigator: React.FC = () => {
   const analytics = useAnalytics();
   const routeNameRef = useRef<string | undefined>(undefined);
   const navigationRef = useRef<any>(null);
+  const [initialRoute, setInitialRoute] = useState<'LanguageSelection' | 'Welcome'>('LanguageSelection');
+  const [isReady, setIsReady] = useState(false);
+
+  // Check if language has been selected
+  useEffect(() => {
+    checkLanguageSelection();
+  }, []);
+
+  const checkLanguageSelection = async () => {
+    try {
+      const savedLanguage = await AsyncStorage.getItem('app_language');
+      if (savedLanguage) {
+        setInitialRoute('Welcome');
+      } else {
+        setInitialRoute('LanguageSelection');
+      }
+    } catch (error) {
+      console.error('Failed to check language:', error);
+      setInitialRoute('LanguageSelection');
+    } finally {
+      setIsReady(true);
+    }
+  };
 
   // Track screen changes
   const onStateChange = (state: NavigationState | undefined) => {
@@ -59,6 +85,10 @@ export const AppNavigator: React.FC = () => {
     return route.name;
   };
 
+  if (!isReady) {
+    return null; // Or a loading screen
+  }
+
   return (
     <NavigationContainer
       ref={navigationRef}
@@ -72,12 +102,13 @@ export const AppNavigator: React.FC = () => {
       onStateChange={onStateChange}
     >
       <Stack.Navigator
-        initialRouteName="Welcome"
+        initialRouteName={initialRoute}
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
         }}
       >
+        <Stack.Screen name="LanguageSelection" component={LanguageSelectionScreen} />
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
         <Stack.Screen name="DoctorLogin" component={DoctorLoginScreen} />

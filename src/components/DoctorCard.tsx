@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 
 import { DoctorMapDto } from '../services/api';
@@ -78,6 +79,12 @@ const calculateDistance = (
   return R * c;
 };
 
+// Helper to translate specialty
+const getTranslatedSpecialty = (specialty: string, t: any): string => {
+  const key = specialty?.toLowerCase() || '';
+  return (t[key] as string) || specialty;
+};
+
 const DoctorCardComponent: React.FC<DoctorCardProps> = ({
   doctor,
   visible,
@@ -89,6 +96,7 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
   userLocation,
 }) => {
   const { isDarkMode } = useTheme();
+  const { t, isRTL } = useLanguage();
   const styles = useMemo(() => createStyles(isDarkMode), [isDarkMode]);
 
   // Memoize distance calculation
@@ -180,9 +188,6 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
             </Text>
           </View>
         </View>
-        {/* <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Ionicons name="close-circle" size={28} color={COLORS.textSecondary} />
-        </TouchableOpacity> */}
       </View>
 
       {/* Distance Badge */}
@@ -190,10 +195,10 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
         <View style={styles.distanceContainer}>
           <View style={styles.distanceBadge}>
             <Ionicons name="navigate" size={16} color={COLORS.primary} />
-            <Text style={styles.distanceText}>
+            <Text style={[styles.distanceText, isRTL && { textAlign: 'right' }]}>
               {distance < 1 
-                ? `${Math.round(distance * 1000)}m away` 
-                : `${distance.toFixed(1)}km away`}
+                ? `${Math.round(distance * 1000)}m` 
+                : `${distance.toFixed(1)}km`}
             </Text>
           </View>
         </View>
@@ -202,24 +207,14 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
       {/* Address Section */}
       {doctor.location?.address && (
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+          <View style={[styles.sectionHeader, isRTL && { flexDirection: 'row-reverse' }]}>
             <Ionicons name="location" size={20} color={COLORS.primary} />
-            <Text style={styles.sectionTitle}>Location</Text>
+            <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>{t.address}</Text>
           </View>
-          <Text style={styles.addressText}>{doctor.location.address}</Text>
+          <Text style={[styles.addressText, isRTL && { textAlign: 'right' }]}>{doctor.location.address}</Text>
         </View>
       )}
 
-      {/* Contact Info
-      {doctor.phoneNumber && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="call" size={20} color={COLORS.primary} />
-            <Text style={styles.sectionTitle}>Contact</Text>
-          </View>
-          <Text style={styles.contactText}>{doctor.phoneNumber}</Text>
-        </View>
-      )} */}
 
       {/* Action Buttons */}
       <View style={styles.actions}>
@@ -229,23 +224,15 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
           activeOpacity={0.8}
         >
           <Ionicons name="information-circle" size={20} color={COLORS.white} />
-          <Text style={styles.primaryButtonText}>View Details</Text>
+          <Text style={styles.primaryButtonText}>{t.viewProfile}</Text>
         </TouchableOpacity>
-        {/* <TouchableOpacity
-          style={[styles.actionButton, styles.secondaryButton]}
-          onPress={handleCall}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="call" size={20} color={COLORS.primary} />
-          <Text style={styles.secondaryButtonText}>Call</Text>
-        </TouchableOpacity> */}
         <TouchableOpacity
           style={[styles.actionButton, styles.secondaryButton]}
           onPress={handleDirections}
           activeOpacity={0.8}
         >
           <Ionicons name="navigate" size={20} color={COLORS.primary} />
-          <Text style={styles.secondaryButtonText}>Directions</Text>
+          <Text style={styles.secondaryButtonText}>{t.address}</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>

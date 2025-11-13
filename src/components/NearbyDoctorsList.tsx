@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 import { DoctorResponseDto, DoctorMapDto } from '../services/api';
 
@@ -76,6 +77,12 @@ const calculateDistance = (
   return R * c;
 };
 
+// Helper to translate specialty
+const getTranslatedSpecialty = (specialty: string, t: any): string => {
+  const key = specialty?.toLowerCase() || '';
+  return (t[key] as string) || specialty;
+};
+
 export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
   doctors,
   visible,
@@ -84,8 +91,9 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
   userLocation,
 }) => {
   const { isDarkMode } = useTheme();
+  const { t, isRTL } = useLanguage();
   const [sortBy, setSortBy] = useState<SortOption>('distance');
-  const styles = useMemo(() => createStyles(isDarkMode), [isDarkMode]);
+  const styles = useMemo(() => createStyles(isDarkMode, isRTL), [isDarkMode, isRTL]);
 
   const sortedDoctors = [...doctors].sort((a, b) => {
     switch (sortBy) {
@@ -125,14 +133,14 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
         <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
+          <View style={[styles.headerLeft, isRTL && { flexDirection: 'row-reverse' }]}>
             <View style={styles.iconBadge}>
               <Ionicons name="location" size={30} color={COLORS.white} />
             </View>
             <View>
-              <Text style={styles.title}>Nearby Doctors</Text>
-              <Text style={styles.subtitle}>
-                {doctors.length} {doctors.length === 1 ? 'doctor' : 'doctors'} available
+              <Text style={[styles.title, isRTL && { textAlign: 'right' }]}>{t.nearbyDoctors}</Text>
+              <Text style={[styles.subtitle, isRTL && { textAlign: 'right' }]}>
+                {doctors.length} {doctors.length === 1 ? t.name : t.name}
               </Text>
             </View>
           </View>
@@ -143,14 +151,14 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
         {/* Sort Options */}
         {doctors.length > 0 && (
           <View style={styles.sortContainer}>
-            <Text style={styles.sortLabel}>Sort by:</Text>
+            <Text style={[styles.sortLabel, isRTL && { textAlign: 'right' }]}>{t.filter}:</Text>
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.sortOptions}
+              contentContainerStyle={[styles.sortOptions, isRTL && { flexDirection: 'row-reverse' }]}
             >
               <TouchableOpacity
-                style={[styles.sortButton, sortBy === 'distance' && styles.sortButtonActive]}
+                style={[styles.sortButton, sortBy === 'distance' && styles.sortButtonActive, isRTL && { flexDirection: 'row-reverse' }]}
                 onPress={() => setSortBy('distance')}
               >
                 <Ionicons 
@@ -162,11 +170,11 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
                   styles.sortButtonText,
                   sortBy === 'distance' && styles.sortButtonTextActive
                 ]}>
-                  Distance
+                  {t.location}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.sortButton, sortBy === 'name' && styles.sortButtonActive]}
+                style={[styles.sortButton, sortBy === 'name' && styles.sortButtonActive, isRTL && { flexDirection: 'row-reverse' }]}
                 onPress={() => setSortBy('name')}
               >
                 <Ionicons 
@@ -178,11 +186,11 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
                   styles.sortButtonText,
                   sortBy === 'name' && styles.sortButtonTextActive
                 ]}>
-                  Name
+                  {t.name}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.sortButton, sortBy === 'specialty' && styles.sortButtonActive]}
+                style={[styles.sortButton, sortBy === 'specialty' && styles.sortButtonActive, isRTL && { flexDirection: 'row-reverse' }]}
                 onPress={() => setSortBy('specialty')}
               >
                 <Ionicons 
@@ -194,7 +202,7 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
                   styles.sortButtonText,
                   sortBy === 'specialty' && styles.sortButtonTextActive
                 ]}>
-                  Specialty
+                  {t.specialty}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
@@ -210,9 +218,9 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
               <View style={styles.emptyIconContainer}>
                 <Ionicons name="map-outline" size={64} color={COLORS.textLight} />
               </View>
-              <Text style={styles.emptyText}>No doctors nearby</Text>
+              <Text style={styles.emptyText}>{t.nearbyDoctors}</Text>
               <Text style={styles.emptySubText}>
-                Try adjusting your filters or search in a different area
+                {t.search}
               </Text>
             </View>
           ) : (
@@ -236,11 +244,12 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
                   }}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.cardContent}>
+                  <View style={[styles.cardContent, isRTL && { flexDirection: 'row-reverse' }]}>
                     <View
                       style={[
                         styles.iconContainer,
                         { backgroundColor: getSpecialtyColor(doctor.specialization) },
+                        isRTL && { marginRight: 0, marginLeft: SPACING.md }
                       ]}
                     >
                       <Ionicons
@@ -250,12 +259,12 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
                       />
                     </View>
                     <View style={styles.doctorInfo}>
-                      <View style={styles.nameRow}>
-                        <Text style={styles.doctorName} numberOfLines={1}>
+                      <View style={[styles.nameRow, isRTL && { flexDirection: 'row-reverse' }]}>
+                        <Text style={[styles.doctorName, isRTL && { textAlign: 'right' }]} numberOfLines={1}>
                           {doctor.name}
                         </Text>
                         {distance !== null && (
-                          <View style={styles.distanceBadge}>
+                          <View style={[styles.distanceBadge, isRTL && { flexDirection: 'row-reverse' }]}>
                             <Ionicons name="navigate" size={12} color={COLORS.primary} />
                             <Text style={styles.distanceText}>
                               {distance < 1 
@@ -265,23 +274,24 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
                           </View>
                         )}
                       </View>
-                      <View style={styles.specialtyRow}>
+                      <View style={[styles.specialtyRow, isRTL && { alignItems: 'flex-end' }]}>
                         <View style={[
                           styles.specialtyBadge,
                           { backgroundColor: getSpecialtyColor(doctor.specialization) + '20' }
                         ]}>
                           <Text style={[
                             styles.doctorSpecialty,
-                            { color: getSpecialtyColor(doctor.specialization) }
+                            { color: getSpecialtyColor(doctor.specialization) },
+                            isRTL && { textAlign: 'right' }
                           ]}>
-                            {doctor.specialization}
+                            {getTranslatedSpecialty(doctor.specialization, t)}
                           </Text>
                         </View>
                       </View>
                       {doctor.location?.address && (
-                        <View style={styles.locationRow}>
+                        <View style={[styles.locationRow, isRTL && { flexDirection: 'row-reverse' }]}>
                           <Ionicons name="location" size={14} color={COLORS.textSecondary} />
-                          <Text style={styles.addressText} numberOfLines={2}>
+                          <Text style={[styles.addressText, isRTL && { textAlign: 'right' }]} numberOfLines={2}>
                             {doctor.location.address}
                           </Text>
                         </View>
@@ -289,7 +299,7 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
                     </View>
                   </View>
                   <Ionicons 
-                    name="chevron-forward" 
+                    name={isRTL ? "chevron-back" : "chevron-forward"} 
                     size={20} 
                     color={isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary} 
                   />
@@ -302,7 +312,7 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
     </Modal>
   );
 };
-const createStyles = (isDark: boolean) => StyleSheet.create({
+const createStyles = (isDark: boolean, isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: isDark ? COLORS.darkBg : COLORS.background,

@@ -4,6 +4,7 @@ import { View, TouchableOpacity, StyleSheet, ScrollView, Text } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { SpecialtyType } from '../shared/types';
 
 interface BottomNavBarProps {
@@ -19,28 +20,30 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   onSearchPress,
 }) => {
 const { colors } = useTheme();
+const { t } = useLanguage();
+
 const specialties: { label: string; type: SpecialtyType; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { label: 'All', type: 'all', icon: 'apps' },
-  { label: 'Hearing', type: 'hearing', icon: 'ear' },
-  { label: 'Orthopedic', type: 'orthopedic', icon: 'fitness' },
-  { label: 'Brain', type: 'brain', icon: 'pulse' },
-  { label: 'Cardiology', type: 'cardiology', icon: 'heart' },
-  { label: 'Dermatology', type: 'dermatology', icon: 'color-palette' },
-  { label: 'Pediatrics', type: 'pediatrics', icon: 'people' },
-  { label: 'Ophthalmology', type: 'ophthalmology', icon: 'eye' },
-  { label: 'Psychiatry', type: 'psychiatry', icon: 'happy' },
-  { label: 'Gastroenterology', type: 'gastroenterology', icon: 'restaurant' },
-  { label: 'Endocrinology', type: 'endocrinology', icon: 'flask' },
-  { label: 'Neurology', type: 'neurology', icon: 'pulse' }, 
-  { label: 'ENT', type: 'ent', icon: 'volume-high' },
-  { label: 'Urology', type: 'urology', icon: 'water-outline' },
-  { label: 'Nephrology', type: 'nephrology', icon: 'water' },
-  { label: 'Oncology', type: 'oncology', icon: 'bandage' },
-  { label: 'Gynecology', type: 'gynecology', icon: 'woman' },
-  { label: 'Dentistry', type: 'dentistry', icon: 'hammer' },
-  { label: 'Pulmonology', type: 'pulmonology', icon: 'cloud' },
-  { label: 'Rheumatology', type: 'rheumatology', icon: 'trending-up' },
-  { label: 'Allergy', type: 'allergy', icon: 'medkit' },
+  { label: t.allSpecialties, type: 'all', icon: 'apps' },
+  { label: t.hearing, type: 'hearing', icon: 'ear' },
+  { label: t.orthopedic, type: 'orthopedic', icon: 'fitness' },
+  { label: t.brain, type: 'brain', icon: 'pulse' },
+  { label: t.cardiology, type: 'cardiology', icon: 'heart' },
+  { label: t.dermatology, type: 'dermatology', icon: 'color-palette' },
+  { label: t.pediatrics, type: 'pediatrics', icon: 'people' },
+  { label: t.ophthalmology, type: 'ophthalmology', icon: 'eye' },
+  { label: t.psychiatry, type: 'psychiatry', icon: 'happy' },
+  { label: t.gastroenterology, type: 'gastroenterology', icon: 'restaurant' },
+  { label: t.endocrinology, type: 'endocrinology', icon: 'flask' },
+  { label: t.neurology, type: 'neurology', icon: 'pulse' }, 
+  { label: t.ent, type: 'ent', icon: 'volume-high' },
+  { label: t.urology, type: 'urology', icon: 'water-outline' },
+  { label: t.nephrology, type: 'nephrology', icon: 'water' },
+  { label: t.oncology, type: 'oncology', icon: 'bandage' },
+  { label: t.gynecology, type: 'gynecology', icon: 'woman' },
+  { label: t.dentistry, type: 'dentistry', icon: 'hammer' },
+  { label: t.pulmonology, type: 'pulmonology', icon: 'cloud' },
+  { label: t.rheumatology, type: 'rheumatology', icon: 'trending-up' },
+  { label: t.allergy, type: 'allergy', icon: 'medkit' },
 ];
 
 

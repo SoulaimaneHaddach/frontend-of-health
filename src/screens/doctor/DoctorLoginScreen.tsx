@@ -17,6 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomButton } from '../../shared/components/CustomButton';
 import { InputField } from '../../shared/components/InputField';
+import { useLanguage } from '../../context/LanguageContext';
+import { useTheme } from '../../context/ThemeContext';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import ApiService, { LoginRequestDTO, AuthResponse } from '../../services/api';
 import { useAnalytics } from '../../shared/hooks/useAnalytics';
@@ -26,6 +28,8 @@ type DoctorLoginScreenProps = {
 };
 
 export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation }) => {
+  const { t, isRTL } = useLanguage();
+  const { isDarkMode, colors } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -80,12 +84,7 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
         userType: 'doctor',
         lastLoginDate: new Date().toISOString(),
       }); 
-      Alert.alert('Success', 'Welcome back! 👋', [
-        {
-          text: 'Continue',
-          onPress: () => navigation.replace('DoctorProfile'),
-        },
-      ]);
+      navigation.replace('DoctorProfile')
     } catch (error: any) {
       console.error('❌ Login error:', error.response?.data || error.message);
       
@@ -144,8 +143,8 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -157,21 +156,25 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
           keyboardShouldPersistTaps="handled"
         >
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, { backgroundColor: colors.card }]}>
               <Ionicons name="medical" size={50} color={COLORS.secondary} />
             </View>
-            <Text style={styles.title}>Doctor Login</Text>
-            <Text style={styles.subtitle}>Welcome back! Sign in to continue</Text>
+            <Text style={[styles.title, isRTL && styles.rtlText, { color: colors.text }]}>
+              {isRTL ? 'تسجيل دخول الطبيب' : t.login}
+            </Text>
+            <Text style={[styles.subtitle, isRTL && styles.rtlText, { color: colors.textSecondary }]}>
+              {isRTL ? 'مرحبا بعودتك! سجل الدخول للمتابعة' : 'Welcome back! Sign in to continue'}
+            </Text>
           </View>
 
           <View style={styles.form}>
             <InputField
-              label="Email Address"
-              placeholder="doctor@example.com"
+              label={t.email}
+              placeholder={isRTL ? 'doctor@example.com' : 'doctor@example.com'}
               value={email}
               onChangeText={handleEmailChange}
               keyboardType="email-address"
@@ -182,8 +185,8 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
             />
 
             <InputField
-              label="Password"
-              placeholder="Enter your password"
+              label={isRTL ? 'كلمة المرور' : t.email.includes('Email') ? 'Password' : t.email}
+              placeholder={isRTL ? 'أدخل كلمة المرور' : 'Enter your password'}
               value={password}
               onChangeText={handlePasswordChange}
               isPassword
@@ -196,11 +199,13 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
               style={styles.forgotPassword}
               onPress={() => navigation.navigate('ForgotPassword')}
             >
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              <Text style={[styles.forgotPasswordText, isRTL && styles.rtlText]}>
+                {isRTL ? 'هل نسيت كلمة المرور؟' : 'Forgot Password?'}
+              </Text>
             </TouchableOpacity>
             
             <CustomButton
-              title="Login"
+              title={t.login}
               onPress={handleLogin}
               variant="secondary"
               size="large"
@@ -210,7 +215,7 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
+            <Text style={[styles.footerText, { color: colors.textSecondary }]}>Don't have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('DoctorRegister')}>
               <Text style={styles.signUpText}>Sign Up</Text>
             </TouchableOpacity>
@@ -305,6 +310,10 @@ const styles = StyleSheet.create({
   signUpText: {
     fontSize: FONT_SIZES.base,
     color: COLORS.secondary,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });
