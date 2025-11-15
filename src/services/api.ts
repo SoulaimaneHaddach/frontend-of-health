@@ -37,7 +37,8 @@ export type {
   WorkingHours,
 };
 
-const API_BASE_URL = 'https://vsrwljl6-8080.uks1.devtunnels.ms/api';
+const API_BASE_URL = 'https://healingbackend-production-a872.up.railway.app/api';
+// const API_BASE_URL = 'https://vsrwljl6-8080.uks1.devtunnels.ms/api'; // Local dev only
 
 class ApiService {
   private api: AxiosInstance;
@@ -49,10 +50,11 @@ class ApiService {
     // Authenticated API instance
     this.api = axios.create({
       baseURL: API_BASE_URL,
-      timeout: 30000,
+      timeout: 15000, // Reduced from 30s to 15s for faster failure
       headers: { 
         'Content-Type': 'application/json',
       },
+      validateStatus: (status) => status < 500, // Don't throw on 4xx errors
     });
 
  

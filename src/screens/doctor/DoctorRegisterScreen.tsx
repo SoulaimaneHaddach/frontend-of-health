@@ -67,8 +67,9 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
   const analytics = useAnalytics();
 
   const updateField = (field: string, value: string) => {
-    setFormData({ ...formData, [field]: value });
-    if (errors[field]) setErrors({ ...errors, [field]: '' });
+    // Use functional updates to avoid stale closures when multiple inputs update quickly
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => (prev[field] ? { ...prev, [field]: '' } : prev));
   };
 
   const validateForm = () => {

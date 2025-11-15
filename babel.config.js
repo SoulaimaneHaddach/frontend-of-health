@@ -9,5 +9,9 @@ module.exports = function(api) {
         },
       ],
     ],
+    plugins: [
+      // REQUIRED for react-native-reanimated - MUST BE LAST
+      'react-native-reanimated/plugin',
+    ],
   };
 };
