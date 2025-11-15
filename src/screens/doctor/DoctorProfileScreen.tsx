@@ -406,7 +406,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         showCustomAlert(setAlertConfig, t.sessionExpired, t.serverError, [
           { 
             text: t.logout, 
-            onPress: () => { navigation.replace('DoctorLoginScreen'); ApiService.logout(); },
+            onPress: () => { ApiService.logout(); navigation.replace('DoctorLogin'); },
             style: 'cancel'
           },
         ]);

@@ -17,6 +17,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Language } from '../i18n/translations';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 import * as Updates from 'expo-updates';
+import { DevSettings } from 'react-native';
 
 type LanguageSelectionScreenProps = {
   navigation: NativeStackNavigationProp<any>;
@@ -72,20 +73,17 @@ export const LanguageSelectionScreen: React.FC<LanguageSelectionScreenProps> = (
             text: selectedLanguage === 'ar' ? 'حسناً' :
                   selectedLanguage === 'fr' ? 'D\'accord' : 
                   'OK',
-            onPress: async () => {
-              // Try to reload the app
+            onPress: () => {
+              // Some native reload APIs (expo-updates / DevSettings) can
+              // throw unexpected native errors in certain build/dev setups
+              // (e.g. argument mismatches). To avoid crashing the app for
+              // users, we navigate back to the Welcome screen and instruct
+              // the user to fully close and reopen the app to apply RTL.
               try {
-                if (Updates.isEnabled) {
-                  await Updates.reloadAsync();
-                } else {
-                  // In development, just navigate to welcome
-                  console.log('⚠️ RTL will apply after full app restart');
-                  navigation.replace('Welcome');
-                }
-              } catch (error) {
-                console.error('Restart failed:', error);
-                // Fallback to navigation
+                console.log('⚠️ RTL change requires full app restart. Navigating to Welcome.');
                 navigation.replace('Welcome');
+              } catch (navErr) {
+                console.error('Navigation fallback failed:', navErr);
               }
             },
           },

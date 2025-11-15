@@ -10,13 +10,12 @@ import {
   StatusBar,
   ActivityIndicator,
   Animated,
-  Dimensions,
   PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -29,13 +28,13 @@ import { NearbyDoctorsModal } from '../../components/NearbyDoctorsList';
 import { DoctorCard } from '../../components/DoctorCard';
 import api from '../../services/api';
 import { useAnalytics } from '../../shared/hooks/useAnalytics';
+import { Platform } from 'react-native';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_HEIGHT = 280;
 const NAVBAR_HEIGHT = 60;
 
-const MIN_ZOOM_DELTA = 0.1; 
-const MAX_ZOOM_DELTA = 0.5; 
+const MIN_ZOOM_DELTA = 0.01; 
+const MAX_ZOOM_DELTA = 0.3; // Doctors visible when zoomed in closer than this 
 
 // Map boundaries (Morocco area)
 const MOROCCO_BOUNDS = {
@@ -79,7 +78,7 @@ const getSpecialtyIcon = (specialty?: string): keyof typeof Ionicons.glyphMap =>
 };
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const { isDarkMode, toggleTheme, colors } = useTheme();
+  const { isDarkMode, colors } = useTheme();
   const { t, isRTL } = useLanguage();
   const analytics = useAnalytics();
 
@@ -92,12 +91,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [selectedDoctor, setSelectedDoctor] = useState<(DoctorMapDto | DoctorResponseDto) | null>(null);
   const [isListVisible, setIsListVisible] = useState(false);
   const [currentZoomLevel, setCurrentZoomLevel] = useState(0.05);
+  const [mapError, setMapError] = useState(false);
+  // Allow disabling the map on Android release if Google Maps API key isn't configured yet
+  const MAPS_DISABLED = (typeof process !== 'undefined' && (process as any).env?.EXPO_PUBLIC_DISABLE_MAP) === '1';
 
   const slideAnim = useRef(new Animated.Value(CARD_HEIGHT)).current;
   const panY = useRef(new Animated.Value(0)).current;
   const mapRef = useRef<MapView | null>(null);
   const initialLocationSet = useRef(false);
   const isFetchingRef = useRef(false);
+  // Flag to distinguish programmatic map moves (animateToRegion) from user gestures
+  const isProgrammaticRef = useRef(false);
 
   const [userLocation, setUserLocation] = useState<Region>({
     latitude: 35.7595,
@@ -142,85 +146,157 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       return;
     }
 
+    // Only fetch if we have valid location
+    if (!userLocation || !userLocation.latitude || !userLocation.longitude) {
+      console.log('⚠️ No valid location, skipping fetch');
+      return;
+    }
+
     isFetchingRef.current = true;
     setLoading(true);
     
     try {
-      console.log('🔍 Fetching doctors at:', {
+      console.log('🔍 Fetching all doctors:', {
         lat: userLocation.latitude,
         lng: userLocation.longitude,
         specialty: selectedSpecialty
       });
       
+      // Fetch all doctors regardless of distance
       const data = await api.getDoctorsMap(
         userLocation.latitude,
         userLocation.longitude,
         selectedSpecialty === 'all' ? undefined : selectedSpecialty,
-        25 
+        1000 // Large radius to get all doctors
       );
-      const safeData = Array.isArray(data) ? data : (data as any)?.data || [];
       
-      console.log('✅ Fetched doctors:', safeData.length);
-      setDoctors(safeData);
+      // Safely parse the response
+      let safeData: any[] = [];
+      if (Array.isArray(data)) {
+        safeData = data;
+      } else if (data && typeof data === 'object') {
+        const anyData = data as any;
+        if (Array.isArray(anyData.data)) {
+          safeData = anyData.data;
+        } else if (Array.isArray(anyData.doctors)) {
+          safeData = anyData.doctors;
+        }
+      }
+      
+      // Filter out invalid entries
+      const validDoctors = safeData.filter((doctor: any) => 
+        doctor && 
+        typeof doctor === 'object' && 
+        doctor.location && 
+        typeof doctor.location.latitude === 'number' && 
+        typeof doctor.location.longitude === 'number'
+      );
+      
+      console.log('✅ Fetched doctors:', validDoctors.length);
+      setDoctors(validDoctors);
     } catch (error) {
       console.error('❌ Error fetching doctors:', error);
       setDoctors([]);
+      // Don't crash the app, just show empty list
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [userLocation.latitude, userLocation.longitude, selectedSpecialty]);
+  }, [userLocation, selectedSpecialty]);
 
   // Get user location on mount and center map
   useEffect(() => {
     let mounted = true;
     
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted' && mounted) {
-        const location = await Location.getCurrentPositionAsync({});
-        if (mounted) {
-          const newRegion = {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          };
-          
-          console.log('📍 User location acquired:', newRegion);
-          setUserLocation(newRegion);
-          
-          // Only animate to user location on initial load
-          if (!initialLocationSet.current) {
-            setTimeout(() => {
-              mapRef.current?.animateToRegion(newRegion, 1000);
-            }, 500);
-            initialLocationSet.current = true;
+    const initLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted' && mounted) {
+          try {
+            const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            if (mounted && location?.coords) {
+              const newRegion = {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+              };
+              
+              console.log('📍 User location acquired:', newRegion);
+              setUserLocation(newRegion);
+              
+              // Only animate to user location on initial load
+              if (!initialLocationSet.current && mapRef.current) {
+                setTimeout(() => {
+                  try {
+                    isProgrammaticRef.current = true;
+                    mapRef.current?.animateToRegion(newRegion, 1000);
+                  } catch (e) {
+                    console.warn('Map animation error:', e);
+                  }
+                }, 500);
+                initialLocationSet.current = true;
+              }
+            }
+          } catch (locError) {
+            console.warn('Location fetch error:', locError);
+            if (mounted) {
+              setUserLocation({
+                latitude: 35.7595,
+                longitude: -5.8340,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+              });
+            }
+          }
+        } else {
+          console.log('⚠️ Location permission denied, using default location');
+          if (mounted) {
+            setUserLocation({
+              latitude: 35.7595,
+              longitude: -5.8340,
+              latitudeDelta: 0.05,
+              longitudeDelta: 0.05,
+            });
           }
         }
+      } catch (error) {
+        console.error('❌ Error getting location:', error);
+        if (mounted) {
+          setUserLocation({
+            latitude: 35.7595,
+            longitude: -5.8340,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          });
+        }
       }
-    })();
+    };
 
+    initLocation().catch(e => console.error('Init location failed:', e));
     return () => { mounted = false; };
   }, []);
 
-  // Fetch doctors when location or specialty changes
+  // Fetch doctors immediately when location is ready
   useEffect(() => {
-    console.log('⏰ Fetch triggered - Location or specialty changed');
-    
-    const timer = setTimeout(() => {
+    if (userLocation && userLocation.latitude && userLocation.longitude) {
+      console.log('🎯 Initial fetch on location ready');
       fetchDoctors();
-    }, 200); // Small delay to debounce
-
-    return () => clearTimeout(timer);
+    }
   }, [userLocation.latitude, userLocation.longitude, selectedSpecialty]);
 
-  // Refetch doctors when screen comes into focus
+  // Refetch doctors when screen comes into focus (but not on initial mount)
+  const hasMountedRef = useRef(false);
+  
   useFocusEffect(
     useCallback(() => {
-      console.log('🔄 Screen focused, refetching doctors...');
-      fetchDoctors();
-    }, [fetchDoctors])
+      if (hasMountedRef.current && userLocation) {
+        console.log('🔄 Screen refocused, fetching doctors...');
+        fetchDoctors();
+      } else {
+        hasMountedRef.current = true;
+      }
+    }, [userLocation])
   );
 
   const filteredDoctors = useMemo(() => {
@@ -238,7 +314,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const visibleDoctors = useMemo(() => {
     if (currentZoomLevel > MAX_ZOOM_DELTA) {
-      return []; 
+      return []; // Hide doctors when zoomed out
     }
     return filteredDoctors;
   }, [filteredDoctors, currentZoomLevel]);
@@ -304,6 +380,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       api.getDoctorById(doctor.id).then((full) => setSelectedDoctor(full)).catch(() => {});
     }
     if (doctor.location) {
+      isProgrammaticRef.current = true;
       mapRef.current?.animateToRegion({
         latitude: doctor.location.latitude,
         longitude: doctor.location.longitude,
@@ -334,11 +411,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       Math.abs(constrainedRegion.latitude - region.latitude) > 0.01 ||
       Math.abs(constrainedRegion.longitude - region.longitude) > 0.01
     ) {
+      isProgrammaticRef.current = true;
       mapRef.current?.animateToRegion(constrainedRegion, 100);
     }
   }, []);
 
   const handleMapRegionChangeComplete = useCallback(() => {
+    // If the region change was triggered programmatically (animateToRegion),
+    // reset the flag and do not hide the doctor card.
+    if (isProgrammaticRef.current) {
+      isProgrammaticRef.current = false;
+      return;
+    }
+
     if (selectedDoctor) {
       hideDoctorCard();
     }
@@ -356,8 +441,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           longitudeDelta: 0.05,
         };
         
-        // Only animate the map, don't update userLocation state
-        // This prevents double fetching of doctors
+        setUserLocation(newRegion);
+        isProgrammaticRef.current = true;
         mapRef.current?.animateToRegion(newRegion, 1000);
       }
     } catch (error) {
@@ -367,10 +452,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  if (!userLocation) {
+  // Show loading state while location is being fetched
+  if (!userLocation || loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+        <StatusBar 
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
+          backgroundColor={colors.background} 
+        />
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, isRTL && { textAlign: 'right' }]}>{t.nearbyDoctors}</Text>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ marginTop: 20, color: colors.text }}>
+            {loading ? t.loading : 'Getting your location...'}
+          </Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -384,7 +482,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, isRTL && { textAlign: 'right' }]}>{t.findDoctors}</Text>
+        <Text style={[styles.headerTitle, isRTL && { textAlign: 'right' }]}>{t.nearbyDoctors}</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity 
             onPress={() => navigation.navigate('LanguageSelection')}
@@ -448,7 +546,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <Text style={[styles.searchResultsTitle, isRTL && { textAlign: 'right' }]}>{t.search}</Text>
             </View>
             <Text style={[styles.searchResultsCount, isRTL && { textAlign: 'right' }]}>
-              {filteredDoctors.length} {filteredDoctors.length === 1 ? t.nearbyDoctors.slice(0, -1) : t.nearbyDoctors}
+              {filteredDoctors.length} {t.nearbyDoctors}
             </Text>
           </View>
           
@@ -477,13 +575,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                     showDoctorCard(doctor);
                     setSearchVisible(false);
                     setSearchQuery('');
-                    if (doctor.location)
+                    if (doctor.location) {
+                      isProgrammaticRef.current = true;
                       mapRef.current?.animateToRegion({
                         latitude: doctor.location.latitude,
                         longitude: doctor.location.longitude,
                         latitudeDelta: 0.02,
                         longitudeDelta: 0.02,
                       }, 300);
+                    }
                   }}
                 >
                   <View style={[
@@ -527,24 +627,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       {loading && <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />}
 
       {/* Map */}
-      {!loading && (
+      {!loading && userLocation && userLocation.latitude && userLocation.longitude && (
         <View style={styles.mapContainer}>
-          <MapView 
-            ref={mapRef} 
-            provider={PROVIDER_GOOGLE} 
-            style={styles.map} 
-            initialRegion={userLocation}
-            onRegionChange={handleMapRegionChange}
-            onRegionChangeComplete={handleMapRegionChangeComplete}
-            customMapStyle={isDarkMode ? DARK_MAP_STYLE : []}
-            minZoomLevel={8}
-            maxZoomLevel={18}
-            pitchEnabled={false}
-            rotateEnabled={false}
-            toolbarEnabled={false}
-            loadingEnabled={true}
-            loadingIndicatorColor={colors.primary}
-          >
+          {!(Platform.OS === 'android' && MAPS_DISABLED) && !mapError ? (
+            <MapView 
+              ref={mapRef} 
+              provider={Platform.OS === 'android' ? PROVIDER_DEFAULT : undefined}
+              style={styles.map} 
+              initialRegion={userLocation}
+              onRegionChange={handleMapRegionChange}
+              onRegionChangeComplete={handleMapRegionChangeComplete}
+              onMapReady={() => {
+                console.log('✅ Map ready');
+                setMapError(false);
+              }}
+              minZoomLevel={Platform.OS === 'android' ? 8 : undefined}
+              maxZoomLevel={Platform.OS === 'android' ? 18 : undefined}
+              pitchEnabled={false}
+              rotateEnabled={false}
+              toolbarEnabled={Platform.OS === 'android' ? false : undefined}
+              loadingEnabled={true}
+              loadingIndicatorColor={colors.primary}
+            >
             {/* User Location Marker */}
             <Marker
               key="user-location"
@@ -560,7 +664,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               </View>
             </Marker>
 
-            {/* Doctor Markers - Only shown when zoomed in */}
+            {/* Doctor Markers - Show only when zoomed in */}
             {visibleDoctors.map((doctor, index) => {
               if (!doctor.location) return null; // skip if no coordinates
               return (
@@ -570,7 +674,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                     latitude: doctor.location.latitude,
                     longitude: doctor.location.longitude,
                   }}
-                  onPress={() => showDoctorCard(doctor)}
+                  onPress={() => handleDoctorPress(doctor)}
                   anchor={{ x: 0.5, y: 0.5 }}
                   tracksViewChanges={false}
                 >
@@ -590,13 +694,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               );
             })}
           </MapView>
+          ) : (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+              <Ionicons name="map-outline" size={64} color={colors.textSecondary} />
+              <Text style={{ marginTop: 20, color: colors.text, fontSize: 16 }}>Map unavailable</Text>
+              <Text style={{ marginTop: 10, color: colors.textSecondary, fontSize: 14 }}>Viewing doctors in list mode</Text>
+              <TouchableOpacity 
+                onPress={() => setMapError(false)}
+                style={{ marginTop: 20, padding: 10, backgroundColor: colors.primary, borderRadius: 8 }}
+              >
+                <Text style={{ color: '#FFF' }}>Retry Map</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <View style={styles.mapOverlay}>
             <Text style={[styles.resultsText, isRTL && { textAlign: 'right' }]}>
-              {filteredDoctors.length} {filteredDoctors.length === 1 ? t.nearbyDoctors.slice(0, -1) : t.nearbyDoctors}
+              {filteredDoctors.length} {t.nearbyDoctors}
             </Text>
             {currentZoomLevel > MAX_ZOOM_DELTA && (
-              <Text style={[styles.zoomHint, isRTL && { textAlign: 'right' }]}>{t.searchDoctors}</Text>
+              <Text style={[styles.zoomHint, isRTL && { textAlign: 'right' }]}>
+                Zoom in to see doctors
+              </Text>
             )}
           </View>
 
@@ -617,7 +736,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         onPress={() => setIsListVisible(true)}
         activeOpacity={0.8}
       >
-        <Ionicons name="medkit" size={28} color={colors.white} />
+        <Ionicons name="arrow-up" size={28} color={colors.white} />
         {filteredDoctors.length > 0 && (
           <View style={styles.fabBadge}>
             <Text style={styles.fabBadgeText}>{filteredDoctors.length}</Text>
@@ -669,10 +788,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         onSpecialtySelect={(specialty) => {
           setSelectedSpecialty(specialty);
           // Track filter applied
-          if (specialty !== 'all') {
-            analytics.trackFilterApplied({ specialty });
-          } else {
-            analytics.trackFilterCleared();
+          try {
+            if (specialty !== 'all') {
+              analytics.trackFilterApplied({ specialty });
+            } else {
+              analytics.trackFilterCleared();
+            }
+          } catch (error) {
+            console.warn('Analytics error:', error);
           }
         }}
         onSearchPress={() => setSearchVisible(true)}
@@ -680,87 +803,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     </SafeAreaView>
   );
 };
-
-const DARK_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
-  {
-    featureType: "administrative.locality",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#d59563" }],
-  },
-  {
-    featureType: "poi",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#d59563" }],
-  },
-  {
-    featureType: "poi.park",
-    elementType: "geometry",
-    stylers: [{ color: "#263c3f" }],
-  },
-  {
-    featureType: "poi.park",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#6b9a76" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [{ color: "#38414e" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#212a37" }],
-  },
-  {
-    featureType: "road",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#9ca5b3" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "geometry",
-    stylers: [{ color: "#746855" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#1f2835" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#f3d19c" }],
-  },
-  {
-    featureType: "transit",
-    elementType: "geometry",
-    stylers: [{ color: "#2f3948" }],
-  },
-  {
-    featureType: "transit.station",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#d59563" }],
-  },
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [{ color: "#17263c" }],
-  },
-  {
-    featureType: "water",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#515c6d" }],
-  },
-  {
-    featureType: "water",
-    elementType: "labels.text.stroke",
-    stylers: [{ color: "#17263c" }],
-  },
-];
 
 const createStyles = (colors: any) => StyleSheet.create({
   container: { 

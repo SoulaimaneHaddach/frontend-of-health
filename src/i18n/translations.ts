@@ -161,8 +161,8 @@ export const translations: Record<Language, Translations> = {
 
     // Role Selection
     selectRole: 'I am...',
-    imADoctor: 'A Doctor',
-    imAPatient: 'A Patient',
+    imADoctor: 'Doctor',
+    imAPatient: 'Patient',
     doctorDescription: 'Manage appointments and patient records',
     patientDescription: 'Find and book appointments with doctors',
 
