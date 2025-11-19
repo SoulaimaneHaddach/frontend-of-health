@@ -116,7 +116,11 @@ export const AppNavigator: React.FC = () => {
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="DoctorProfile" component={DoctorProfileScreen} />
         <Stack.Screen name="DoctorBookings" component={DoctorBookingsScreen} />
-        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{ gestureEnabled: false }}
+        />
         <Stack.Screen name="DoctorDetails" component={DoctorDetailsScreen} />
       </Stack.Navigator>
     </NavigationContainer>

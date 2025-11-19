@@ -17,7 +17,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, Region } from 'react-native-maps';
+import { Region } from 'react-native-maps';
+import OSMMap from '../../components/OSMMap';
 import ModernTabBar, { TabKey } from './components/ModernTabBar';
 import SectionCard from './components/SectionCard';
 import InfoSection from './components/InfoSection';
@@ -915,23 +916,11 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
 
               {/* Map Preview */}
               <View style={styles.mapPreviewContainer}>
-                <MapView
+                <OSMMap
                   style={styles.mapPreview}
-                  region={mapRegion}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
-                  pitchEnabled={false}
-                  rotateEnabled={false}
-                >
-                  <Marker 
-                    coordinate={{
-                      latitude: profileData.location.latitude,
-                      longitude: profileData.location.longitude,
-                    }}
-                    title="Your Clinic"
-                    description={profileData.location.address}
-                  />
-                </MapView>
+                  initialRegion={{ latitude: mapRegion.latitude, longitude: mapRegion.longitude }}
+                  markers={[{ id: profileData.id || 'clinic', latitude: profileData.location.latitude, longitude: profileData.location.longitude, title: 'Your Clinic', description: profileData.location.address, color: COLORS.primary, label: profileData.name ? profileData.name.charAt(0).toUpperCase() : '' }]}
+                />
               </View>
             </View>
           )}
