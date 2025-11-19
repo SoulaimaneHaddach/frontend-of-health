@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import MapView, { Marker, PROVIDER_DEFAULT, Region } from 'react-native-maps';
+import OSMMap from '../../components/OSMMap';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -77,6 +78,8 @@ const getSpecialtyIcon = (specialty?: string): keyof typeof Ionicons.glyphMap =>
   return SPECIALTY_ICONS[normalized]?.icon || 'medical';
 };
 
+// No image assets: we will pass Ionicons names to the WebView so markers render the same icons as native
+
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { isDarkMode, colors } = useTheme();
   const { t, isRTL } = useLanguage();
@@ -85,19 +88,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [selectedSpecialty, setSelectedSpecialty] = useState<SpecialtyType>('all');
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<any>(null);
+  const isSearching = (searchQuery ?? '').trim() !== '';
   // Load lightweight list for map/list; fetch full details on demand
   const [doctors, setDoctors] = useState<DoctorMapDto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [didFetchOnce, setDidFetchOnce] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<(DoctorMapDto | DoctorResponseDto) | null>(null);
   const [isListVisible, setIsListVisible] = useState(false);
   const [currentZoomLevel, setCurrentZoomLevel] = useState(0.05);
   const [mapError, setMapError] = useState(false);
-  // Allow disabling the map on Android release if Google Maps API key isn't configured yet
+  // Allow disabling the native map on Android release if Google Maps API key isn't configured yet
   const MAPS_DISABLED = (typeof process !== 'undefined' && (process as any).env?.EXPO_PUBLIC_DISABLE_MAP) === '1';
+  // Use OSM WebView map on Android or when maps are disabled
+  const USE_OSM = Platform.OS === 'android' || MAPS_DISABLED;
 
   const slideAnim = useRef(new Animated.Value(CARD_HEIGHT)).current;
   const panY = useRef(new Animated.Value(0)).current;
   const mapRef = useRef<MapView | null>(null);
+  const [osmCenter, setOsmCenter] = useState<{ latitude: number; longitude: number; zoom?: number } | null>(null);
   const initialLocationSet = useRef(false);
   const isFetchingRef = useRef(false);
   // Flag to distinguish programmatic map moves (animateToRegion) from user gestures
@@ -156,7 +165,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     setLoading(true);
     
     try {
-      console.log('🔍 Fetching all doctors:', {
+      console.log('🔍 Fetching all doctors (attempt)...', {
         lat: userLocation.latitude,
         lng: userLocation.longitude,
         specialty: selectedSpecialty
@@ -192,8 +201,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         typeof doctor.location.longitude === 'number'
       );
       
-      console.log('✅ Fetched doctors:', validDoctors.length);
+      console.log('✅ Fetched doctors (response):', validDoctors.length);
       setDoctors(validDoctors);
+      setDidFetchOnce(true);
     } catch (error) {
       console.error('❌ Error fetching doctors:', error);
       setDoctors([]);
@@ -277,27 +287,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     return () => { mounted = false; };
   }, []);
 
-  // Fetch doctors immediately when location is ready
   useEffect(() => {
     if (userLocation && userLocation.latitude && userLocation.longitude) {
       console.log('🎯 Initial fetch on location ready');
       fetchDoctors();
     }
-  }, [userLocation.latitude, userLocation.longitude, selectedSpecialty]);
-
-  // Refetch doctors when screen comes into focus (but not on initial mount)
-  const hasMountedRef = useRef(false);
+  }, [userLocation.latitude, userLocation.longitude]);
   
+  const hasMountedRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      if (hasMountedRef.current && userLocation) {
-        console.log('🔄 Screen refocused, fetching doctors...');
-        fetchDoctors();
-      } else {
+      if (!hasMountedRef.current) {
         hasMountedRef.current = true;
+        console.log('🔁 HomeScreen first focus (mounted)');
+      } else {
+        console.log('🔁 HomeScreen refocused (no auto-fetch)');
       }
-    }, [userLocation])
+    }, [])
   );
+
+  // Explicit refresh helper: clears cache flag and triggers a fetch
+  const refreshDoctors = useCallback(() => {
+    console.log('🔃 Manual refresh requested for doctors');
+    setDidFetchOnce(false);
+    fetchDoctors();
+  }, [fetchDoctors]);
 
   const filteredDoctors = useMemo(() => {
     const q = (searchQuery ?? '').trim().toLowerCase();
@@ -381,12 +395,33 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
     if (doctor.location) {
       isProgrammaticRef.current = true;
-      mapRef.current?.animateToRegion({
-        latitude: doctor.location.latitude,
-        longitude: doctor.location.longitude,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      }, 300);
+      // Offset the target latitude so the marker stays visible above the sliding DoctorCard.
+      // Use the current zoom (latitudeDelta) to compute a reasonable offset.
+      const latDelta = currentZoomLevel && currentZoomLevel > 0 ? currentZoomLevel : 0.02;
+      const offsetFactor = 0.45; // move marker up by ~45% of the latitudeDelta
+      const latOffset = latDelta * offsetFactor;
+      const targetLat = doctor.location.latitude - latOffset;
+
+      if (!USE_OSM) {
+        try {
+          mapRef.current?.animateToRegion({
+            latitude: targetLat,
+            longitude: doctor.location.longitude,
+            latitudeDelta: latDelta,
+            longitudeDelta: latDelta,
+          }, 300);
+        } catch (e) {
+          // fallback to simple centering
+          mapRef.current?.animateToRegion({
+            latitude: doctor.location.latitude,
+            longitude: doctor.location.longitude,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          }, 300);
+        }
+      } else {
+        setOsmCenter({ latitude: targetLat, longitude: doctor.location.longitude, zoom: 14 });
+      }
     }
   }, [showDoctorCard]);
 
@@ -443,7 +478,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         
         setUserLocation(newRegion);
         isProgrammaticRef.current = true;
-        mapRef.current?.animateToRegion(newRegion, 1000);
+        if (!USE_OSM) {
+          mapRef.current?.animateToRegion(newRegion, 1000);
+        } else {
+          setOsmCenter({ latitude: newRegion.latitude, longitude: newRegion.longitude, zoom: 12 });
+        }
       }
     } catch (error) {
       console.error('Error getting location:', error);
@@ -484,6 +523,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       <View style={styles.header}>
         <Text style={[styles.headerTitle, isRTL && { textAlign: 'right' }]}>{t.nearbyDoctors}</Text>
         <View style={styles.headerActions}>
+          {searchVisible && (
+            <TouchableOpacity
+              onPress={() => setSearchVisible(false)}
+              style={styles.iconButton}
+            >
+              <Ionicons name="close" size={28} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity 
             onPress={() => navigation.navigate('LanguageSelection')}
             style={styles.iconButton}
@@ -505,41 +552,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Search Bar */}
-      {searchVisible && (
-        <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
-            <Ionicons 
-              name="search" 
-              size={20} 
-              color={colors.textSecondary} 
-            />
-            <TextInput
-              style={[styles.searchInput, isRTL && { textAlign: 'right' }]}
-              placeholder={t.searchDoctors}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholderTextColor={colors.textSecondary}
-            />
-            <TouchableOpacity
-              onPress={() => {
-                setSearchQuery('');
-                setSearchVisible(false);
-              }}
-            >
-              <Ionicons 
-                name="close-circle" 
-                size={20} 
-                color={colors.textSecondary} 
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+      {/* Search Bar is rendered inside the overlay when `searchVisible` is true. */}
 
-      {/* Search Results */}
-      {searchQuery.trim() !== '' && (
-        <View style={styles.searchResultsSection}>
+      {/* Search Results (full-screen overlay when search opened) */}
+      {searchVisible && (
+        <View style={[styles.searchResultsSection, styles.searchOverlay]}>
           <View style={styles.searchResultsHeader}>
             <View style={styles.searchHeaderTop}>
               <Ionicons name="search" size={20} color={colors.primary} />
@@ -549,7 +566,55 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               {filteredDoctors.length} {t.nearbyDoctors}
             </Text>
           </View>
-          
+
+          {/* Search input inside overlay so user can type while overlay is visible */}
+          <View style={styles.searchContainerOverlay}> 
+            <View style={styles.searchBar}>
+              <Ionicons 
+                name="search" 
+                size={20} 
+                color={colors.textSecondary} 
+              />
+              <TextInput
+                autoFocus
+                ref={searchInputRef}
+                style={[styles.searchInput, isRTL && { textAlign: 'right' }]}
+                placeholder={t.searchDoctors}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholderTextColor={colors.textSecondary}
+              />
+              {/* Clear button (only clears text) */}
+              {(searchQuery ?? '').trim().length > 0 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setSearchQuery('');
+                    setTimeout(() => searchInputRef.current?.focus && searchInputRef.current?.focus(), 50);
+                  }}
+                  style={{ marginRight: 8 }}
+                >
+                  <Ionicons
+                    name="close"
+                    size={18}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              )}
+              {/* X button now only closes the overlay */}
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchVisible(false);
+                }}
+              >
+                <Ionicons 
+                  name="close-circle" 
+                  size={20} 
+                  color={colors.textSecondary} 
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <ScrollView 
             style={styles.searchResultsList}
             showsVerticalScrollIndicator={false}
@@ -572,18 +637,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   key={doctor.id || index.toString()}
                   style={styles.searchResultCard}
                   onPress={() => {
-                    showDoctorCard(doctor);
+                    // Use the shared handler which also centers the appropriate map
                     setSearchVisible(false);
                     setSearchQuery('');
-                    if (doctor.location) {
-                      isProgrammaticRef.current = true;
-                      mapRef.current?.animateToRegion({
-                        latitude: doctor.location.latitude,
-                        longitude: doctor.location.longitude,
-                        latitudeDelta: 0.02,
-                        longitudeDelta: 0.02,
-                      }, 300);
-                    }
+                    handleDoctorPress(doctor);
                   }}
                 >
                   <View style={[
@@ -629,7 +686,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       {/* Map */}
       {!loading && userLocation && userLocation.latitude && userLocation.longitude && (
         <View style={styles.mapContainer}>
-          {!(Platform.OS === 'android' && MAPS_DISABLED) && !mapError ? (
+          {!USE_OSM && !mapError ? (
             <MapView 
               ref={mapRef} 
               provider={Platform.OS === 'android' ? PROVIDER_DEFAULT : undefined}
@@ -695,17 +752,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             })}
           </MapView>
           ) : (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-              <Ionicons name="map-outline" size={64} color={colors.textSecondary} />
-              <Text style={{ marginTop: 20, color: colors.text, fontSize: 16 }}>Map unavailable</Text>
-              <Text style={{ marginTop: 10, color: colors.textSecondary, fontSize: 14 }}>Viewing doctors in list mode</Text>
-              <TouchableOpacity 
-                onPress={() => setMapError(false)}
-                style={{ marginTop: 20, padding: 10, backgroundColor: colors.primary, borderRadius: 8 }}
-              >
-                <Text style={{ color: '#FFF' }}>Retry Map</Text>
-              </TouchableOpacity>
-            </View>
+            // Use OSM WebView map when native maps are disabled or on Android
+            <OSMMap
+              style={styles.map}
+              userLocation={{ latitude: userLocation.latitude, longitude: userLocation.longitude }}
+              markers={visibleDoctors.map(d => ({
+                id: d.id,
+                latitude: d.location?.latitude || 0,
+                longitude: d.location?.longitude || 0,
+                title: d.name || '',
+                description: d.location?.address || '',
+                color: getSpecialtyColor(d.specialization),
+                label: d.name ? d.name.charAt(0).toUpperCase() : '',
+                iconName: getSpecialtyIcon(d.specialization) as string,
+              }))}
+              centerTo={osmCenter}
+              selectedId={selectedDoctor?.id}
+              onMarkerPress={(id) => {
+                try {
+                  const found = visibleDoctors.find(x => String(x.id) === String(id));
+                  if (found) handleDoctorPress(found);
+                } catch (e) {
+                  console.warn('OSM marker press handler error', e);
+                }
+              }}
+            />
           )}
 
           <View style={styles.mapOverlay}>
@@ -838,6 +909,14 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingBottom: SPACING.sm,
     backgroundColor: colors.card 
   },
+  searchContainerOverlay: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -871,6 +950,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     marginBottom: SPACING.xs,
+    paddingTop:  30,
   },
   searchResultsTitle: {
     fontSize: FONT_SIZES.lg,
@@ -936,6 +1016,15 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
 
   mapContainer: { flex: 1, position: 'relative' },
+  searchOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 30,
+    backgroundColor: colors.background,
+  },
   map: { flex: 1 },
   marker: {
     width: 40,

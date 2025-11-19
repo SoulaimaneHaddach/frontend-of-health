@@ -1,6 +1,7 @@
 // App.tsx
 import React, { useEffect } from 'react';
 import { StatusBar } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { LanguageProvider } from './src/context/LanguageContext';
@@ -32,16 +33,18 @@ export default function App() {
         );
       }}
     >
-      <SafeAreaProvider>
-        <LanguageProvider>
-          <ThemeProvider>
-            <AnalyticsProvider debug={__DEV__}>
-              <OfflineIndicator />
-              <AppNavigator />
-            </AnalyticsProvider>
-          </ThemeProvider>
-        </LanguageProvider>
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <LanguageProvider>
+            <ThemeProvider>
+              <AnalyticsProvider debug={__DEV__}>
+                <OfflineIndicator />
+                <AppNavigator />
+              </AnalyticsProvider>
+            </ThemeProvider>
+          </LanguageProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     </ErrorBoundary>
   );
 }
