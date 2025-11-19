@@ -293,7 +293,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       fetchDoctors();
     }
   }, [userLocation.latitude, userLocation.longitude]);
-  
+
   const hasMountedRef = useRef(false);
   useFocusEffect(
     useCallback(() => {

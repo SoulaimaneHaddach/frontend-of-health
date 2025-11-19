@@ -34,6 +34,8 @@ const OSMMap: React.FC<Props> = ({ markers = [], userLocation = null, onMarkerPr
       ? { lat: userLocation.latitude, lng: userLocation.longitude, zoom: 12 }
       : { lat: 35.7595, lng: -5.8340, zoom: 6 };
 
+  const userLocationJson = userLocation ? JSON.stringify({ lat: userLocation.latitude, lng: userLocation.longitude }) : 'null';
+
   const markersJson = useMemo(() => JSON.stringify(markers.map(m => ({
     id: m.id,
     lat: m.latitude,
@@ -72,6 +74,7 @@ const OSMMap: React.FC<Props> = ({ markers = [], userLocation = null, onMarkerPr
           }).addTo(map);
 
           var markers = ${markersJson};
+          var userLocation = ${userLocationJson};
           var leafletMarkers = {};
           markers.forEach(function(m){
             try {
@@ -104,6 +107,50 @@ const OSMMap: React.FC<Props> = ({ markers = [], userLocation = null, onMarkerPr
               window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mapPress', lat: e.latlng.lat, lng: e.latlng.lng }));
             } catch(err) { }
           });
+
+          // Render user location marker if provided
+          var userMarker = null;
+          function createUserMarker(lat, lng) {
+            try {
+              // Use the same visual language as the native RN marker: circular blue background with the "location" icon
+              var html = '<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:#2F80ED;">' +
+                         '<ion-icon name="location" style="font-size:18px;color:white;display:block;transform:translateY(1px);"></ion-icon>' +
+                         '</div>';
+              var icon = L.divIcon({ html: html, className: '', iconSize: [40,40], iconAnchor: [20,20] });
+              userMarker = L.marker([lat, lng], { icon: icon, interactive: false }).addTo(map);
+            } catch(e) { }
+          }
+
+          if (userLocation && userLocation.lat && userLocation.lng) {
+            try { createUserMarker(userLocation.lat, userLocation.lng); } catch(e) {}
+          }
+
+          // Expose helpers to update/create the user marker from RN
+          window.setUserLocation = function(lat, lng) {
+            try {
+              if (userMarker) {
+                userMarker.setLatLng([lat, lng]);
+              } else {
+                createUserMarker(lat, lng);
+              }
+            } catch(e) {}
+          };
+
+          // goToLocation: set the user marker immediately and center map without waiting for a long animation.
+          // This reduces perceived delay when the user presses "go to my location" in RN.
+          window.goToLocation = function(lat, lng, zoom) {
+            try {
+              // ensure marker exists and move it
+              if (userMarker) {
+                userMarker.setLatLng([lat, lng]);
+              } else {
+                createUserMarker(lat, lng);
+              }
+              // immediately set view to avoid long blank wait, then do a short flyTo for polish
+              try { map.setView([lat, lng], zoom || Math.max(map.getZoom(), 12)); } catch(e) {}
+              try { map.flyTo([lat, lng], zoom || Math.max(map.getZoom(), 12), { duration: 0.35 }); } catch(e) {}
+            } catch(e) {}
+          };
 
           // expose a method to center map from RN if needed (use flyTo for smooth animation)
           window.centerMap = function(lat, lng, zoom) {
@@ -196,6 +243,18 @@ const OSMMap: React.FC<Props> = ({ markers = [], userLocation = null, onMarkerPr
       // ignore
     }
   }, [selectedId]);
+
+  // Update user location marker when prop changes
+  React.useEffect(() => {
+    if (!webviewRef.current) return;
+    if (!userLocation) return;
+    const js = `try{window.setUserLocation(${userLocation.latitude}, ${userLocation.longitude});}catch(e){};true;`;
+    try {
+      webviewRef.current.injectJavaScript(js);
+    } catch (e) {
+      // ignore
+    }
+  }, [userLocation]);
 
   return (
     <View style={[styles.container, style]}>
