@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { requestQueueService } from '../../shared/services/requestQueueService';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import { BookingResponse, BookingStatus } from '../../shared/types/booking';
 import ApiService from '../../services/api';
@@ -48,6 +49,50 @@ export const DoctorBookingsScreen: React.FC<DoctorBookingsScreenProps> = ({ navi
       fetchBookings();
     }
   }, [doctorId]);
+
+  // Reconcile queued bookings: replace placeholder pending-<clientLocalId> items
+  useEffect(() => {
+    const unsubscribe = requestQueueService.addListener('requestCompleted', (payload: any) => {
+      try {
+        const { request, response } = payload || {};
+        if (!request || !response) return;
+
+        // Only care about booking creation responses
+        if (typeof request.url === 'string' && request.url.includes('/bookings') && (request.method || '').toUpperCase() === 'POST') {
+          const clientLocalId = request.body?.clientLocalId;
+          if (!clientLocalId) return;
+
+          const placeholderId = `pending-${clientLocalId}`;
+
+          setBookings((prev) => {
+            let replaced = false;
+            const next = prev.map((b) => {
+              if (b.id === placeholderId) {
+                replaced = true;
+                return response as BookingResponse;
+              }
+              return b;
+            });
+
+            // If placeholder wasn't present, insert the new booking at the top
+            if (!replaced) {
+              return [response as BookingResponse, ...prev];
+            }
+
+            return next;
+          });
+        }
+      } catch (e) {
+        console.warn('Error reconciling queued booking:', e);
+      }
+    });
+
+    return () => {
+      try {
+        if (typeof unsubscribe === 'function') unsubscribe();
+      } catch {}
+    };
+  }, []);
 
   const loadDoctorId = async () => {
     try {
@@ -114,6 +159,33 @@ export const DoctorBookingsScreen: React.FC<DoctorBookingsScreenProps> = ({ navi
     );
   };
 
+  const confirmDeleteBooking = (booking: BookingResponse) => {
+    Alert.alert(
+      'Delete Booking',
+      `Are you sure you want to permanently delete this booking with ${booking.nameUser}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => handleDeleteBooking(booking.id) },
+      ]
+    );
+  };
+
+  const handleDeleteBooking = async (bookingId: string) => {
+    try {
+      // Try server-side delete if available; fall back to local-only removal
+      try {
+        await ApiService.deleteBooking(bookingId);
+      } catch (err) {
+        console.warn('Server delete failed or not supported, falling back to local removal', err);
+      }
+
+      setBookings((prev) => prev.filter((b) => b.id !== bookingId));
+    } catch (error) {
+      console.error('Error deleting booking:', error);
+      Alert.alert('Error', 'Failed to delete booking. Please try again.');
+    }
+  };
+
   const filteredBookings = filter === 'all'
     ? bookings
     : bookings.filter((b) => b.status === filter);
@@ -169,10 +241,7 @@ export const DoctorBookingsScreen: React.FC<DoctorBookingsScreenProps> = ({ navi
             <Ionicons name="call" size={16} color={COLORS.textSecondary} />
             <Text style={styles.contactText}>{item.phoneNumberUser}</Text>
           </View>
-          <View style={styles.contactRow}>
-            <Ionicons name="mail" size={16} color={COLORS.textSecondary} />
-            <Text style={styles.contactText} numberOfLines={1}>{item.emailUser}</Text>
-          </View>
+          {/* email removed from booking model */}
         </View>
 
         {/* Actions */}
@@ -210,6 +279,18 @@ export const DoctorBookingsScreen: React.FC<DoctorBookingsScreenProps> = ({ navi
             >
               <Ionicons name="ban" size={20} color={COLORS.white} />
               <Text style={styles.actionButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {(item.status === 'REJECTED' || item.status === 'DONE') && (
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.rejectButton]}
+              onPress={() => confirmDeleteBooking(item)}
+            >
+              <Ionicons name="trash" size={20} color={COLORS.white} />
+              <Text style={styles.actionButtonText}>Delete</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -252,7 +333,7 @@ export const DoctorBookingsScreen: React.FC<DoctorBookingsScreenProps> = ({ navi
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Bookings</Text>
+        <Text style={styles.headerTitle}>Bookings</Text>
         <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
           <Ionicons name="refresh" size={24} color={COLORS.primary} />
         </TouchableOpacity>

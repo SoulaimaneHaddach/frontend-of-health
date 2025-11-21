@@ -1,4 +1,4 @@
-import { formatRating } from '../utils/helpers';
+import { formatRating } from '../shared/utils/helpers';
 
 describe('Helper Functions', () => {
   describe('formatRating', () => {

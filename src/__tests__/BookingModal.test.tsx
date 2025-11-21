@@ -62,29 +62,7 @@ describe('BookingModal', () => {
 
     await waitFor(() => {
       expect(getByText('Name is required')).toBeTruthy();
-      expect(getByText('Email is required')).toBeTruthy();
       expect(getByText('Phone number is required')).toBeTruthy();
-    });
-  });
-
-  it('validates email format', async () => {
-    const { getByPlaceholderText, getByText } = render(
-      <BookingModal visible={true} doctor={mockDoctor} onClose={jest.fn()} />
-    );
-
-    const nameInput = getByPlaceholderText('Enter your full name');
-    const emailInput = getByPlaceholderText('Enter your email address');
-    const phoneInput = getByPlaceholderText('Enter your phone number');
-
-    fireEvent.changeText(nameInput, 'John Doe');
-    fireEvent.changeText(emailInput, 'invalid-email');
-    fireEvent.changeText(phoneInput, '1234567890');
-
-    const submitButton = getByText('Book Appointment');
-    fireEvent.press(submitButton);
-
-    await waitFor(() => {
-      expect(getByText('Enter a valid email address')).toBeTruthy();
     });
   });
 
@@ -94,11 +72,9 @@ describe('BookingModal', () => {
     );
 
     const nameInput = getByPlaceholderText('Enter your full name');
-    const emailInput = getByPlaceholderText('Enter your email address');
     const phoneInput = getByPlaceholderText('Enter your phone number');
 
     fireEvent.changeText(nameInput, 'John Doe');
-    fireEvent.changeText(emailInput, 'john@example.com');
     fireEvent.changeText(phoneInput, '123');
 
     const submitButton = getByText('Book Appointment');
@@ -119,11 +95,9 @@ describe('BookingModal', () => {
     );
 
     const nameInput = getByPlaceholderText('Enter your full name');
-    const emailInput = getByPlaceholderText('Enter your email address');
     const phoneInput = getByPlaceholderText('Enter your phone number');
 
     fireEvent.changeText(nameInput, 'John Doe');
-    fireEvent.changeText(emailInput, 'john@example.com');
     fireEvent.changeText(phoneInput, '1234567890');
 
     const submitButton = getByText('Book Appointment');
@@ -167,11 +141,9 @@ describe('BookingModal', () => {
     );
 
     const nameInput = getByPlaceholderText('Enter your full name');
-    const emailInput = getByPlaceholderText('Enter your email address');
     const phoneInput = getByPlaceholderText('Enter your phone number');
 
     fireEvent.changeText(nameInput, 'John Doe');
-    fireEvent.changeText(emailInput, 'john@example.com');
     fireEvent.changeText(phoneInput, '1234567890');
 
     const submitButton = getByText('Book Appointment');
@@ -182,7 +154,6 @@ describe('BookingModal', () => {
         mockDoctor.id,
         expect.objectContaining({
           nameUser: 'John Doe',
-          emailUser: 'john@example.com',
           phoneNumberUser: '1234567890',
           appointmentTime: expect.any(String),
         })
@@ -201,11 +172,9 @@ describe('BookingModal', () => {
     );
 
     const nameInput = getByPlaceholderText('Enter your full name');
-    const emailInput = getByPlaceholderText('Enter your email address');
     const phoneInput = getByPlaceholderText('Enter your phone number');
 
     fireEvent.changeText(nameInput, 'John Doe');
-    fireEvent.changeText(emailInput, 'john@example.com');
     fireEvent.changeText(phoneInput, '1234567890');
 
     const submitButton = getByText('Book Appointment');

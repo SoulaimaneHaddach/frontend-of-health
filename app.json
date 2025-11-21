@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#4A90E2"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "jsEngine": "hermes",
     "ios": {
       "supportsTablet": true,
@@ -28,32 +30,41 @@
         "foregroundImage": "./assets/6.png",
         "backgroundColor": "#4A90E2"
       },
+      "googleServicesFile": "./google-services.json",
       "package": "com.healthconnect.app",
       "versionCode": 6,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "blockedPermissions": ["android.permission.RECORD_AUDIO"]
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
-    "web": { "favicon": "./assets/6.png" },
-    "plugins": [
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "Allow HealthConnect to use your location to find nearby doctors."
-        }
-      ],
-      "expo-font"
-    ],
+    "web": {
+      "favicon": "./assets/6.png"
+    },
+"plugins": [
+  [
+    "expo-notifications"
+  ],
+  [
+    "expo-location",
+    {
+      "locationAlwaysAndWhenInUsePermission": "Allow HealthConnect to use your location to find nearby doctors."
+    }
+  ],
+  "expo-font"
+],
+    "owner": "solaabara1",
     "extra": {
       "eas": {
-        "projectId": "e64294f8-1204-4c06-9e4b-5507b7980f39"
+        "projectId": "ed9f8d9d-3dd9-4175-9f26-cd01207e91e1"
       }
-    },
-    "owner": "soulaimane22"
+    }
   }
 }
-

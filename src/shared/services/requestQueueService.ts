@@ -43,6 +43,8 @@ class RequestQueueService {
   private config: QueueConfig;
   private initialized: boolean = false;
   private processingInterval: NodeJS.Timeout | null = null;
+  private networkUnsubscribe: (() => void) | null = null;
+  private eventListeners: Map<string, Set<Function>> = new Map();
   private stats: QueueStats = {
     pending: 0,
     processing: 0,
@@ -76,17 +78,17 @@ class RequestQueueService {
       await this.loadQueue();
       this.startProcessing();
 
-      // Listen to network changes
-      networkService.addListener((state) => {
+      // Listen to network changes and keep unsubscribe
+      this.networkUnsubscribe = networkService.addListener((state) => {
         if (state.isConnected) {
           this.processQueue();
         }
       });
 
       this.initialized = true;
-      console.log('[RequestQueueService] Initialized successfully');
+      if (typeof console !== 'undefined') console.log('[RequestQueueService] Initialized successfully');
     } catch (error) {
-      console.error('[RequestQueueService] Initialization failed:', error);
+      if (typeof console !== 'undefined') console.error('[RequestQueueService] Initialization failed:', error);
       errorLoggingService.logError(
         error instanceof Error ? error : new Error(String(error)),
         ErrorSeverity.ERROR,
@@ -109,7 +111,7 @@ class RequestQueueService {
         this.updateStats();
       }
     } catch (error) {
-      console.error('[RequestQueueService] Failed to load queue:', error);
+      if (typeof console !== 'undefined') console.error('[RequestQueueService] Failed to load queue:', error);
       this.queue = new Map();
     }
   }
@@ -119,7 +121,7 @@ class RequestQueueService {
       const queueArray = Array.from(this.queue.values());
       await AsyncStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queueArray));
     } catch (error) {
-      console.error('[RequestQueueService] Failed to save queue:', error);
+      if (typeof console !== 'undefined') console.error('[RequestQueueService] Failed to save queue:', error);
     }
   }
 
@@ -164,7 +166,7 @@ class RequestQueueService {
     await this.saveQueue();
     this.updateStats();
 
-    console.log(`[RequestQueueService] Added request ${request.id} to queue`);
+    if (typeof console !== 'undefined') console.log(`[RequestQueueService] Added request ${request.id} to queue`);
 
     // Try to process immediately if online
     if (networkService.isConnected()) {
@@ -236,7 +238,7 @@ class RequestQueueService {
     const startTime = Date.now();
 
     try {
-      console.log(`[RequestQueueService] Processing request ${request.id} (attempt ${request.attempts})`);
+      if (typeof console !== 'undefined') console.log(`[RequestQueueService] Processing request ${request.id} (attempt ${request.attempts})`);
 
       const config: AxiosRequestConfig = {
         url: request.url,
@@ -245,7 +247,7 @@ class RequestQueueService {
         data: request.body,
       };
 
-      await axios(config);
+      const res = await axios(config);
 
       // Success
       request.status = RequestStatus.COMPLETED;
@@ -255,10 +257,13 @@ class RequestQueueService {
       const processingTime = Date.now() - startTime;
       this.updateAverageProcessingTime(processingTime);
 
-      console.log(`[RequestQueueService] Request ${request.id} completed successfully`);
+      // Emit event for completed request (useful for UI reconciliation)
+      this.emit('requestCompleted', { request, response: res?.data });
+
+      if (typeof console !== 'undefined') console.log(`[RequestQueueService] Request ${request.id} completed successfully`);
     } catch (error) {
       // Failed
-      console.error(`[RequestQueueService] Request ${request.id} failed:`, error);
+      if (typeof console !== 'undefined') console.error(`[RequestQueueService] Request ${request.id} failed:`, error);
 
       if (request.attempts >= request.maxAttempts) {
         request.status = RequestStatus.FAILED;
@@ -301,7 +306,13 @@ class RequestQueueService {
   }
 
   private updateAverageProcessingTime(newTime: number): void {
-    const total = this.stats.averageProcessingTime * (this.stats.totalProcessed - 1);
+    if (!this.stats.totalProcessed || this.stats.totalProcessed <= 0) {
+      this.stats.averageProcessingTime = newTime;
+      return;
+    }
+
+    const prevCount = Math.max(this.stats.totalProcessed - 1, 0);
+    const total = this.stats.averageProcessingTime * prevCount;
     this.stats.averageProcessingTime = (total + newTime) / this.stats.totalProcessed;
   }
 
@@ -332,6 +343,27 @@ class RequestQueueService {
   // ==========================================================================
   // Management Methods
   // ==========================================================================
+
+  addListener(event: string, cb: Function) {
+    if (!this.eventListeners.has(event)) this.eventListeners.set(event, new Set());
+    this.eventListeners.get(event)!.add(cb);
+    return () => this.removeListener(event, cb);
+  }
+
+  removeListener(event: string, cb: Function) {
+    const set = this.eventListeners.get(event);
+    if (!set) return;
+    set.delete(cb);
+    if (set.size === 0) this.eventListeners.delete(event);
+  }
+
+  private emit(event: string, payload?: any) {
+    const set = this.eventListeners.get(event);
+    if (!set) return;
+    set.forEach((cb) => {
+      try { cb(payload); } catch (e) { /* swallow */ }
+    });
+  }
 
   async retryRequest(id: string): Promise<void> {
     const request = this.queue.get(id);
@@ -410,8 +442,14 @@ class RequestQueueService {
       this.processingInterval = null;
     }
 
+    // Unsubscribe from network listener if provided
+    if (this.networkUnsubscribe) {
+      try { this.networkUnsubscribe(); } catch (e) { /* ignore */ }
+      this.networkUnsubscribe = null;
+    }
+
     this.initialized = false;
-    console.log('[RequestQueueService] Cleaned up');
+    if (typeof console !== 'undefined') console.log('[RequestQueueService] Cleaned up');
   }
 }
 

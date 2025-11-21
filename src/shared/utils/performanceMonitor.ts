@@ -3,7 +3,7 @@
  * Performance monitoring and optimization utilities
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 
 /**
  * Measure component render time
@@ -13,20 +13,18 @@ export const useRenderTime = (componentName: string, enabled: boolean = __DEV__)
   const renderCount = useRef(0);
   const startTime = useRef(Date.now());
 
-  if (enabled) {
-    useEffect(() => {
-      renderCount.current += 1;
-      const renderTime = Date.now() - startTime.current;
-      
-      if (renderTime > 16) { // More than 1 frame at 60fps
-        console.warn(
-          `⚠️  ${componentName} render #${renderCount.current} took ${renderTime}ms`
-        );
-      }
-      
-      startTime.current = Date.now();
-    });
-  }
+  useEffect(() => {
+    if (!enabled) return;
+
+    renderCount.current += 1;
+    const renderTime = Date.now() - startTime.current;
+
+    if (renderTime > 16) {
+      console.warn(`⚠️  ${componentName} render #${renderCount.current} took ${renderTime}ms`);
+    }
+
+    startTime.current = Date.now();
+  }, [componentName, enabled]);
 };
 
 /**
@@ -34,16 +32,11 @@ export const useRenderTime = (componentName: string, enabled: boolean = __DEV__)
  * Delays execution until user stops typing/interacting
  */
 export const useDebounce = <T,>(value: T, delay: number = 300): T => {
-  const [debouncedValue, setDebouncedValue] = React.useState<T>(value);
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
-  React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
   }, [value, delay]);
 
   return debouncedValue;
@@ -54,20 +47,19 @@ export const useDebounce = <T,>(value: T, delay: number = 300): T => {
  * Limits execution frequency
  */
 export const useThrottle = <T,>(value: T, limit: number = 100): T => {
-  const [throttledValue, setThrottledValue] = React.useState<T>(value);
-  const lastRan = React.useRef(Date.now());
+  const [throttledValue, setThrottledValue] = useState<T>(value);
+  const lastRan = useRef(Date.now());
 
-  React.useEffect(() => {
+  useEffect(() => {
+    const timeout = Math.max(0, limit - (Date.now() - lastRan.current));
     const handler = setTimeout(() => {
       if (Date.now() - lastRan.current >= limit) {
         setThrottledValue(value);
         lastRan.current = Date.now();
       }
-    }, limit - (Date.now() - lastRan.current));
+    }, timeout);
 
-    return () => {
-      clearTimeout(handler);
-    };
+    return () => clearTimeout(handler);
   }, [value, limit]);
 
   return throttledValue;
@@ -78,18 +70,15 @@ export const useThrottle = <T,>(value: T, limit: number = 100): T => {
  * Pause expensive operations when app is backgrounded
  */
 export const useAppState = () => {
-  const [appState, setAppState] = React.useState('active');
+  const [appState, setAppState] = useState('active');
 
-  React.useEffect(() => {
+  useEffect(() => {
     const AppState = require('react-native').AppState;
-    
     const subscription = AppState.addEventListener('change', (nextAppState: string) => {
       setAppState(nextAppState);
     });
 
-    return () => {
-      subscription?.remove();
-    };
+    return () => subscription?.remove();
   }, []);
 
   return {
@@ -104,13 +93,9 @@ export const useAppState = () => {
  * Only computes expensive value once
  */
 export const useLazyValue = <T,>(factory: () => T): T => {
-  const ref = React.useRef<T | null>(null);
-  
-  if (ref.current === null) {
-    ref.current = factory();
-  }
-  
-  return ref.current;
+  const ref = useRef<T | null>(null);
+  if (ref.current === null) ref.current = factory();
+  return ref.current as T;
 };
 
 /**
@@ -118,13 +103,9 @@ export const useLazyValue = <T,>(factory: () => T): T => {
  */
 export const useComponentLifecycle = (componentName: string, enabled: boolean = __DEV__) => {
   useEffect(() => {
-    if (enabled) {
-      console.log(`✅ ${componentName} mounted`);
-      
-      return () => {
-        console.log(`❌ ${componentName} unmounted`);
-      };
-    }
+    if (!enabled) return;
+    console.log(`✅ ${componentName} mounted`);
+    return () => console.log(`❌ ${componentName} unmounted`);
   }, [componentName, enabled]);
 };
 
@@ -132,18 +113,12 @@ export const useComponentLifecycle = (componentName: string, enabled: boolean = 
  * Memoize expensive calculations
  * Similar to useMemo but with dependency comparison logging
  */
-export const useDeepMemo = <T,>(
-  factory: () => T,
-  deps: React.DependencyList,
-  debugLabel?: string
-): T => {
+export const useDeepMemo = <T,>(factory: () => T, deps: React.DependencyList, debugLabel?: string): T => {
   const prevDeps = useRef<React.DependencyList | undefined>(undefined);
   const value = useRef<T | undefined>(undefined);
 
   if (!prevDeps.current || !areEqual(prevDeps.current, deps)) {
-    if (__DEV__ && debugLabel && prevDeps.current) {
-      console.log(`🔄 ${debugLabel} recalculating due to dep change`);
-    }
+    if (__DEV__ && debugLabel && prevDeps.current) console.log(`🔄 ${debugLabel} recalculating due to dep change`);
     value.current = factory();
     prevDeps.current = deps;
   }
@@ -155,5 +130,3 @@ const areEqual = (a: React.DependencyList, b: React.DependencyList): boolean => 
   if (a.length !== b.length) return false;
   return a.every((val, index) => val === b[index]);
 };
-
-import React from 'react';

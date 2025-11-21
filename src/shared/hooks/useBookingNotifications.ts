@@ -13,7 +13,6 @@ export interface BookingNotification {
   id: string;
   doctorId: string;
   nameUser: string;
-  emailUser: string;
   phoneNumberUser: string;
   appointmentTime: string;
   status: string;
@@ -26,6 +25,7 @@ export interface UseBookingNotificationsOptions {
   onNewBooking?: (booking: BookingNotification) => void;
   showAlert?: boolean;
   baseUrl?: string;
+  onBookingClick?: (booking: BookingNotification) => void;
 }
 
 export interface UseBookingNotificationsReturn {
@@ -47,6 +47,7 @@ export function useBookingNotifications(
     onNewBooking,
     showAlert = true,
     baseUrl,
+    onBookingClick,
   } = options;
 
   const [isConnected, setIsConnected] = useState(false);
@@ -81,8 +82,11 @@ export function useBookingNotifications(
               {
                 text: 'View',
                 onPress: () => {
-                  // Navigate to booking details
-                  console.log('Navigate to booking:', booking.id);
+                  try {
+                    onBookingClick?.(booking);
+                  } catch (e) {
+                    console.warn('onBookingClick handler error', e);
+                  }
                 },
               },
               { text: 'OK' },
@@ -101,9 +105,7 @@ export function useBookingNotifications(
           patientName: booking.nameUser,
         },
       });
-    },
-    [onNewBooking, showAlert]
-  );
+    }, [onNewBooking, showAlert, onBookingClick]);
 
   const connect = useCallback(() => {
     if (!doctorId) {
@@ -139,7 +141,7 @@ export function useBookingNotifications(
         const error = new Error('WebSocket connection error');
         setError(error);
         setConnectionStatus('disconnected');
-        
+
         errorLoggingService.logError(
           error,
           ErrorSeverity.ERROR,
@@ -150,7 +152,12 @@ export function useBookingNotifications(
       autoReconnect: true,
     });
 
-    wsServiceRef.current.connect();
+    // Activate connection
+    try {
+      wsServiceRef.current.connect();
+    } catch (e) {
+      console.warn('WebSocket connect error', e);
+    }
   }, [doctorId, baseUrl, handleBookingReceived]);
 
   const disconnect = useCallback(() => {
@@ -178,7 +185,7 @@ export function useBookingNotifications(
         disconnect();
       }
     };
-  }, [enabled, doctorId]); // Only reconnect if these change
+  }, [enabled, doctorId, connect, disconnect]); // Include stable callbacks
 
   // Update doctor ID if changed
   useEffect(() => {

@@ -38,7 +38,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 }) => {
   const { t, isRTL } = useLanguage();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [appointmentDate, setAppointmentDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -66,12 +65,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
     if (!name.trim()) {
       newErrors.name = t.requiredField;
-    }
-
-    if (!email.trim()) {
-      newErrors.email = t.requiredField;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = t.invalidEmail;
     }
 
     if (!phone.trim()) {
@@ -129,7 +122,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     console.log('🚀 Creating booking with:', {
       doctorId: doctor.id,
       name,
-      email,
       phone,
       appointmentISO: appointmentDate.toISOString(),
     });
@@ -148,24 +140,44 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     try {
       const booking = await ApiService.createBooking(doctor.id, {
         nameUser: name.trim(),
-        emailUser: email.trim(),
         phoneNumberUser: phone.trim(),
         appointmentTime: toLocalDateTimeString(appointmentDate),
       });
 
-      Alert.alert(
-        t.bookingSuccess,
-        `${t.bookingSuccess}\n\n${t.bookingDetails}`,
-        [
-          {
-            text: t.ok,
-            onPress: () => {
-              handleClose();
-              onSuccess?.();
+      // If the booking was queued (offline) ApiService returns a placeholder with status 'PENDING' and id 'pending'.
+      // Surface a clearer message to the user to avoid confusion when the booking isn't immediately visible on the doctor's side.
+      const isQueued = booking?.status === 'PENDING' || booking?.id === 'pending';
+      if (isQueued) {
+        console.log('📤 Booking queued locally (offline) ->', booking);
+        Alert.alert(
+          t.bookingQueuedTitle || t.bookingSuccess,
+          t.bookingQueuedMessage || `${t.bookingSuccess}\n\nYour booking was queued and will be sent when your device is online.`,
+          [
+            {
+              text: t.ok,
+              onPress: () => {
+                handleClose();
+                onSuccess?.();
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      } else {
+        console.log('✅ Booking created on server ->', booking);
+        Alert.alert(
+          t.bookingSuccess,
+          `${t.bookingSuccess}\n\n${t.bookingDetails}`,
+          [
+            {
+              text: t.ok,
+              onPress: () => {
+                handleClose();
+                onSuccess?.();
+              },
+            },
+          ]
+        );
+      }
     } catch (error: any) {
       console.error('❌ Booking error:', {
         status: error?.response?.status,
@@ -192,7 +204,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleClose = () => {
     setName('');
-    setEmail('');
     setPhone('');
     setAppointmentDate(new Date());
     setErrors({});
@@ -318,21 +329,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               error={errors.name}
             />
 
-            <InputField
-              label={t.email}
-              placeholder={t.email}
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                const newErrors = { ...errors };
-                delete newErrors.email;
-                setErrors(newErrors);
-              }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              icon="mail"
-              error={errors.email}
-            />
+            {/* Email removed from booking model */}
 
             <InputField
               label={t.phone}

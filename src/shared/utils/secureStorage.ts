@@ -5,10 +5,11 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { logError } from './errorHandler';
 
-// Prefix for all secure storage keys
-const SECURE_PREFIX = '@secure_';
+// Prefix for all secure storage keys (must be alphanumeric/dot/-/_ for SecureStore)
+const SECURE_PREFIX = 'secure_';
 
 /**
  * Generate a simple encryption key from device-specific data
@@ -140,6 +141,17 @@ class SecureStorage {
    */
   async setItem(key: string, value: string): Promise<void> {
     try {
+      // Prefer platform secure store for sensitive items when available
+      try {
+        const available = await SecureStore.isAvailableAsync();
+        if (available) {
+          await SecureStore.setItemAsync(SECURE_PREFIX + key, value, { keychainAccessible: SecureStore.ALWAYS_THIS_DEVICE_ONLY });
+          return;
+        }
+      } catch (e) {
+        // fall through to AsyncStorage fallback
+      }
+
       const encryptionKey = await this.ensureKey();
       const encrypted = encrypt(value, encryptionKey);
       await AsyncStorage.setItem(SECURE_PREFIX + key, encrypted);
@@ -154,11 +166,20 @@ class SecureStorage {
    */
   async getItem(key: string): Promise<string | null> {
     try {
+      // Prefer secure store when available
+      try {
+        const available = await SecureStore.isAvailableAsync();
+        if (available) {
+          const v = await SecureStore.getItemAsync(SECURE_PREFIX + key);
+          return v;
+        }
+      } catch (e) {
+        // fall through to AsyncStorage fallback
+      }
+
       const encryptionKey = await this.ensureKey();
       const encrypted = await AsyncStorage.getItem(SECURE_PREFIX + key);
-      
       if (!encrypted) return null;
-      
       return decrypt(encrypted, encryptionKey);
     } catch (error) {
       logError(error as Error, 'SecureStorage.getItem');
@@ -194,6 +215,15 @@ class SecureStorage {
    */
   async removeItem(key: string): Promise<void> {
     try {
+      try {
+        const available = await SecureStore.isAvailableAsync();
+        if (available) {
+          await SecureStore.deleteItemAsync(SECURE_PREFIX + key);
+          return;
+        }
+      } catch (e) {
+        // fall through
+      }
       await AsyncStorage.removeItem(SECURE_PREFIX + key);
     } catch (error) {
       logError(error as Error, 'SecureStorage.removeItem');
@@ -231,7 +261,7 @@ export const secureStorage = new SecureStorage();
 export const TokenStorage = {
   async setToken(token: string): Promise<void> {
     try {
-      await AsyncStorage.setItem('@auth_token', token);
+      await SecureStore.setItemAsync('auth_token', token, { keychainAccessible: SecureStore.ALWAYS_THIS_DEVICE_ONLY });
     } catch (error) {
       logError(error as Error, 'TokenStorage.setToken');
     }
@@ -239,7 +269,7 @@ export const TokenStorage = {
 
   async getToken(): Promise<string | null> {
     try {
-      return await AsyncStorage.getItem('@auth_token');
+      return await SecureStore.getItemAsync('auth_token');
     } catch (error) {
       logError(error as Error, 'TokenStorage.getToken');
       return null;
@@ -248,18 +278,44 @@ export const TokenStorage = {
 
   async removeToken(): Promise<void> {
     try {
-      await AsyncStorage.removeItem('@auth_token');
+      await SecureStore.deleteItemAsync('auth_token');
     } catch (error) {
       logError(error as Error, 'TokenStorage.removeToken');
     }
   },
 
   async setRefreshToken(token: string): Promise<void> {
-    await secureStorage.setItem('refresh_token', token);
+    try {
+      await SecureStore.setItemAsync('refresh_token', token, { keychainAccessible: SecureStore.ALWAYS_THIS_DEVICE_ONLY });
+    } catch (error) {
+      logError(error as Error, 'TokenStorage.setRefreshToken');
+    }
   },
 
   async getRefreshToken(): Promise<string | null> {
-    return await secureStorage.getItem('refresh_token');
+    try {
+      return await SecureStore.getItemAsync('refresh_token');
+    } catch (error) {
+      logError(error as Error, 'TokenStorage.getRefreshToken');
+      return null;
+    }
+  },
+  
+  async setPushToken(token: string): Promise<void> {
+    try {
+      await SecureStore.setItemAsync('push_token', token, { keychainAccessible: SecureStore.ALWAYS_THIS_DEVICE_ONLY });
+    } catch (error) {
+      logError(error as Error, 'TokenStorage.setPushToken');
+    }
+  },
+
+  async getPushToken(): Promise<string | null> {
+    try {
+      return await SecureStore.getItemAsync('push_token');
+    } catch (error) {
+      logError(error as Error, 'TokenStorage.getPushToken');
+      return null;
+    }
   },
 };
 

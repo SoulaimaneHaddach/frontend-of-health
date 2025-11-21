@@ -14,13 +14,11 @@ describe('API Service', () => {
   it('should validate booking request structure', () => {
     const bookingRequest = {
       nameUser: 'John Doe',
-      emailUser: 'john@example.com',
       phoneNumberUser: '+1234567890',
       appointmentTime: '2025-11-06T10:00:00',
     };
 
     expect(bookingRequest.nameUser).toBeDefined();
-    expect(bookingRequest.emailUser).toContain('@');
     expect(bookingRequest.phoneNumberUser).toMatch(/^\+?\d+$/);
     expect(bookingRequest.appointmentTime).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/);
   });

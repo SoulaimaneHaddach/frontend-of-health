@@ -21,7 +21,9 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import ApiService from '../../services/api';
+import * as Location from 'expo-location';
 import { useAnalytics } from '../../shared/hooks/useAnalytics';
+import { eventBus } from '../../shared/services/eventBus';
 
 type DoctorRegisterScreenProps = {
   navigation: NativeStackNavigationProp<any>;
@@ -100,20 +102,39 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
         phoneNumber: formData.phone,
       });
 
+      // Try to get device location to set doctor's clinic coordinates.
+      let latitude = 0;
+      let longitude = 0;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          if (loc && loc.coords) {
+            latitude = loc.coords.latitude;
+            longitude = loc.coords.longitude;
+          }
+        }
+      } catch (locErr) {
+        console.warn('Could not get device location during registration', locErr);
+      }
+
       await ApiService.register({
         name: formData.name,
         email: formData.email,
         password: formData.password,
         specialization: specializationToSend, 
         phoneNumber: formData.phone,
-        latitude: 0,
-        longitude: 0,
+        latitude,
+        longitude,
         address: 'Not specified',
       });
       
       // Track successful registration
       analytics.trackRegister('email', 'doctor', true);
-      
+
+      // Notify app that a doctor was created so map/list can refresh
+      try { eventBus.emit('doctorCreated'); } catch (e) { /* ignore */ }
+
       Alert.alert('Success', 'Account created successfully. Please log in.');
       navigation.replace('DoctorLogin');
     } catch (error: any) {

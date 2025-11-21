@@ -77,6 +77,9 @@ export interface Translations {
   confirmBooking: string;
   bookingSuccess: string;
   bookingFailed: string;
+  // Queued booking messages (optional)
+  bookingQueuedTitle?: string;
+  bookingQueuedMessage?: string;
 
   // Errors
   sessionExpired: string;
@@ -213,6 +216,8 @@ export const translations: Record<Language, Translations> = {
     confirmBooking: 'Confirm Booking',
     bookingSuccess: 'Booking Successful',
     bookingFailed: 'Booking Failed',
+    bookingQueuedTitle: 'Booking Queued',
+    bookingQueuedMessage: 'Your booking was queued and will be sent when your device is online.',
 
     // Errors
     sessionExpired: 'Session Expired',
@@ -353,6 +358,8 @@ export const translations: Record<Language, Translations> = {
     confirmBooking: 'Confirmer la réservation',
     bookingSuccess: 'Réservation réussie',
     bookingFailed: 'Échec de la réservation',
+    bookingQueuedTitle: 'Réservation en file',
+    bookingQueuedMessage: 'Votre réservation a été mise en file et sera envoyée lorsque votre appareil sera en ligne.',
 
     // Errors
     sessionExpired: 'Session expirée',
@@ -493,6 +500,8 @@ export const translations: Record<Language, Translations> = {
     confirmBooking: 'تأكيد الحجز',
     bookingSuccess: 'تم الحجز بنجاح',
     bookingFailed: 'فشل الحجز',
+    bookingQueuedTitle: 'تم وضع الحجز في الطابور',
+    bookingQueuedMessage: 'تم وضع حجرك في قائمة الانتظار وسيتم إرساله بمجرد أن يكون جهازك متصلاً بالإنترنت.',
 
     // Errors
     sessionExpired: 'انتهت الجلسة',

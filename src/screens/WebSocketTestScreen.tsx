@@ -53,7 +53,6 @@ export function WebSocketTestScreen() {
       id: `booking-${Date.now()}`,
       doctorId: testDoctorId,
       nameUser: 'Test Patient',
-      emailUser: 'patient@test.com',
       phoneNumberUser: '+1234567890',
       appointmentTime: new Date(Date.now() + 86400000).toISOString(),
       status: 'PENDING',
@@ -218,9 +217,7 @@ export function WebSocketTestScreen() {
               <Text style={styles.bookingText}>
                 👤 {lastBooking.nameUser}
               </Text>
-              <Text style={styles.bookingText}>
-                📧 {lastBooking.emailUser}
-              </Text>
+              {/* email removed from booking model */}
               <Text style={styles.bookingText}>
                 📞 {lastBooking.phoneNumberUser}
               </Text>

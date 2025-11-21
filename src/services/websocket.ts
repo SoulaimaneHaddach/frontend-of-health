@@ -14,6 +14,8 @@ export interface WebSocketConfig {
   onDisconnect?: () => void;
   onError?: (error: any) => void;
   autoReconnect?: boolean;
+  maxReconnectAttempts?: number;
+  backoffBaseMs?: number;
 }
 
 
@@ -24,13 +26,17 @@ export class BookingWebSocketService {
   private isManualDisconnect: boolean = false;
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 10;
+  private backoffBaseMs: number = 1000;
   private networkUnsubscribe: (() => void) | null = null;
+  private cooldownTimer: NodeJS.Timeout | null = null;
 
   constructor(config: WebSocketConfig) {
     this.config = {
       autoReconnect: true,
       ...config,
     };
+    if (typeof config.maxReconnectAttempts === 'number') this.maxReconnectAttempts = config.maxReconnectAttempts;
+    if (typeof config.backoffBaseMs === 'number') this.backoffBaseMs = config.backoffBaseMs;
     
     // Listen to network changes
     this.setupNetworkListener();
@@ -149,7 +155,13 @@ export class BookingWebSocketService {
       },
 
       onWebSocketClose: (event) => {
-        console.log('🔌 WebSocket disconnected');
+        try {
+          const code = (event && (event as any).code) || (event && (event as any).wasClean ? 1000 : undefined);
+          const reason = (event && (event as any).reason) || undefined;
+          console.log('🔌 WebSocket disconnected', { code, reason });
+        } catch (e) {
+          console.log('🔌 WebSocket disconnected');
+        }
         
         // Log disconnection
         errorLoggingService.addBreadcrumb({
@@ -167,13 +179,32 @@ export class BookingWebSocketService {
 
       onWebSocketError: (event) => {
         console.error('❌ WebSocket error:', event);
-        
+
+        // Log with context
         errorLoggingService.logError(
           new Error('WebSocket connection error'),
           ErrorSeverity.ERROR,
-          { action: 'websocket_error' },
+          { action: 'websocket_error', extra: { url: wsUrl, reconnectAttempts: this.reconnectAttempts } },
           false
         );
+
+        // Try reconnect flow (will respect max attempts and network state)
+        this.handleReconnect();
+      },
+
+      // StompJS does not officially expose onWebSocketOpen in types; attach via beforeConnect hook
+      beforeConnect: () => {
+        try {
+          // Attempt to access underlying WebSocket if available
+          const wsInstance: any = (this.client as any)?._transport?._ws || (this.client as any)?._websocket;
+          if (wsInstance) {
+            const socketInfo = { readyState: wsInstance.readyState, url: wsInstance.url };
+            console.log('🔓 Raw WebSocket (pre-connect) info', socketInfo);
+            errorLoggingService.addBreadcrumb({ category: 'network', message: 'Raw WebSocket pre-connect', level: ErrorSeverity.INFO, data: socketInfo });
+          }
+        } catch (e) {
+          // ignore
+        }
       },
     });
 
@@ -186,20 +217,42 @@ export class BookingWebSocketService {
       errorLoggingService.logError(
         new Error('WebSocket max reconnection attempts reached'),
         ErrorSeverity.ERROR,
-        { action: 'websocket_max_reconnect' },
+        { action: 'websocket_max_reconnect', extra: { attempts: this.reconnectAttempts } },
         false
       );
+
+      // Notify via callback if provided
+      this.config.onError?.(new Error('WebSocket max reconnection attempts reached'));
+
+      // Start a cooldown timer to allow future reconnect attempts (e.g., 5 minutes)
+      try { if (this.cooldownTimer) clearTimeout(this.cooldownTimer); } catch {}
+      this.cooldownTimer = setTimeout(() => {
+        console.log('🔁 Reconnect cooldown expired, resetting reconnectAttempts');
+        this.reconnectAttempts = 0;
+        this.cooldownTimer = null;
+      }, 5 * 60 * 1000);
+
       return;
     }
 
     this.reconnectAttempts++;
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-    
-    console.log(`🔄 Reconnecting in ${delay / 1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-    
+
+    // Exponential backoff with jitter
+    const base = this.backoffBaseMs || 1000;
+    const expo = Math.min(base * Math.pow(2, this.reconnectAttempts - 1), 30000);
+    const jitter = Math.floor(Math.random() * Math.min(1000, Math.floor(expo / 4)));
+    const delay = expo + jitter;
+
+    console.log(`🔄 Reconnecting in ${(delay / 1000).toFixed(1)}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+
     setTimeout(() => {
-      if (!this.isManualDisconnect && !this.isConnected()) {
+      if (!this.isManualDisconnect && !this.isConnected() && networkService.isConnected()) {
         this.connect();
+      } else {
+        // If still offline, schedule another reconnect attempt when network resumes
+        if (!networkService.isConnected()) {
+          console.log('⚠️ Still offline — waiting for network before reconnecting');
+        }
       }
     }, delay);
   }
