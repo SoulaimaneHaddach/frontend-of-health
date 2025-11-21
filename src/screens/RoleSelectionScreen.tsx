@@ -1,5 +1,6 @@
 // src/screens/RoleSelectionScreen.tsx
 import React, { useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -74,8 +75,27 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({ naviga
     ]).start();
   }, []);
 
+  // If role was already selected previously, skip this screen
+  useEffect(() => {
+    const checkRole = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('role_selected');
+        if (stored) {
+          // Role already chosen, skip to Home
+          navigation.replace('Home');
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    checkRole();
+  }, [navigation]);
+
   const handleProfilePress = async () => {
     try {
+      // Persist that user selected 'doctor' role so we don't show selection again
+      await AsyncStorage.setItem('role_selected', 'doctor');
+
       const isAuthenticated = await api.isAuthenticated();
       
       if (isAuthenticated) {
@@ -128,7 +148,11 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({ naviga
           title={t.imAPatient}
           description={t.patientDescription}
           color={COLORS.primary}
-          onPress={() => navigation.replace('Home')}
+          onPress={async () => {
+            // Persist selection so this screen doesn't reappear
+            try { await AsyncStorage.setItem('role_selected', 'patient'); } catch (e) {}
+            navigation.replace('Home');
+          }}
           pulseAnim={pulseAnim1}
           isRTL={isRTL}
           isDark={isDarkMode}

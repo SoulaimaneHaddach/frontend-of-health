@@ -5,7 +5,6 @@ export type BookingStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'DONE' | 'CANC
 
 export interface BookingCreateRequest {
   phoneNumberUser: string;
-  emailUser: string;
   nameUser: string;
   appointmentTime: string;
 }
@@ -14,7 +13,6 @@ export interface BookingResponse {
   id: string;
   doctorId: string;
   phoneNumberUser: string;
-  emailUser: string;
   nameUser: string;
   appointmentTime: string;
   status: BookingStatus;

@@ -1,5 +1,6 @@
 // src/screens/WelcomeScreen.tsx
 import React, { useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   View, 
   Text, 
@@ -74,6 +75,21 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
     ]).start();
   }, []);
 
+  // If welcome was already shown, skip to role selection immediately
+  useEffect(() => {
+    const checkShown = async () => {
+      try {
+        const shown = await AsyncStorage.getItem('welcome_shown');
+        if (shown) {
+          navigation.replace('RoleSelection');
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    checkShown();
+  }, [navigation]);
+
   const rotation = iconRotate.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
@@ -145,12 +161,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
             isRTL={isRTL}
           />
           <FeatureItem
-            icon="location"
-            title={t.nearbyDoctors}
-            description={isRTL ? "رعاية صحية بالقرب منك" : "Healthcare near you"}
-            isRTL={isRTL}
-          />
-          <FeatureItem
             icon="calendar"
             title={t.bookAppointments}
             description={isRTL ? "احجز موعدك بسهولة" : "Book appointments easily"}
@@ -162,7 +172,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
         <View style={styles.bottomSection}>
           <CustomButton
             title={t.getStarted}
-            onPress={() => navigation.navigate('RoleSelection')}
+            onPress={async () => {
+              try {
+                await AsyncStorage.setItem('welcome_shown', 'true');
+              } catch (e) {
+                // ignore
+              }
+              navigation.navigate('RoleSelection');
+            }}
             variant="primary"
             size="large"
             fullWidth

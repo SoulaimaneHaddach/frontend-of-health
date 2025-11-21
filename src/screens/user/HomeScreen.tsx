@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Animated,
   PanResponder,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -29,7 +30,8 @@ import { NearbyDoctorsModal } from '../../components/NearbyDoctorsList';
 import { DoctorCard } from '../../components/DoctorCard';
 import api from '../../services/api';
 import { useAnalytics } from '../../shared/hooks/useAnalytics';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
+import { eventBus } from '../../shared/services/eventBus';
 
 const CARD_HEIGHT = 280;
 const NAVBAR_HEIGHT = 60;
@@ -78,7 +80,7 @@ const getSpecialtyIcon = (specialty?: string): keyof typeof Ionicons.glyphMap =>
   return SPECIALTY_ICONS[normalized]?.icon || 'medical';
 };
 
-// No image assets: we will pass Ionicons names to the WebView so markers render the same icons as native
+
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { isDarkMode, colors } = useTheme();
@@ -294,14 +296,38 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   }, [userLocation.latitude, userLocation.longitude]);
 
+  // Listen for in-app events that should trigger a refresh (e.g., doctor created)
+  useEffect(() => {
+    const unsubscribe = eventBus.on('doctorCreated', () => {
+      console.log('🔔 doctorCreated event received, refreshing doctors');
+      fetchDoctors();
+    });
+
+    // Also refresh when the app comes back to foreground (e.g., reopen app)
+    const handleAppState = (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        console.log('🔁 App resumed, refreshing doctors');
+        fetchDoctors();
+      }
+    };
+    const sub = AppState.addEventListener ? AppState.addEventListener('change', handleAppState) : null;
+
+    return () => {
+      unsubscribe();
+      try { sub?.remove?.(); } catch { /* noop for older RN */ }
+    };
+  }, [fetchDoctors]);
+
   const hasMountedRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
       if (!hasMountedRef.current) {
         hasMountedRef.current = true;
-        console.log('🔁 HomeScreen first focus (mounted)');
+        console.log('🔁 HomeScreen first focus (mounted) — triggering fetch');
+        fetchDoctors();
       } else {
-        console.log('🔁 HomeScreen refocused (no auto-fetch)');
+        console.log('🔁 HomeScreen refocused — triggering fetch');
+        fetchDoctors();
       }
     }, [])
   );
@@ -491,6 +517,40 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  // Search overlay pan to close
+  const searchPan = useRef(new Animated.Value(0)).current;
+  const searchPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 5,
+      onPanResponderMove: (_, gs) => {
+        if (gs.dy > 0) searchPan.setValue(gs.dy);
+      },
+      onPanResponderRelease: (_, gs) => {
+        const shouldClose = gs.dy > 100 || gs.vy > 0.6;
+        if (shouldClose) {
+          const screenH = Dimensions.get('window').height;
+          Animated.timing(searchPan, {
+            toValue: screenH,
+            duration: 220,
+            useNativeDriver: true,
+          }).start(() => {
+            searchPan.setValue(0);
+            setSearchVisible(false);
+            setSearchQuery('');
+          });
+        } else {
+          Animated.spring(searchPan, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 40,
+            friction: 8,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
   // Show loading state while location is being fetched
   if (!userLocation || loading) {
     return (
@@ -556,15 +616,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
       {/* Search Results (full-screen overlay when search opened) */}
       {searchVisible && (
-        <View style={[styles.searchResultsSection, styles.searchOverlay]}>
+        <Animated.View
+          style={[styles.searchResultsSection, styles.searchOverlay, { transform: [{ translateY: searchPan }] }]}
+          {...searchPanResponder.panHandlers}
+        >
+          {/* Small draggable handle to indicate the overlay can be pulled down */}
+          <View style={styles.searchHandleContainer} pointerEvents="none">
+            <View style={styles.searchHandle} />
+          </View>
           <View style={styles.searchResultsHeader}>
             <View style={styles.searchHeaderTop}>
               <Ionicons name="search" size={20} color={colors.primary} />
               <Text style={[styles.searchResultsTitle, isRTL && { textAlign: 'right' }]}>{t.search}</Text>
             </View>
-            <Text style={[styles.searchResultsCount, isRTL && { textAlign: 'right' }]}>
-              {filteredDoctors.length} {t.nearbyDoctors}
-            </Text>
           </View>
 
           {/* Search input inside overlay so user can type while overlay is visible */}
@@ -678,7 +742,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               ))
             )}
           </ScrollView>
-        </View>
+        </Animated.View>
       )}
 
       {loading && <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />}
@@ -781,7 +845,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
           <View style={styles.mapOverlay}>
             <Text style={[styles.resultsText, isRTL && { textAlign: 'right' }]}>
-              {filteredDoctors.length} {t.nearbyDoctors}
+              {t.nearbyDoctors}
             </Text>
             {currentZoomLevel > MAX_ZOOM_DELTA && (
               <Text style={[styles.zoomHint, isRTL && { textAlign: 'right' }]}>
@@ -1018,12 +1082,27 @@ const createStyles = (colors: any) => StyleSheet.create({
   mapContainer: { flex: 1, position: 'relative' },
   searchOverlay: {
     position: 'absolute',
-    top: 0,
+    top: '18%',
     left: 0,
     right: 0,
     bottom: 0,
     zIndex: 30,
     backgroundColor: colors.background,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: 'hidden',
+  },
+  searchHandleContainer: {
+    alignItems: 'center',
+    paddingTop: SPACING.sm,
+    backgroundColor: '#ffffffff',
+  },
+  searchHandle: {
+    width: 100,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: '#000000',
+    opacity: 0.3,
   },
   map: { flex: 1 },
   marker: {
@@ -1060,7 +1139,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   locationButton: {
     position: 'absolute',
-    bottom: 150,
+    bottom: 170,
     right: 30,
     width: 56,
     height: 56,
@@ -1087,7 +1166,7 @@ const createStyles = (colors: any) => StyleSheet.create({
 
   fab: {
     position: 'absolute',
-    bottom: NAVBAR_HEIGHT + 30,
+    bottom: NAVBAR_HEIGHT + 60,      // nearby btn
     right: SPACING.lg,
     width: 64,
     height: 64,

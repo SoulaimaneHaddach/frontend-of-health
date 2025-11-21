@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useCallback, useEffect } from 'react';
+import React, { useMemo, useRef, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 
@@ -10,8 +10,9 @@ type Marker = {
   description?: string;
   color?: string;
   label?: string;
-  icon?: string; // optional image URL (deprecated)
-  iconName?: string | null; // Ionicons name to render inside marker
+  icon?: string; // optional image URL
+  iconName?: string | null; // Ionicons name
+  minZoom?: number; // optional per-marker minimum zoom to show details
 };
 
 type Props = {
@@ -22,10 +23,21 @@ type Props = {
   initialRegion?: { latitude: number; longitude: number; latitudeDelta?: number };
   centerTo?: { latitude: number; longitude: number; zoom?: number } | null;
   selectedId?: string | number | null;
+  detailZoomThreshold?: number; // map-level fallback min zoom for details
   style?: any;
 };
 
-const OSMMap: React.FC<Props> = ({ markers = [], userLocation = null, onMarkerPress, onMapPress, initialRegion, centerTo = null, selectedId = null, style }) => {
+const OSMMap: React.FC<Props> = ({
+  markers = [],
+  userLocation = null,
+  onMarkerPress,
+  onMapPress,
+  initialRegion,
+  centerTo = null,
+  selectedId = null,
+  detailZoomThreshold = 13,
+  style,
+}) => {
   const webviewRef = useRef<WebView | null>(null);
 
   const initialCenter = initialRegion?.latitude && initialRegion?.longitude
@@ -33,8 +45,6 @@ const OSMMap: React.FC<Props> = ({ markers = [], userLocation = null, onMarkerPr
     : userLocation
       ? { lat: userLocation.latitude, lng: userLocation.longitude, zoom: 12 }
       : { lat: 35.7595, lng: -5.8340, zoom: 6 };
-
-  const userLocationJson = userLocation ? JSON.stringify({ lat: userLocation.latitude, lng: userLocation.longitude }) : 'null';
 
   const markersJson = useMemo(() => JSON.stringify(markers.map(m => ({
     id: m.id,
@@ -46,7 +56,10 @@ const OSMMap: React.FC<Props> = ({ markers = [], userLocation = null, onMarkerPr
     label: m.label || '',
     icon: m.icon || null,
     iconName: m.iconName || null,
+    minZoom: m.minZoom || null,
   }))), [markers]);
+
+  const userLocationJson = userLocation ? JSON.stringify({ lat: userLocation.latitude, lng: userLocation.longitude }) : 'null';
 
   const html = useMemo(() => `
   <!doctype html>
@@ -75,185 +88,154 @@ const OSMMap: React.FC<Props> = ({ markers = [], userLocation = null, onMarkerPr
 
           var markers = ${markersJson};
           var userLocation = ${userLocationJson};
+          var detailZoomThreshold = ${detailZoomThreshold};
           var leafletMarkers = {};
+
+          function createMarkerElement(m) {
+            if (m.iconName) {
+              return '<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:'+ (m.color || '#E91E63') +';">' +
+                     '<ion-icon name="' + (m.iconName || '') + '" style="font-size:18px;color:white;display:block;"></ion-icon>' +
+                     '</div>';
+            }
+            if (m.icon) {
+              return '<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:'+ (m.color || '#E91E63') +';">' +
+                     '<img src="'+m.icon+'" style="width:22px;height:22px;border-radius:50%;object-fit:cover;"/>' +
+                     '</div>';
+            }
+            return '<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;font-weight:700;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:'+ (m.color || '#E91E63') +';">'+(m.label || '')+'</div>';
+          }
+
           markers.forEach(function(m){
             try {
-              var html = '';
-                if (m.iconName) {
-                  // Use 40x40 marker to match RN native marker size; icon font scaled to match
-                  html = '<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:'+ (m.color || '#E91E63') +';transition:transform 120ms ease;">' +
-                         '<ion-icon name="' + (m.iconName || '') + '" style="font-size:18px;color:white;display:block;"></ion-icon>' +
-                         '</div>';
-                  // Note: iconSize and anchor set to 40 to align center
-                  var icon = L.divIcon({ html: html, className: '' , iconSize: [40,40], iconAnchor: [20,20]});
-              } else if (m.icon) {
-                html = '<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:'+ (m.color || '#E91E63') +';transition:transform 120ms ease;"><img src="'+m.icon+'" style="width:22px;height:22px;border-radius:50%;object-fit:cover;"/></div>';
-                var icon = L.divIcon({ html: html, className: '' , iconSize: [40,40], iconAnchor: [20,20]});
-              } else {
-                html = '<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;font-weight:700;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:'+ (m.color || '#E91E63') +';transition:transform 120ms ease;">'+(m.label || '')+'</div>';
-                var icon = L.divIcon({ html: html, className: '' , iconSize: [40,40], iconAnchor: [20,20]});
-              }
-              var mk = L.marker([m.lat, m.lng], { icon: icon }).addTo(map);
+              var elHtml = createMarkerElement(m);
+              var icon = L.divIcon({ html: elHtml, className: '', iconSize: [40,40], iconAnchor: [20,20]});
+              // disable zoomAnimation so icon keeps fixed pixel size
+              var mk = L.marker([m.lat, m.lng], { icon: icon, zoomAnimation: false }).addTo(map);
               leafletMarkers[m.id] = mk;
+
+              // initial visibility based on map zoom and marker.minZoom
+              try {
+                var curZ = map.getZoom();
+                var minZ = (typeof m.minZoom === 'number' && m.minZoom) ? m.minZoom : detailZoomThreshold;
+                if (curZ < minZ) {
+                  var el = mk.getElement(); if (el) el.style.display = 'none';
+                }
+              } catch(e) {}
+
               mk.on('click', function(){
                 window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'markerPress', id: m.id }));
               });
             } catch(e) { console.warn(e); }
           });
 
-          // map click (tap) handler
           map.on('click', function(e){
-            try {
-              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mapPress', lat: e.latlng.lat, lng: e.latlng.lng }));
-            } catch(err) { }
+            try { window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mapPress', lat: e.latlng.lat, lng: e.latlng.lng })); } catch(e){}
           });
 
-          // Render user location marker if provided
+          // user location marker
           var userMarker = null;
           function createUserMarker(lat, lng) {
             try {
-              // Use the same visual language as the native RN marker: circular blue background with the "location" icon
               var html = '<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:#2F80ED;">' +
-                         '<ion-icon name="location" style="font-size:18px;color:white;display:block;transform:translateY(1px);"></ion-icon>' +
-                         '</div>';
+                           '<ion-icon name="location" style="font-size:18px;color:white;display:block;transform:translateY(1px);"></ion-icon>' +
+                           '</div>';
               var icon = L.divIcon({ html: html, className: '', iconSize: [40,40], iconAnchor: [20,20] });
-              userMarker = L.marker([lat, lng], { icon: icon, interactive: false }).addTo(map);
-            } catch(e) { }
+              userMarker = L.marker([lat, lng], { icon: icon, interactive: false, zoomAnimation: false }).addTo(map);
+            } catch(e) {}
           }
 
           if (userLocation && userLocation.lat && userLocation.lng) {
             try { createUserMarker(userLocation.lat, userLocation.lng); } catch(e) {}
           }
 
-          // Expose helpers to update/create the user marker from RN
           window.setUserLocation = function(lat, lng) {
             try {
-              if (userMarker) {
-                userMarker.setLatLng([lat, lng]);
-              } else {
-                createUserMarker(lat, lng);
-              }
+              if (userMarker) { userMarker.setLatLng([lat, lng]); }
+              else { createUserMarker(lat, lng); }
             } catch(e) {}
           };
 
-          // goToLocation: set the user marker immediately and center map without waiting for a long animation.
-          // This reduces perceived delay when the user presses "go to my location" in RN.
           window.goToLocation = function(lat, lng, zoom) {
             try {
-              // ensure marker exists and move it
-              if (userMarker) {
-                userMarker.setLatLng([lat, lng]);
-              } else {
-                createUserMarker(lat, lng);
-              }
-              // immediately set view to avoid long blank wait, then do a short flyTo for polish
+              if (userMarker) { userMarker.setLatLng([lat, lng]); }
+              else { createUserMarker(lat, lng); }
               try { map.setView([lat, lng], zoom || Math.max(map.getZoom(), 12)); } catch(e) {}
               try { map.flyTo([lat, lng], zoom || Math.max(map.getZoom(), 12), { duration: 0.35 }); } catch(e) {}
             } catch(e) {}
           };
 
-          // expose a method to center map from RN if needed (use flyTo for smooth animation)
           window.centerMap = function(lat, lng, zoom) {
-            try {
-              map.flyTo([lat, lng], zoom || 12, { duration: 0.6 });
-            } catch(e) {
-              try { map.setView([lat, lng], zoom || 12); } catch(e) {}
-            }
+            try { map.flyTo([lat, lng], zoom || 12, { duration: 0.6 }); } catch(e) { try { map.setView([lat, lng], zoom || 12); } catch(e){} }
           };
 
-          // allow selecting/bringing a marker to front and center it
-          // id: marker id
-          // zoom: optional zoom level (if provided)
           window.selectMarker = function(id, zoom) {
             try {
-              // close any open popup
               try { map.closePopup(); } catch(e) {}
-              Object.keys(leafletMarkers).forEach(function(k){
-                try { 
-                  leafletMarkers[k].setZIndexOffset(0);
-                  // ensure any open popup on the marker is closed
-                  try { leafletMarkers[k].closePopup(); } catch(e) {}
-                  var el = leafletMarkers[k].getElement();
-                  if (el) el.style.transform = 'scale(1)';
-                } catch(e){}
-              });
+              Object.keys(leafletMarkers).forEach(function(k){ try { leafletMarkers[k].setZIndexOffset(0); var el = leafletMarkers[k].getElement(); if (el) el.style.transform = 'scale(1)'; } catch(e){} });
               if (leafletMarkers[id]) {
                 leafletMarkers[id].setZIndexOffset(1000);
-                var selEl = leafletMarkers[id].getElement();
-                if (selEl) selEl.style.transform = 'scale(1.15)';
-                try {
-                  // center and optionally zoom to the selected marker
-                  var latlng = leafletMarkers[id].getLatLng();
-                  // Default to a closer, street-level zoom when selecting a marker
-                  var targetZoom = (typeof zoom === 'number' && zoom) ? zoom : Math.max(map.getZoom(), 18);
-                  try { map.flyTo([latlng.lat, latlng.lng], targetZoom, { duration: 0.6 }); } catch(e) { try { map.setView([latlng.lat, latlng.lng], targetZoom); } catch(e) {} }
-                } catch(e) {}
+                var selEl = leafletMarkers[id].getElement(); if (selEl) selEl.style.transform = 'scale(1.15)';
+                try { var latlng = leafletMarkers[id].getLatLng(); var targetZoom = (typeof zoom === 'number' && zoom) ? zoom : Math.max(map.getZoom(), 18); try { map.flyTo([latlng.lat, latlng.lng], targetZoom, { duration: 0.6 }); } catch(e) { try { map.setView([latlng.lat, latlng.lng], targetZoom); } catch(e){} } } catch(e){}
               }
-            } catch(err) { }
+            } catch(e) {}
           };
-        } catch (err) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: String(err) }));
+
+          // hide/show markers on zoom
+          map.on('zoomend', function(){
+            try {
+              var z = map.getZoom();
+              Object.keys(leafletMarkers).forEach(function(k){
+                try {
+                  var mk = leafletMarkers[k];
+                  var el = mk && mk.getElement && mk.getElement(); if (!el) return;
+                  var markerData = markers.find(function(x){ return String(x.id) === String(k); });
+                  var minZ = (markerData && typeof markerData.minZoom === 'number' && markerData.minZoom) ? markerData.minZoom : detailZoomThreshold;
+                  if (z < minZ) { el.style.display = 'none'; } else { el.style.display = ''; }
+                } catch(e){}
+              });
+            } catch(e){}
+          });
+
+        } catch(err) {
+          try { window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: String(err) })); } catch(e){}
         }
       })();
     </script>
   </body>
   </html>
-  `, [markersJson, initialCenter.lat, initialCenter.lng, initialCenter.zoom]);
+  `, [markersJson, initialCenter.lat, initialCenter.lng, initialCenter.zoom, detailZoomThreshold]);
 
   const handleMessage = useCallback((e: WebViewMessageEvent) => {
     try {
       const data = JSON.parse(e.nativeEvent.data);
-      if (data) {
-        if (data.type === 'markerPress') {
-          onMarkerPress && onMarkerPress(data.id);
-        } else if (data.type === 'mapPress') {
-          onMapPress && onMapPress(Number(data.lat), Number(data.lng));
-        } else if (data.type === 'error') {
-          // Surface WebView-side errors to RN logs for easier debugging in production builds
-          console.warn('OSMMap WebView error:', data.message);
-        } else {
-          // unknown message - log for debugging
-          console.log('OSMMap message:', data);
-        }
-      }
-    } catch (err) {
-      // ignore
-    }
+      if (!data) return;
+      if (data.type === 'markerPress') { onMarkerPress && onMarkerPress(data.id); }
+      else if (data.type === 'mapPress') { onMapPress && onMapPress(Number(data.lat), Number(data.lng)); }
+      else if (data.type === 'error') { console.warn('OSMMap WebView error:', data.message); }
+      else { console.log('OSMMap message:', data); }
+    } catch(e) { /* ignore */ }
   }, [onMarkerPress, onMapPress]);
 
-  // centerTo prop: when changed, ask the WebView to center the Leaflet map
+  // centerTo
   React.useEffect(() => {
     if (!centerTo || !webviewRef.current) return;
     const js = `try{window.centerMap(${centerTo.latitude}, ${centerTo.longitude}, ${centerTo.zoom || 12});}catch(e){};true;`;
-    try {
-      webviewRef.current.injectJavaScript(js);
-    } catch (e) {
-      // ignore
-    }
+    try { webviewRef.current.injectJavaScript(js); } catch(e) {}
   }, [centerTo]);
 
-  // selectedId prop: bring selected marker to front in WebView
+  // selectedId
   React.useEffect(() => {
     if (!webviewRef.current) return;
     if (selectedId === null || typeof selectedId === 'undefined') return;
     const js = `try{window.selectMarker(${JSON.stringify(selectedId)});}catch(e){};true;`;
-    try {
-      webviewRef.current.injectJavaScript(js);
-    } catch (e) {
-      // ignore
-    }
+    try { webviewRef.current.injectJavaScript(js); } catch(e) {}
   }, [selectedId]);
 
-  // Update user location marker when prop changes
+  // userLocation updates
   React.useEffect(() => {
-    if (!webviewRef.current) return;
-    if (!userLocation) return;
+    if (!webviewRef.current || !userLocation) return;
     const js = `try{window.setUserLocation(${userLocation.latitude}, ${userLocation.longitude});}catch(e){};true;`;
-    try {
-      webviewRef.current.injectJavaScript(js);
-    } catch (e) {
-      // ignore
-    }
+    try { webviewRef.current.injectJavaScript(js); } catch(e) {}
   }, [userLocation]);
 
   return (

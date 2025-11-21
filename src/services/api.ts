@@ -13,6 +13,7 @@ import {
   WorkingHours,
 } from '../shared/types/api.types';
 import { logError } from '../shared/utils/errorHandler';
+import { v4 as uuidv4 } from 'uuid';
 import ENV from '../config/env';
 import { TokenStorage, sanitizeForLogs } from '../shared/utils/secureStorage';
 import { rateLimiter } from '../shared/utils/securityUtils';
@@ -461,25 +462,25 @@ class ApiService {
       }
     }
 
-    // If offline, queue the request
+    // If offline, queue the request with a clientLocalId so the UI can reconcile later
     if (!networkService.isConnected()) {
-      console.log('📤 Queuing booking request (offline)');
+      const clientLocalId = uuidv4();
+      console.log('📤 Queuing booking request (offline)', clientLocalId);
       await requestQueueService.addRequest(
         `/doctors/${doctorId}/bookings`,
         'POST',
         {
-          body: bookingData,
+          body: { ...bookingData, clientLocalId },
           priority: 10, // High priority
-          metadata: { action: 'create_booking', doctorId },
+          metadata: { action: 'create_booking', doctorId, clientLocalId },
         }
       );
       
-      // Return a placeholder response
+      // Return a placeholder response including clientLocalId
       return {
-        id: 'pending',
+        id: `pending-${clientLocalId}`,
         doctorId,
         phoneNumberUser: bookingData.phoneNumberUser,
-        emailUser: bookingData.emailUser,
         nameUser: bookingData.nameUser,
         appointmentTime: bookingData.appointmentTime,
         status: 'PENDING' as BookingStatus,
@@ -533,6 +534,48 @@ class ApiService {
       { params: { status } }
     );
     return response.data;
+  }
+
+  async deleteBooking(bookingId: string): Promise<void> {
+    await this.initialize();
+    try {
+      await this.api.delete(`/bookings/${bookingId}`);
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        await this.initialize();
+        await this.api.delete(`/bookings/${bookingId}`);
+        return;
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Register a device push token with the backend so the server can send push notifications.
+   * tokenType: 'expo' | 'native' or custom string
+   */
+  async registerDeviceToken(
+    token: string,
+    platform: string,
+    tokenType: string,
+    metadata?: Record<string, any>
+  ): Promise<void> {
+    try {
+      await this.initialize();
+      // Send to authenticated endpoint so server can tie token to user when possible
+      await this.api.post('/devices', {
+        token,
+        platform,
+        tokenType,
+        metadata,
+      });
+      if (ENV.ENABLE_LOGGING && __DEV__) {
+        console.log('✅ Device token registered with backend');
+      }
+    } catch (error) {
+      console.warn('Failed to register device token with backend', error);
+    }
   }
 }
 

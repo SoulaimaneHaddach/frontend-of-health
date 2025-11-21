@@ -1,11 +1,12 @@
 // src/components/BottomNavBar.tsx
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, ScrollView, Text } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Text, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { SpecialtyType } from '../shared/types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface BottomNavBarProps {
   selectedSpecialty: SpecialtyType;
@@ -21,6 +22,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
 }) => {
 const { colors } = useTheme();
 const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
 
 const specialties: { label: string; type: SpecialtyType; icon: keyof typeof Ionicons.glyphMap }[] = [
   { label: t.allSpecialties, type: 'all', icon: 'apps' },
@@ -47,8 +49,11 @@ const specialties: { label: string; type: SpecialtyType; icon: keyof typeof Ioni
 ];
 
 
+  // add a small extra bottom padding so navbar content is slightly elevated
+  const bottomPadding = (insets?.bottom ?? 0) + SPACING.sm + 8;
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.card }] }>
+    <View style={[styles.container, { backgroundColor: colors.card, paddingBottom: bottomPadding }]}>
       {/* Search Button */}
       <TouchableOpacity style={styles.searchButton} onPress={onSearchPress}>
         <Ionicons name="search" size={28} color={colors.primary} />
@@ -91,7 +96,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.lg,
-    paddingBottom: 30,
     borderTopLeftRadius: RADIUS.xl,
     borderTopRightRadius: RADIUS.xl,
     ...SHADOWS.medium,

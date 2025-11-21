@@ -10,6 +10,7 @@ import {
   Linking,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -99,6 +100,12 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
   const { t, isRTL } = useLanguage();
   const styles = useMemo(() => createStyles(isDarkMode), [isDarkMode]);
 
+  // Respect safe area / bottom nav so card isn't hidden.
+  // Position the card above the navbar by accounting for the safe-area inset
+  // plus the card's bottom padding so action buttons aren't covered.
+  const insets = useSafeAreaInsets();
+  const bottomPosition = (insets?.bottom ?? 0) + SPACING.lg + 1;
+
   // Memoize distance calculation
   const distance = useMemo(() => {
     if (!userLocation || !doctor?.location) return null;
@@ -147,6 +154,7 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
     <Animated.View
       style={[
         styles.container,
+        { bottom: bottomPosition },
         {
           transform: [{ translateY: Animated.add(slideAnim, panY) }],
         },
@@ -188,6 +196,17 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
             </Text>
           </View>
         </View>
+        {doctor.location?.address && (
+          <View style={styles.headerRight}>
+            <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>{t.address}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+              <Ionicons name="location" size={14} color={COLORS.primary} />
+              <Text style={[styles.headerAddressText, isRTL && { textAlign: 'right', marginLeft: 0 }]} numberOfLines={2}>
+                {doctor.location.address}
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Distance Badge */}
@@ -204,16 +223,7 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
         </View>
       )}
 
-      {/* Address Section */}
-      {doctor.location?.address && (
-        <View style={styles.section}>
-          <View style={[styles.sectionHeader, isRTL && { flexDirection: 'row-reverse' }]}>
-            <Ionicons name="location" size={20} color={COLORS.primary} />
-            <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>{t.address}</Text>
-          </View>
-          <Text style={[styles.addressText, isRTL && { textAlign: 'right' }]}>{doctor.location.address}</Text>
-        </View>
-      )}
+      {/* Address moved to header (top-right) */}
 
 
       {/* Action Buttons */}
@@ -248,7 +258,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: SPACING.lg,
+    paddingBottom: 60,
     ...SHADOWS.large,
     elevation: 20,
   },
@@ -268,6 +278,16 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.lg,
     marginBottom: SPACING.md,
+  },
+  headerRight: {
+    alignItems: 'flex-end',
+    marginLeft: SPACING.md,
+    maxWidth: 140,
+  },
+  headerAddressText: {
+    fontSize: FONT_SIZES.sm,
+    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    marginTop: 4,
   },
   avatar: {
     width: 70,

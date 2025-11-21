@@ -30,6 +30,7 @@
         "foregroundImage": "./assets/6.png",
         "backgroundColor": "#4A90E2"
       },
+      "googleServicesFile": "./google-services.json",
       "package": "com.healthconnect.app",
       "versionCode": 6,
       "permissions": [
@@ -47,15 +48,18 @@
     "web": {
       "favicon": "./assets/6.png"
     },
-    "plugins": [
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "Allow HealthConnect to use your location to find nearby doctors."
-        }
-      ],
-      "expo-font"
-    ],
+"plugins": [
+  [
+    "expo-notifications"
+  ],
+  [
+    "expo-location",
+    {
+      "locationAlwaysAndWhenInUsePermission": "Allow HealthConnect to use your location to find nearby doctors."
+    }
+  ],
+  "expo-font"
+],
     "owner": "solaabara1",
     "extra": {
       "eas": {
