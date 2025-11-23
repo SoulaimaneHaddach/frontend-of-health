@@ -6,6 +6,7 @@
 
 import { AxiosError } from 'axios';
 import { ApiException } from '../types/api.types';
+import logger from './logger';
 
 export interface ErrorResponse {
   message: string;
@@ -116,13 +117,11 @@ export function handleApiError(error: unknown): ErrorResponse {
  */
 export function logError(error: unknown, context?: string): void {
   if (__DEV__) {
-    console.group(`🔴 Error${context ? ` in ${context}` : ''}`);
-    console.error(error);
+    logger.error(`🔴 Error${context ? ` in ${context}` : ''}`, error);
     if (error instanceof AxiosError) {
-      console.log('Request:', error.config);
-      console.log('Response:', error.response?.data);
+      logger.debug('Request:', error.config);
+      logger.debug('Response:', error.response?.data);
     }
-    console.groupEnd();
   }
 }
 

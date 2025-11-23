@@ -3,7 +3,9 @@
 import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONT_SIZES, SPACING, RADIUS } from '../constants/theme';
+import { FONT_SIZES, SPACING, RADIUS } from '../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
+import logger from '../utils/logger';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -37,7 +39,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     // Log the error to an error reporting service
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    logger.error('ErrorBoundary caught an error:', error, errorInfo);
 
     // Update state with error details
     this.setState({
@@ -97,68 +99,66 @@ const DefaultErrorFallback: React.FC<DefaultErrorFallbackProps> = ({
   resetError,
 }) => {
   const isDev = __DEV__;
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}> 
+      <View style={[styles.content, { backgroundColor: colors.card }]}> 
         {/* Error Icon */}
         <View style={styles.iconContainer}>
-          <Ionicons name="alert-circle" size={80} color={COLORS.error} />
+          <Ionicons name="alert-circle" size={80} color={colors.error} />
         </View>
 
         {/* Error Title */}
-        <Text style={styles.title}>Oops! Something went wrong</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Oops! Something went wrong</Text>
 
         {/* Error Message */}
-        <Text style={styles.message}>
+        <Text style={[styles.message, { color: colors.textSecondary }]}>
           We're sorry for the inconvenience. The app encountered an unexpected error.
         </Text>
 
         {/* Development Error Details */}
         {isDev && (
           <ScrollView style={styles.errorDetails}>
-            <Text style={styles.errorDetailsTitle}>Error Details (Dev Only):</Text>
-            <Text style={styles.errorDetailsText}>
-              <Text style={styles.errorDetailsLabel}>Error: </Text>
+            <Text style={[styles.errorDetailsTitle, { color: colors.error }]}>Error Details (Dev Only):</Text>
+            <Text style={[styles.errorDetailsText, { color: colors.textSecondary }]}> 
+              <Text style={[styles.errorDetailsLabel, { color: colors.text }]}>Error: </Text>
               {error.toString()}
             </Text>
             {error.stack && (
-              <Text style={styles.errorDetailsText}>
-                <Text style={styles.errorDetailsLabel}>Stack: </Text>
-                {error.stack}
-              </Text>
+                <Text style={[styles.errorDetailsText, { color: colors.textSecondary }]}> 
+                  <Text style={[styles.errorDetailsLabel, { color: colors.text }]}>Stack: </Text>
+                  {error.stack}
+                </Text>
             )}
             {errorInfo?.componentStack && (
-              <Text style={styles.errorDetailsText}>
-                <Text style={styles.errorDetailsLabel}>Component Stack: </Text>
-                {errorInfo.componentStack}
-              </Text>
+                <Text style={[styles.errorDetailsText, { color: colors.textSecondary }]}> 
+                  <Text style={[styles.errorDetailsLabel, { color: colors.text }]}>Component Stack: </Text>
+                  {errorInfo.componentStack}
+                </Text>
             )}
           </ScrollView>
         )}
 
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={resetError}>
-            <Ionicons name="refresh" size={20} color="#FFFFFF" style={styles.buttonIcon} />
-            <Text style={styles.buttonText}>Try Again</Text>
+          <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={resetError}>
+            <Ionicons name="refresh" size={20} color={colors.white} style={styles.buttonIcon} />
+            <Text style={[styles.buttonText, { color: colors.white }]}>Try Again</Text>
           </TouchableOpacity>
         </View>
 
         {/* Help Text */}
-        <Text style={styles.helpText}>
-          If this problem persists, please contact support.
-        </Text>
+        <Text style={[styles.helpText, { color: colors.textSecondary }]}>If this problem persists, please contact support.</Text>
       </View>
     </View>
   );
 };
 
-
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
@@ -166,7 +166,6 @@ const styles = StyleSheet.create({
   content: {
     width: '100%',
     maxWidth: 500,
-    backgroundColor: '#FFFFFF',
     borderRadius: RADIUS.lg,
     padding: SPACING.xl,
     alignItems: 'center',
@@ -182,13 +181,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: '700',
-    color: COLORS.textPrimary,
     marginBottom: SPACING.md,
     textAlign: 'center',
   },
   message: {
     fontSize: FONT_SIZES.lg,
-    color: COLORS.textSecondary,
     textAlign: 'center',
     marginBottom: SPACING.lg,
     lineHeight: 22,
@@ -196,7 +193,6 @@ const styles = StyleSheet.create({
   errorDetails: {
     width: '100%',
     maxHeight: 200,
-    backgroundColor: '#F8F8F8',
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.lg,
@@ -204,16 +200,13 @@ const styles = StyleSheet.create({
   errorDetailsTitle: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: COLORS.error,
     marginBottom: SPACING.sm,
   },
   errorDetailsLabel: {
     fontWeight: '600',
-    color: COLORS.textPrimary,
   },
   errorDetailsText: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.textSecondary,
     marginBottom: SPACING.sm,
     fontFamily: 'monospace',
   },
@@ -222,7 +215,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   button: {
-    backgroundColor: COLORS.primary,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     borderRadius: RADIUS.md,
@@ -240,7 +232,6 @@ const styles = StyleSheet.create({
   },
   helpText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
     textAlign: 'center',
   },
 });

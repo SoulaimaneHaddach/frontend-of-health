@@ -22,8 +22,21 @@ import { errorLoggingService, ErrorSeverity } from '../shared/services/errorLogg
 import { networkService } from '../shared/services/networkService';
 import { offlineStorageService } from '../shared/services/offlineStorageService';
 import { requestQueueService } from '../shared/services/requestQueueService';
+import logger from '../shared/utils/logger';
 import { CachePriority } from '../shared/types/network.types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { sanitizeForLogs as sanitizeHeadersForLogs } from '../shared/utils/secureStorage';
+
+// In-flight request coalescing map to avoid duplicate identical requests
+const inFlightRequests: Map<string, Promise<any>> = new Map();
+
+// Retry/backoff helper
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+const shouldRetry = (err: any) => {
+  const status = err?.response?.status;
+  // Retry on network errors or 5xx server errors
+  return !err?.response || (status >= 500 && status < 600);
+};
 
 // Re-export types for backwards compatibility
 export type {
@@ -79,7 +92,7 @@ class ApiService {
         
         // Log requests in development
         if (ENV.ENABLE_LOGGING && __DEV__) {
-          console.log(`🔵 API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+          logger.debug(`🔵 API Request: ${config.method?.toUpperCase()} ${config.url}`, {
             params: config.params,
             data: config.data,
           });
@@ -105,7 +118,7 @@ class ApiService {
     this.api.interceptors.response.use(
       (response) => {
         if (ENV.ENABLE_LOGGING && __DEV__) {
-          console.log(`✅ API Response: ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+          logger.debug(`✅ API Response: ${response.config.method?.toUpperCase()} ${response.config.url}`, {
             status: response.status,
             data: response.data,
           });
@@ -116,24 +129,39 @@ class ApiService {
         if (ENV.ENABLE_LOGGING) {
           logError(error, 'API Response');
         }
-        
-        // Log API errors with context
-        errorLoggingService.logError(
-          error instanceof Error ? error : new Error(String(error)),
-          ErrorSeverity.ERROR,
-          {
-            action: 'api_call',
-            screen: 'API Service',
-            extra: {
-              url: error.config?.url,
-              method: error.config?.method,
-              status: (error as any).response?.status,
-              statusText: (error as any).response?.statusText,
+
+        // Prepare sanitized context before sending to remote
+        const cfg = (error as any)?.config || {};
+        const sanitizedCfg: any = { ...cfg };
+        try {
+          if (sanitizedCfg.headers) {
+            sanitizedCfg.headers = sanitizeHeadersForLogs(sanitizedCfg.headers);
+          }
+        } catch (e) {
+          // ignore
+        }
+
+        // Allow callers to suppress remote logging for noisy retry attempts
+        const suppress = Boolean(sanitizedCfg.headers && (sanitizedCfg.headers['x-suppress-logging'] || sanitizedCfg.headers['X-Suppress-Logging']));
+        if (!suppress) {
+          errorLoggingService.logError(
+            error instanceof Error ? error : new Error(String(error)),
+            ErrorSeverity.ERROR,
+            {
+              action: 'api_call',
+              screen: 'API Service',
+              extra: {
+                url: sanitizedCfg.url,
+                method: sanitizedCfg.method,
+                status: (error as any).response?.status,
+                statusText: (error as any).response?.statusText,
+                request: sanitizedCfg,
+              },
             },
-          },
-          true
-        );
-        
+            true
+          );
+        }
+
         return Promise.reject(error);
       }
     );
@@ -175,10 +203,10 @@ class ApiService {
       const token = await TokenStorage.getToken();
       if (token) {
         this.authToken = token;
-        console.log('✅ Token restored from storage');
+        logger.debug('✅ Token restored from storage');
       }
     } catch (error) {
-      console.error('❌ Failed to initialize API service:', error);
+      logger.error('❌ Failed to initialize API service:', error);
     } finally {
       this.isInitialized = true;
     }
@@ -192,20 +220,20 @@ class ApiService {
   }
   private async setAuthToken(token: string): Promise<void> {
     this.authToken = token;
-    try {
+      try {
       await TokenStorage.setToken(token);
-      console.log('✅ Token saved to secure storage');
+      logger.debug('✅ Token saved to secure storage');
     } catch (error) {
-      console.error('❌ Failed to save token:', error);
+      logger.error('❌ Failed to save token:', error);
     }
   }
   async clearAuthToken(): Promise<void> {
     this.authToken = null;
     try {
       await TokenStorage.removeToken();
-      console.log('✅ Token cleared from storage');
+      logger.debug('✅ Token cleared from storage');
     } catch (error) {
-      console.error('❌ Failed to clear token:', error);
+      logger.error('❌ Failed to clear token:', error);
     }
   }
   async login(credentials: LoginRequestDTO): Promise<AuthResponse> {
@@ -255,7 +283,7 @@ class ApiService {
 
   async logout(): Promise<void> {
     try {
-      console.log('🔄 Starting logout...');
+      logger.debug('🔄 Starting logout...');
       
       // 1. Clear auth token from memory and storage
       this.authToken = null;
@@ -275,10 +303,10 @@ class ApiService {
       // 5. Reset initialization state
       this.isInitialized = false;
 
-      console.log('✅ Logout completed successfully');
-      console.log('📝 Token cleared:', this.authToken === null);
+      logger.debug('✅ Logout completed successfully');
+      logger.debug('📝 Token cleared:', this.authToken === null);
     } catch (error) {
-      console.error('❌ Logout error:', error);
+      logger.error('❌ Logout error:', error);
       // Force clear token even if other operations fail
       this.authToken = null;
       await TokenStorage.removeToken().catch(() => {});
@@ -325,7 +353,7 @@ class ApiService {
     if (!networkService.isConnected()) {
       const cached = await offlineStorageService.get<DoctorResponseDto[]>(cacheKey);
       if (cached) {
-        console.log('📦 Returning cached doctors (offline)');
+        logger.debug('📦 Returning cached doctors (offline)');
         return cached;
       }
       throw new Error('No internet connection and no cached data available');
@@ -345,8 +373,8 @@ class ApiService {
     } catch (error) {
       // Try cache as fallback
       const cached = await offlineStorageService.get<DoctorResponseDto[]>(cacheKey);
-      if (cached) {
-        console.log('📦 Returning cached doctors (fallback)');
+        if (cached) {
+        logger.debug('📦 Returning cached doctors (fallback)');
         return cached;
       }
       throw error;
@@ -402,7 +430,7 @@ class ApiService {
     if (!networkService.isConnected()) {
       const cached = await offlineStorageService.get<DoctorResponseDto>(cacheKey);
       if (cached) {
-        console.log(`📦 Returning cached doctor ${id} (offline)`);
+        logger.debug(`📦 Returning cached doctor ${id} (offline)`);
         return cached;
       }
       throw new Error('No internet connection and no cached data available');
@@ -423,7 +451,7 @@ class ApiService {
       // Try cache as fallback
       const cached = await offlineStorageService.get<DoctorResponseDto>(cacheKey);
       if (cached) {
-        console.log(`📦 Returning cached doctor ${id} (fallback)`);
+        logger.debug(`📦 Returning cached doctor ${id} (fallback)`);
         return cached;
       }
       throw error;
@@ -437,10 +465,43 @@ class ApiService {
     return response.data;
   }
 
-  async getBookingsByDoctorId(doctorId: string): Promise<BookingResponse[]> {
+  async getBookingsByDoctorId(doctorId: string, p0: { page: number; limit: number; signal: AbortSignal; }): Promise<BookingResponse[]> {
     await this.initialize();
-    const response = await this.api.get<BookingResponse[]>(`/doctors/${doctorId}/bookings`);
-    return response.data;
+    const { page, limit, signal } = p0 || { page: 1, limit: 15, signal: undefined } as any;
+
+    const key = `${doctorId}|page=${page}|limit=${limit}`;
+    if (inFlightRequests.has(key)) {
+      return inFlightRequests.get(key) as Promise<BookingResponse[]>;
+    }
+
+    const fn = (async (): Promise<BookingResponse[]> => {
+      let attempts = 0;
+      const maxAttempts = 3;
+      const baseDelay = 250; // ms
+
+      while (true) {
+        attempts += 1;
+        try {
+          const response = await this.api.get<BookingResponse[]>(`/doctors/${doctorId}/bookings`, { params: { page, limit }, signal, headers: { 'x-suppress-logging': '1' } });
+          return response.data;
+        } catch (err: any) {
+          if (attempts >= maxAttempts || !shouldRetry(err)) {
+            throw err;
+          }
+          // Exponential backoff with jitter
+          const jitter = Math.floor(Math.random() * 100);
+          const delay = baseDelay * Math.pow(2, attempts - 1) + jitter;
+          logger.debug(`Retrying bookings request (${attempts}/${maxAttempts}) after ${delay}ms`);
+          await sleep(delay);
+          // continue loop
+        }
+      }
+    })();
+
+    inFlightRequests.set(key, fn);
+    // Ensure the map entry is removed after completion
+    fn.finally(() => inFlightRequests.delete(key)).catch(() => {});
+    return fn;
   }
 
   async createBooking(
@@ -458,14 +519,14 @@ class ApiService {
         }
       } catch (error: any) {
         // If 500/404/403, user is not a doctor - allow booking to proceed
-        console.log('ℹ️ User is not a doctor, allowing booking');
+        logger.debug('ℹ️ User is not a doctor, allowing booking');
       }
     }
 
     // If offline, queue the request with a clientLocalId so the UI can reconcile later
     if (!networkService.isConnected()) {
       const clientLocalId = uuidv4();
-      console.log('📤 Queuing booking request (offline)', clientLocalId);
+      logger.debug('📤 Queuing booking request (offline)', clientLocalId);
       await requestQueueService.addRequest(
         `/doctors/${doctorId}/bookings`,
         'POST',
@@ -517,7 +578,7 @@ class ApiService {
       await this.api.get('/doctors/me');
       return true;
     } catch (error: any) {
-      console.log('ℹ️ isDoctor check: User is not a doctor or error occurred');
+      logger.debug('ℹ️ isDoctor check: User is not a doctor or error occurred');
       return false;
     }
   }
@@ -571,10 +632,10 @@ class ApiService {
         metadata,
       });
       if (ENV.ENABLE_LOGGING && __DEV__) {
-        console.log('✅ Device token registered with backend');
+        logger.debug('✅ Device token registered with backend');
       }
     } catch (error) {
-      console.warn('Failed to register device token with backend', error);
+      logger.warn('Failed to register device token with backend', error);
     }
   }
 }

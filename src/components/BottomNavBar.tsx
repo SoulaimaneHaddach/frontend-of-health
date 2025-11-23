@@ -1,6 +1,6 @@
 // src/components/BottomNavBar.tsx
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, ScrollView, Text, Platform } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 import { useTheme } from '../context/ThemeContext';

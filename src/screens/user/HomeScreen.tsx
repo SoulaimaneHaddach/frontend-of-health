@@ -22,7 +22,9 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
+import logger from '../../shared/utils/logger';
 import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
+import { s, ms, vs, SIZES } from '../../shared/constants/responsive';
 import { SpecialtyType } from '../../shared/types';
 import { DoctorResponseDto, DoctorMapDto } from '../../services/api';
 import { BottomNavBar } from '../../components/BottomNavBar';
@@ -33,8 +35,8 @@ import { useAnalytics } from '../../shared/hooks/useAnalytics';
 import { Platform, AppState } from 'react-native';
 import { eventBus } from '../../shared/services/eventBus';
 
-const CARD_HEIGHT = 280;
-const NAVBAR_HEIGHT = 60;
+const CARD_HEIGHT = ms(280);
+const NAVBAR_HEIGHT = ms(60);
 
 const MIN_ZOOM_DELTA = 0.01; 
 const MAX_ZOOM_DELTA = 0.3; // Doctors visible when zoomed in closer than this 
@@ -153,13 +155,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const fetchDoctors = useCallback(async () => {
     // Prevent multiple simultaneous fetches
     if (isFetchingRef.current) {
-      console.log('⏳ Already fetching doctors, skipping...');
+      logger.debug('⏳ Already fetching doctors, skipping...');
       return;
     }
 
     // Only fetch if we have valid location
     if (!userLocation || !userLocation.latitude || !userLocation.longitude) {
-      console.log('⚠️ No valid location, skipping fetch');
+      logger.warn('⚠️ No valid location, skipping fetch');
       return;
     }
 
@@ -167,7 +169,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     setLoading(true);
     
     try {
-      console.log('🔍 Fetching all doctors (attempt)...', {
+      logger.debug('🔍 Fetching all doctors (attempt)...', {
         lat: userLocation.latitude,
         lng: userLocation.longitude,
         specialty: selectedSpecialty
@@ -203,11 +205,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         typeof doctor.location.longitude === 'number'
       );
       
-      console.log('✅ Fetched doctors (response):', validDoctors.length);
+      logger.debug('✅ Fetched doctors (response):', validDoctors.length);
+
+
       setDoctors(validDoctors);
       setDidFetchOnce(true);
     } catch (error) {
-      console.error('❌ Error fetching doctors:', error);
+      logger.error('❌ Error fetching doctors:', error);
       setDoctors([]);
       // Don't crash the app, just show empty list
     } finally {
@@ -234,24 +238,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 longitudeDelta: 0.05,
               };
               
-              console.log('📍 User location acquired:', newRegion);
+              logger.debug('📍 User location acquired:', newRegion);
               setUserLocation(newRegion);
               
               // Only animate to user location on initial load
               if (!initialLocationSet.current && mapRef.current) {
                 setTimeout(() => {
                   try {
-                    isProgrammaticRef.current = true;
-                    mapRef.current?.animateToRegion(newRegion, 1000);
-                  } catch (e) {
-                    console.warn('Map animation error:', e);
-                  }
+                      isProgrammaticRef.current = true;
+                      mapRef.current?.animateToRegion(newRegion, 1000);
+                    } catch (e) {
+                      logger.warn('Map animation error:', e);
+                    }
                 }, 500);
                 initialLocationSet.current = true;
               }
             }
           } catch (locError) {
-            console.warn('Location fetch error:', locError);
+            logger.warn('Location fetch error:', locError);
             if (mounted) {
               setUserLocation({
                 latitude: 35.7595,
@@ -262,7 +266,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             }
           }
         } else {
-          console.log('⚠️ Location permission denied, using default location');
+          logger.warn('⚠️ Location permission denied, using default location');
           if (mounted) {
             setUserLocation({
               latitude: 35.7595,
@@ -273,7 +277,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           }
         }
       } catch (error) {
-        console.error('❌ Error getting location:', error);
+        logger.error('❌ Error getting location:', error);
         if (mounted) {
           setUserLocation({
             latitude: 35.7595,
@@ -285,13 +289,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       }
     };
 
-    initLocation().catch(e => console.error('Init location failed:', e));
+    initLocation().catch(e => logger.error('Init location failed:', e));
     return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
     if (userLocation && userLocation.latitude && userLocation.longitude) {
-      console.log('🎯 Initial fetch on location ready');
+      logger.debug('🎯 Initial fetch on location ready');
       fetchDoctors();
     }
   }, [userLocation.latitude, userLocation.longitude]);
@@ -299,14 +303,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   // Listen for in-app events that should trigger a refresh (e.g., doctor created)
   useEffect(() => {
     const unsubscribe = eventBus.on('doctorCreated', () => {
-      console.log('🔔 doctorCreated event received, refreshing doctors');
+      logger.debug('🔔 doctorCreated event received, refreshing doctors');
       fetchDoctors();
     });
 
     // Also refresh when the app comes back to foreground (e.g., reopen app)
     const handleAppState = (nextAppState: string) => {
       if (nextAppState === 'active') {
-        console.log('🔁 App resumed, refreshing doctors');
+        logger.debug('🔁 App resumed, refreshing doctors');
         fetchDoctors();
       }
     };
@@ -323,10 +327,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     useCallback(() => {
       if (!hasMountedRef.current) {
         hasMountedRef.current = true;
-        console.log('🔁 HomeScreen first focus (mounted) — triggering fetch');
+        logger.debug('🔁 HomeScreen first focus (mounted) — triggering fetch');
         fetchDoctors();
       } else {
-        console.log('🔁 HomeScreen refocused — triggering fetch');
+        logger.debug('🔁 HomeScreen refocused — triggering fetch');
         fetchDoctors();
       }
     }, [])
@@ -334,7 +338,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   // Explicit refresh helper: clears cache flag and triggers a fetch
   const refreshDoctors = useCallback(() => {
-    console.log('🔃 Manual refresh requested for doctors');
+    logger.debug('🔃 Manual refresh requested for doctors');
     setDidFetchOnce(false);
     fetchDoctors();
   }, [fetchDoctors]);
@@ -511,7 +515,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         }
       }
     } catch (error) {
-      console.error('Error getting location:', error);
+      logger.error('Error getting location:', error);
     }
   }, []);
 
@@ -588,7 +592,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               onPress={() => setSearchVisible(false)}
               style={styles.iconButton}
             >
-              <Ionicons name="close" size={28} color={colors.textSecondary} />
+              <Ionicons name="close" size={ms(28)} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
           <TouchableOpacity 
@@ -597,7 +601,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           >
             <Ionicons 
               name="language" 
-              size={28} 
+              size={ms(28)} 
               color={colors.primary} 
             />
           </TouchableOpacity>
@@ -605,7 +609,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <TouchableOpacity onPress={handleProfilePress}>
             <Ionicons 
               name="person-circle" 
-              size={32} 
+              size={ms(32)} 
               color={colors.primary} 
             />
           </TouchableOpacity>
@@ -626,7 +630,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </View>
           <View style={styles.searchResultsHeader}>
             <View style={styles.searchHeaderTop}>
-              <Ionicons name="search" size={20} color={colors.primary} />
+              <Ionicons name="search" size={ms(20)} color={colors.primary} />
               <Text style={[styles.searchResultsTitle, isRTL && { textAlign: 'right' }]}>{t.search}</Text>
             </View>
           </View>
@@ -636,7 +640,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <View style={styles.searchBar}>
               <Ionicons 
                 name="search" 
-                size={20} 
+                size={ms(20)} 
                 color={colors.textSecondary} 
               />
               <TextInput
@@ -650,16 +654,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               />
               {/* Clear button (only clears text) */}
               {(searchQuery ?? '').trim().length > 0 && (
-                <TouchableOpacity
+                  <TouchableOpacity
                   onPress={() => {
                     setSearchQuery('');
                     setTimeout(() => searchInputRef.current?.focus && searchInputRef.current?.focus(), 50);
                   }}
-                  style={{ marginRight: 8 }}
+                  style={{ marginRight: ms(8) }}
                 >
                   <Ionicons
                     name="close"
-                    size={18}
+                    size={ms(18)}
                     color={colors.textSecondary}
                   />
                 </TouchableOpacity>
@@ -672,7 +676,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               >
                 <Ionicons 
                   name="close-circle" 
-                  size={20} 
+                  size={ms(20)} 
                   color={colors.textSecondary} 
                 />
               </TouchableOpacity>
@@ -689,7 +693,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <View style={styles.emptySearchState}>
                 <Ionicons 
                   name="search-outline" 
-                  size={48} 
+                  size={ms(48)} 
                   color={colors.textSecondary} 
                 />
                 <Text style={[styles.emptyText, isRTL && { textAlign: 'center' }]}>{t.nearbyDoctors}</Text>
@@ -713,7 +717,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   ]}>
                     <Ionicons
                       name={getSpecialtyIcon(doctor.specialization)}
-                      size={24}
+                      size={ms(24)}
                       color={colors.white}
                     />
                   </View>
@@ -735,7 +739,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   </View>
                   <Ionicons 
                     name="chevron-forward" 
-                    size={20} 
+                    size={ms(20)} 
                     color={colors.textSecondary} 
                   />
                 </TouchableOpacity>
@@ -759,7 +763,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               onRegionChange={handleMapRegionChange}
               onRegionChangeComplete={handleMapRegionChangeComplete}
               onMapReady={() => {
-                console.log('✅ Map ready');
+                logger.debug('✅ Map ready');
                 setMapError(false);
               }}
               minZoomLevel={Platform.OS === 'android' ? 8 : undefined}
@@ -780,9 +784,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               anchor={{ x: 0.5, y: 0.5 }}
               tracksViewChanges={false}
             >
-              <View style={[styles.marker, { backgroundColor: colors.primary }]}>
-                <Ionicons name="location" size={20} color={colors.white} />
-              </View>
+              <View style={[styles.marker, { backgroundColor: colors.primary }]}> 
+                  <Ionicons name="location" size={ms(20)} color={colors.white} />
+                </View>
             </Marker>
 
             {/* Doctor Markers - Show only when zoomed in */}
@@ -807,7 +811,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   >
                     <Ionicons
                       name={getSpecialtyIcon(doctor.specialization)}
-                      size={20}
+                      size={ms(20)}
                       color={colors.white}
                     />
                   </View>
@@ -837,7 +841,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                   const found = visibleDoctors.find(x => String(x.id) === String(id));
                   if (found) handleDoctorPress(found);
                 } catch (e) {
-                  console.warn('OSM marker press handler error', e);
+                  logger.warn('OSM marker press handler error', e);
                 }
               }}
             />
@@ -845,11 +849,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
           <View style={styles.mapOverlay}>
             <Text style={[styles.resultsText, isRTL && { textAlign: 'right' }]}>
-              {t.nearbyDoctors}
+              {t.nearbyDoctorsOnMap}
             </Text>
             {currentZoomLevel > MAX_ZOOM_DELTA && (
               <Text style={[styles.zoomHint, isRTL && { textAlign: 'right' }]}>
-                Zoom in to see doctors
+               {t.nearbyDoctors}
               </Text>
             )}
           </View>
@@ -930,7 +934,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               analytics.trackFilterCleared();
             }
           } catch (error) {
-            console.warn('Analytics error:', error);
+            logger.warn('Analytics error:', error);
           }
         }}
         onSearchPress={() => setSearchVisible(true)}
@@ -1014,7 +1018,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     marginBottom: SPACING.xs,
-    paddingTop:  30,
+    paddingTop:  ms(30),
   },
   searchResultsTitle: {
     fontSize: FONT_SIZES.lg,
@@ -1036,7 +1040,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   emptySearchState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.xl * 3,
+    paddingVertical: ms(SPACING.xl * 3),
   },
   searchResultCard: {
     flexDirection: 'row',
@@ -1047,9 +1051,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     ...SHADOWS.small,
   },
   searchResultIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: RADIUS.md,
+    width: ms(50),
+    height: ms(50),
+    borderRadius: ms(RADIUS.md),
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.md,
@@ -1061,17 +1065,17 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: FONT_SIZES.base,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 2,
+    marginBottom: ms(2),
   },
   searchResultSpecialty: {
     fontSize: FONT_SIZES.sm,
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: ms(4),
   },
   searchResultLocation: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: ms(4),
   },
   searchResultAddress: {
     fontSize: FONT_SIZES.xs,
@@ -1088,30 +1092,30 @@ const createStyles = (colors: any) => StyleSheet.create({
     bottom: 0,
     zIndex: 30,
     backgroundColor: colors.background,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: ms(16),
+    borderTopRightRadius: ms(16),
     overflow: 'hidden',
   },
   searchHandleContainer: {
     alignItems: 'center',
     paddingTop: SPACING.sm,
-    backgroundColor: '#ffffffff',
+    backgroundColor: colors.card,
   },
   searchHandle: {
-    width: 100,
-    height: 4,
-    borderRadius: 4,
-    backgroundColor: '#000000',
-    opacity: 0.3,
+    width: ms(100),
+    height: vs(4),
+    borderRadius: ms(4),
+    backgroundColor: colors.textSecondary,
+    opacity: 0.25,
   },
   map: { flex: 1 },
   marker: {
-    width: 40,
-    height: 40,
-    borderRadius: RADIUS.full,
+    width: ms(40),
+    height: ms(40),
+    borderRadius: ms(RADIUS.full),
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
+    borderWidth: ms(3),
     borderColor: colors.white,
     ...SHADOWS.medium,
   },
@@ -1135,15 +1139,15 @@ const createStyles = (colors: any) => StyleSheet.create({
   zoomHint: {
     fontSize: FONT_SIZES.xs,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: ms(2),
   },
   locationButton: {
     position: 'absolute',
-    bottom: 170,
-    right: 30,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    bottom: ms(170),
+    right: ms(30),
+    width: ms(56),
+    height: ms(56),
+    borderRadius: ms(28),
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1166,11 +1170,11 @@ const createStyles = (colors: any) => StyleSheet.create({
 
   fab: {
     position: 'absolute',
-    bottom: NAVBAR_HEIGHT + 60,      // nearby btn
+    bottom: NAVBAR_HEIGHT + ms(60),      // nearby btn
     right: SPACING.lg,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: ms(64),
+    height: ms(64),
+    borderRadius: ms(32),
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1179,16 +1183,16 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   fabBadge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#E91E63',
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
+    top: ms(-4),
+    right: ms(-4),
+    backgroundColor: colors.accent,
+    borderRadius: ms(12),
+    minWidth: ms(24),
+    height: ms(24),
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
-    borderWidth: 2,
+    paddingHorizontal: ms(6),
+    borderWidth: ms(2),
     borderColor: colors.white,
   },
   fabBadgeText: {

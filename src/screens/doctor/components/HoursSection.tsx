@@ -3,7 +3,8 @@ import React from 'react';
 import { View, Text, TouchableOpacity, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import SectionCard from './SectionCard';
-import { COLORS, FONT_SIZES, SPACING } from '../../../shared/constants/theme';
+import { FONT_SIZES, SPACING } from '../../../shared/constants/theme';
+import { useTheme } from '../../../context/ThemeContext';
 import { WorkingHours } from '../../../services/api';
 import { useLanguage } from '../../../context/LanguageContext';
 
@@ -27,6 +28,7 @@ export const HoursSection: React.FC<HoursSectionProps> = ({
   styles,
 }) => {
   const { t, isRTL } = useLanguage();
+  const { colors } = useTheme();
   
   return (
     <SectionCard 
@@ -41,7 +43,7 @@ export const HoursSection: React.FC<HoursSectionProps> = ({
             <View key={index} style={styles.hourCard}>
               <View style={styles.hourCardHeader}>
                 <View style={styles.dayInputWrapper}>
-                  <Ionicons name="calendar-outline" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
+                  <Ionicons name="calendar-outline" size={18} color={colors.primary} style={{ marginRight: 8 }} />
                   <TextInput
                     placeholder="Day (e.g., Mon-Fri)"
                     value={hour.day}
@@ -49,10 +51,10 @@ export const HoursSection: React.FC<HoursSectionProps> = ({
                     style={{
                       flex: 1,
                       fontSize: FONT_SIZES.base,
-                      color: isDark ? COLORS.darkText : COLORS.textPrimary,
+                      color: colors.text,
                       paddingVertical: SPACING.sm,
                     }}
-                    placeholderTextColor={COLORS.textLight}
+                    placeholderTextColor={colors.textSecondary}
                   />
                 </View>
                 <TouchableOpacity 
@@ -60,7 +62,7 @@ export const HoursSection: React.FC<HoursSectionProps> = ({
                   onPress={() => onRemove(index)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Ionicons name="trash-outline" size={20} color={COLORS.error} />
+                  <Ionicons name="trash-outline" size={20} color={colors.error} />
                 </TouchableOpacity>
               </View>
 
@@ -72,9 +74,9 @@ export const HoursSection: React.FC<HoursSectionProps> = ({
                 <Ionicons 
                   name={hour.isClosed ? 'checkbox' : 'square-outline'}
                   size={22}
-                  color={hour.isClosed ? COLORS.error : COLORS.primary}
+                  color={hour.isClosed ? colors.error : colors.primary}
                 />
-                <Text style={[styles.closedToggleLabel, hour.isClosed && { color: COLORS.error }, isRTL && { textAlign: 'right' }]}>
+                <Text style={[styles.closedToggleLabel, hour.isClosed && { color: colors.error }, isRTL && { textAlign: 'right' }]}> 
                   {t.closed}
                 </Text>
               </TouchableOpacity>
@@ -84,18 +86,18 @@ export const HoursSection: React.FC<HoursSectionProps> = ({
                   <View style={styles.timeInputGroup}>
                     <Text style={styles.timeLabel}>Open</Text>
                     <View style={styles.timeInputWrapper}>
-                      <Ionicons name="time-outline" size={18} color={COLORS.primary} />
+                      <Ionicons name="time-outline" size={18} color={colors.primary} />
                       <TextInput 
                         placeholder="09:00"
                         value={hour.openTime}
                         onChangeText={(v: string) => onUpdate(index, 'openTime', v)}
                         keyboardType="numbers-and-punctuation"
-                        placeholderTextColor={COLORS.textLight}
+                        placeholderTextColor={colors.textSecondary}
                         style={{
                           flex: 1,
                           marginLeft: 8,
                           fontSize: FONT_SIZES.base,
-                          color: isDark ? COLORS.darkText : COLORS.textPrimary,
+                          color: colors.text,
                           paddingVertical: SPACING.sm,
                         }}
                       />
@@ -103,24 +105,24 @@ export const HoursSection: React.FC<HoursSectionProps> = ({
                   </View>
 
                   <View style={styles.timeArrow}>
-                    <Ionicons name="arrow-forward" size={20} color={isDark ? COLORS.darkTextSecondary : COLORS.textSecondary} />
+                    <Ionicons name="arrow-forward" size={20} color={colors.textSecondary} />
                   </View>
 
                   <View style={styles.timeInputGroup}>
                     <Text style={styles.timeLabel}>Close</Text>
                     <View style={styles.timeInputWrapper}>
-                      <Ionicons name="time-outline" size={18} color={COLORS.primary} />
+                      <Ionicons name="time-outline" size={18} color={colors.primary} />
                       <TextInput 
                         placeholder="17:00"
                         value={hour.closeTime}
                         onChangeText={(v: string) => onUpdate(index, 'closeTime', v)}
                         keyboardType="numbers-and-punctuation"
-                        placeholderTextColor={COLORS.textLight}
+                        placeholderTextColor={colors.textSecondary}
                         style={{
                           flex: 1,
                           marginLeft: 8,
                           fontSize: FONT_SIZES.base,
-                          color: isDark ? COLORS.darkText : COLORS.textPrimary,
+                          color: colors.text,
                           paddingVertical: SPACING.sm,
                         }}
                       />
@@ -136,16 +138,16 @@ export const HoursSection: React.FC<HoursSectionProps> = ({
             onPress={onAddNew}
             activeOpacity={0.7}
           >
-            <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
             <Text style={styles.addHourButtonText}>Add Another Day</Text>
           </TouchableOpacity>
         </>
       ) : (
         <View style={styles.emptyState}>
-          <Ionicons name="time-outline" size={48} color={isDark ? COLORS.darkTextSecondary : COLORS.textSecondary} />
+          <Ionicons name="time-outline" size={48} color={colors.textSecondary} />
           <Text style={styles.emptyStateText}>No working hours set</Text>
           <TouchableOpacity onPress={onAddDefault} activeOpacity={0.7} style={{ marginTop: 8 }}>
-            <Text style={{ color: COLORS.primary, fontWeight: '600' }}>Add Default Hours</Text>
+            <Text style={{ color: colors.primary, fontWeight: '600' }}>Add Default Hours</Text>
           </TouchableOpacity>
           <Text style={styles.emptyStateHint}>Mon-Fri: 9-5, Sat: 9-1, Sun: Closed</Text>
         </View>

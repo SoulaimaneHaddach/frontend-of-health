@@ -2,7 +2,7 @@
 import React, { useState, memo, useMemo, useCallback } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity, TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONT_SIZES, RADIUS, SPACING } from '../constants/theme';
+import { FONT_SIZES, RADIUS, SPACING } from '../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 
 interface InputFieldProps extends TextInputProps {
@@ -22,49 +22,44 @@ const InputFieldComponent: React.FC<InputFieldProps> = ({
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const { isDarkMode } = useTheme();
+  const { colors } = useTheme();
 
   // Memoize dynamic styles
   const dynamicContainerStyles = useMemo(
     () => ({
-      backgroundColor: isDarkMode ? COLORS.darkCard : COLORS.white,
-      borderColor: isDarkMode ? COLORS.darkBorder : COLORS.border,
+      backgroundColor: colors.card,
+      borderColor: colors.border,
     }),
-    [isDarkMode]
+    [colors]
   );
 
   const dynamicLabelStyle = useMemo(
     () => ({
-      color: isDarkMode ? COLORS.darkText : COLORS.textPrimary,
+      color: colors.text,
     }),
-    [isDarkMode]
+    [colors]
   );
 
   const dynamicInputStyle = useMemo(
     () => ({
-      color: isDarkMode ? COLORS.darkText : COLORS.textPrimary,
+      color: colors.text,
     }),
-    [isDarkMode]
+    [colors]
   );
 
   const iconColor = useMemo(
-    () =>
-      isFocused
-        ? COLORS.primary
-        : isDarkMode
-        ? COLORS.darkTextSecondary
-        : COLORS.textSecondary,
-    [isFocused, isDarkMode]
+    () => (isFocused ? colors.primary : colors.textSecondary),
+    [isFocused, colors]
   );
 
   const placeholderColor = useMemo(
-    () => (isDarkMode ? COLORS.darkTextSecondary : COLORS.textLight),
-    [isDarkMode]
+    () => colors.textSecondary,
+    [colors]
   );
 
   const eyeIconColor = useMemo(
-    () => (isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary),
-    [isDarkMode]
+    () => colors.textSecondary,
+    [colors]
   );
 
   // Memoize container style array
@@ -72,10 +67,10 @@ const InputFieldComponent: React.FC<InputFieldProps> = ({
     () => [
       styles.inputContainer,
       dynamicContainerStyles,
-      isFocused && styles.inputContainerFocused,
-      error && styles.inputContainerError,
+      isFocused && { borderColor: colors.primary, borderWidth: 2 },
+      error && { borderColor: colors.error },
     ],
-    [dynamicContainerStyles, isFocused, error]
+    [dynamicContainerStyles, isFocused, error, colors]
   );
 
   // Memoize callbacks
@@ -115,7 +110,7 @@ const InputFieldComponent: React.FC<InputFieldProps> = ({
         )}
       </View>
       
-      {error && <Text style={[styles.error, { color: COLORS.error }]}>{error}</Text>}
+      {error && <Text style={[styles.error, { color: colors.error }]}>{error}</Text>}
     </View>
   );
 };
@@ -139,7 +134,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: COLORS.textPrimary,
     marginBottom: SPACING.sm,
   },
   inputContainer: {
@@ -150,11 +144,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
   },
   inputContainerFocused: {
-    borderColor: COLORS.primary,
     borderWidth: 2,
   },
   inputContainerError: {
-    borderColor: COLORS.error,
+    
   },
   icon: {
     marginRight: SPACING.sm,

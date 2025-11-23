@@ -21,6 +21,12 @@ const ENV_CONFIG = {
 };
 
 function getEnvVars() {
+  // Prefer an explicit EXPO_PUBLIC_ENV (settable in EAS/eas.json or Expo Dashboard).
+  // Fallback to NODE_ENV for convenience. Default to 'dev' if not provided.
+  const raw = (process.env.EXPO_PUBLIC_ENV || process.env.NODE_ENV || 'dev').toString().toLowerCase();
+
+  if (raw === 'prod' || raw === 'production') return ENV_CONFIG.prod;
+  if (raw === 'staging' || raw === 'stage') return ENV_CONFIG.staging;
   return ENV_CONFIG.dev;
 }
 

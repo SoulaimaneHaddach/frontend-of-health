@@ -16,6 +16,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
+import logger from '../../shared/utils/logger';
 import {
   COLORS,
   FONT_SIZES,
@@ -79,7 +80,7 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
         title: `Dr. ${doctor.name}`,
       });
     } catch (error) {
-      console.log(error);
+      logger.error(error);
     }
   }, [doctor.name, doctor.specialization, doctor.phoneNumber, doctor.email, t]);
 

@@ -7,6 +7,7 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import analyticsService from './analyticsService';
+import logger from '../utils/logger';
 
 // ============================================================================
 // Types
@@ -95,9 +96,9 @@ class ErrorLoggingService {
       await this.loadBreadcrumbs();
       
       this.initialized = true;
-      console.log('[ErrorLogging] Initialized successfully');
+      logger.debug('[ErrorLogging] Initialized successfully');
     } catch (error) {
-      console.error('[ErrorLogging] Initialization failed:', error);
+      logger.error('[ErrorLogging] Initialization failed:', error);
     }
   }
 
@@ -169,7 +170,7 @@ class ErrorLoggingService {
         this.breadcrumbs = JSON.parse(stored);
       }
     } catch (error) {
-      console.error('[ErrorLogging] Failed to load breadcrumbs:', error);
+      logger.error('[ErrorLogging] Failed to load breadcrumbs:', error);
     }
   }
 
@@ -180,7 +181,7 @@ class ErrorLoggingService {
         JSON.stringify(this.breadcrumbs)
       );
     } catch (error) {
-      console.error('[ErrorLogging] Failed to persist breadcrumbs:', error);
+      logger.error('[ErrorLogging] Failed to persist breadcrumbs:', error);
     }
   }
 
@@ -272,7 +273,7 @@ class ErrorLoggingService {
 
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(errors));
     } catch (error) {
-      console.error('[ErrorLogging] Failed to store error:', error);
+      logger.error('[ErrorLogging] Failed to store error:', error);
     }
   }
 
@@ -281,7 +282,7 @@ class ErrorLoggingService {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
-      console.error('[ErrorLogging] Failed to get stored errors:', error);
+      logger.error('[ErrorLogging] Failed to get stored errors:', error);
       return [];
     }
   }
@@ -290,7 +291,7 @@ class ErrorLoggingService {
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
     } catch (error) {
-      console.error('[ErrorLogging] Failed to clear stored errors:', error);
+      logger.error('[ErrorLogging] Failed to clear stored errors:', error);
     }
   }
 
@@ -307,23 +308,19 @@ class ErrorLoggingService {
       [ErrorSeverity.FATAL]: '💀',
     };
 
-    console.group(
-      `${severityEmoji[errorReport.severity]} ${errorReport.severity.toUpperCase()}: ${errorReport.error.name}`
-    );
-    console.log('Message:', errorReport.error.message);
-    console.log('Error ID:', errorReport.id);
-    console.log('Context:', errorReport.context);
-    console.log('Timestamp:', new Date(errorReport.timestamp).toISOString());
-    
+    logger.debug(`${severityEmoji[errorReport.severity]} ${errorReport.severity.toUpperCase()}: ${errorReport.error.name}`);
+    logger.debug('Message:', errorReport.error.message);
+    logger.debug('Error ID:', errorReport.id);
+    logger.debug('Context:', errorReport.context);
+    logger.debug('Timestamp:', new Date(errorReport.timestamp).toISOString());
+
     if (errorReport.error.stack) {
-      console.log('Stack:', errorReport.error.stack);
+      logger.debug('Stack:', errorReport.error.stack);
     }
-    
+
     if (errorReport.breadcrumbs.length > 0) {
-      console.log('Recent Breadcrumbs:', errorReport.breadcrumbs.slice(-5));
+      logger.debug('Recent Breadcrumbs:', errorReport.breadcrumbs.slice(-5));
     }
-    
-    console.groupEnd();
   }
 
   // ==========================================================================
@@ -341,7 +338,7 @@ class ErrorLoggingService {
         handled: errorReport.handled,
       } as any);
     } catch (error) {
-      console.error('[ErrorLogging] Failed to track error in analytics:', error);
+      logger.error('[ErrorLogging] Failed to track error in analytics:', error);
     }
   }
 
@@ -353,7 +350,7 @@ class ErrorLoggingService {
     // Implement integration with error tracking service (e.g., Sentry, Bugsnag)
     // For now, just log in development
     if (__DEV__) {
-      console.log('[ErrorLogging] Would send to remote:', errorReport.id);
+      logger.debug('[ErrorLogging] Would send to remote:', errorReport.id);
     }
 
     // Example Sentry integration:

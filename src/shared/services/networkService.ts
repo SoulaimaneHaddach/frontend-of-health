@@ -15,6 +15,7 @@ import {
   NetworkEventListener,
 } from '../types/network.types';
 import { errorLoggingService, ErrorSeverity } from './errorLoggingService';
+import logger from '../utils/logger';
 
 // ============================================================================
 // Network Service Class
@@ -47,9 +48,9 @@ class NetworkService {
       });
 
       this.initialized = true;
-      console.log('[NetworkService] Initialized successfully');
+      logger.debug('[NetworkService] Initialized successfully');
     } catch (error) {
-      console.error('[NetworkService] Initialization failed:', error);
+      logger.error('[NetworkService] Initialization failed:', error);
       errorLoggingService.logError(
         error instanceof Error ? error : new Error(String(error)),
         ErrorSeverity.ERROR,
@@ -187,7 +188,7 @@ class NetworkService {
         try {
           listener(data);
         } catch (error) {
-          console.error(`[NetworkService] Error in event listener:`, error);
+          logger.error(`[NetworkService] Error in event listener:`, error);
         }
       });
     }
@@ -225,11 +226,11 @@ class NetworkService {
   }
 
   private notifyListeners(state: NetworkState): void {
-    this.listeners.forEach((listener) => {
+      this.listeners.forEach((listener) => {
       try {
         listener(state);
       } catch (error) {
-        console.error('[NetworkService] Error in listener:', error);
+        logger.error('[NetworkService] Error in listener:', error);
       }
     });
   }
@@ -289,7 +290,7 @@ class NetworkService {
 
       return newState;
     } catch (error) {
-      console.error('[NetworkService] Refresh failed:', error);
+      logger.error('[NetworkService] Refresh failed:', error);
       errorLoggingService.logError(
         error instanceof Error ? error : new Error(String(error)),
         ErrorSeverity.ERROR,
@@ -314,7 +315,7 @@ class NetworkService {
     this.eventListeners.clear();
     this.initialized = false;
 
-    console.log('[NetworkService] Cleaned up');
+    logger.debug('[NetworkService] Cleaned up');
   }
 }
 

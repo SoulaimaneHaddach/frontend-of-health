@@ -17,6 +17,7 @@ import {
   UserProperties,
   ScreenViewProperties,
 } from '../types/analytics.types';
+import logger from '../utils/logger';
 
 // ============================================================================
 // Configuration
@@ -100,7 +101,7 @@ class AnalyticsService {
       this.config.enabled = enabled;
 
       if (!this.config.enabled) {
-        console.log('[Analytics] Analytics disabled by user preference');
+        logger.debug('[Analytics] Analytics disabled by user preference');
         return;
       }
 
@@ -122,10 +123,10 @@ class AnalyticsService {
       });
 
       if (this.config.debug) {
-        console.log('[Analytics] Initialized successfully', this.state);
+        logger.debug('[Analytics] Initialized successfully', this.state);
       }
     } catch (error) {
-      console.error('[Analytics] Initialization failed:', error);
+      logger.error('[Analytics] Initialization failed:', error);
     }
   }
 
@@ -149,7 +150,7 @@ class AnalyticsService {
         this.state.eventQueue = JSON.parse(eventQueue);
       }
     } catch (error) {
-      console.error('[Analytics] Failed to load state:', error);
+      logger.error('[Analytics] Failed to load state:', error);
     }
   }
 
@@ -179,7 +180,7 @@ class AnalyticsService {
         this.state.sessionId = existingSessionId;
       }
     } catch (error) {
-      console.error('[Analytics] Failed to initialize session:', error);
+      logger.error('[Analytics] Failed to initialize session:', error);
       this.state.sessionId = this.generateSessionId();
     }
   }
@@ -216,7 +217,7 @@ class AnalyticsService {
       this.state.lastEventTimestamp = event.timestamp;
 
       if (this.config.debug) {
-        console.log('[Analytics] Event tracked:', event);
+        logger.debug('[Analytics] Event tracked:', event);
       }
 
       // Persist queue
@@ -227,7 +228,7 @@ class AnalyticsService {
         this.flush();
       }
     } catch (error) {
-      console.error('[Analytics] Failed to track event:', error);
+      logger.error('[Analytics] Failed to track event:', error);
     }
   }
 
@@ -274,10 +275,10 @@ class AnalyticsService {
       await AsyncStorage.setItem(STORAGE_KEYS.USER_ID, userId);
 
       if (this.config.debug) {
-        console.log('[Analytics] User ID set:', userId);
+        logger.debug('[Analytics] User ID set:', userId);
       }
     } catch (error) {
-      console.error('[Analytics] Failed to set user ID:', error);
+      logger.error('[Analytics] Failed to set user ID:', error);
     }
   }
 
@@ -294,10 +295,10 @@ class AnalyticsService {
       );
 
       if (this.config.debug) {
-        console.log('[Analytics] User properties updated:', this.state.userProperties);
+        logger.debug('[Analytics] User properties updated:', this.state.userProperties);
       }
     } catch (error) {
-      console.error('[Analytics] Failed to set user properties:', error);
+      logger.error('[Analytics] Failed to set user properties:', error);
     }
   }
 
@@ -312,10 +313,10 @@ class AnalyticsService {
       ]);
 
       if (this.config.debug) {
-        console.log('[Analytics] User data cleared');
+        logger.debug('[Analytics] User data cleared');
       }
     } catch (error) {
-      console.error('[Analytics] Failed to clear user:', error);
+      logger.error('[Analytics] Failed to clear user:', error);
     }
   }
 
@@ -328,7 +329,7 @@ class AnalyticsService {
     this.sessionStartTime = Date.now();
 
     if (this.config.debug) {
-      console.log('[Analytics] Session started:', this.state.sessionId);
+      logger.debug('[Analytics] Session started:', this.state.sessionId);
     }
   }
 
@@ -348,7 +349,7 @@ class AnalyticsService {
     await AsyncStorage.removeItem(STORAGE_KEYS.SESSION_ID);
 
     if (this.config.debug) {
-      console.log('[Analytics] Session ended. Duration:', sessionDuration);
+      logger.debug('[Analytics] Session ended. Duration:', sessionDuration);
     }
   }
 
@@ -366,7 +367,7 @@ class AnalyticsService {
       this.state.eventQueue = [];
 
       if (this.config.debug) {
-        console.log(`[Analytics] Flushing ${eventsToSend.length} events`);
+        logger.debug(`[Analytics] Flushing ${eventsToSend.length} events`);
       }
 
       // Send to providers
@@ -380,7 +381,7 @@ class AnalyticsService {
       // Clear persisted queue
       await AsyncStorage.removeItem(STORAGE_KEYS.EVENT_QUEUE);
     } catch (error) {
-      console.error('[Analytics] Failed to flush events:', error);
+      logger.error('[Analytics] Failed to flush events:', error);
       // Re-queue events on failure
       this.state.eventQueue = [...this.state.eventQueue];
     }
@@ -393,7 +394,7 @@ class AnalyticsService {
         JSON.stringify(this.state.eventQueue)
       );
     } catch (error) {
-      console.error('[Analytics] Failed to persist event queue:', error);
+      logger.error('[Analytics] Failed to persist event queue:', error);
     }
   }
 
@@ -417,7 +418,7 @@ class AnalyticsService {
     }
 
     if (this.config.debug) {
-      console.log('[Analytics] Events:', events);
+      logger.debug('[Analytics] Events:', events);
       return;
     }
 
@@ -436,7 +437,7 @@ class AnalyticsService {
           }),
         });
       } catch (error) {
-        console.error('[Analytics] Failed to send to custom provider:', error);
+        logger.error('[Analytics] Failed to send to custom provider:', error);
       }
     }
   }
@@ -461,7 +462,7 @@ class AnalyticsService {
     }
 
     if (this.config.debug) {
-      console.log('[Analytics] Enabled');
+      logger.debug('[Analytics] Enabled');
     }
   }
 
@@ -479,7 +480,7 @@ class AnalyticsService {
     }
 
     if (this.config.debug) {
-      console.log('[Analytics] Disabled');
+      logger.debug('[Analytics] Disabled');
     }
   }
 

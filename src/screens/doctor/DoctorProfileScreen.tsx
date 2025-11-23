@@ -32,7 +32,7 @@ import { InputField } from '../../shared/components/InputField';
 import { useTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAnalytics } from '../../shared/hooks/useAnalytics';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
+import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import ApiService, { DoctorRequestDto, WorkingHours } from '../../services/api';
 
 type DoctorProfileScreenProps = { 
@@ -180,12 +180,13 @@ const InfoCard: React.FC<{
   value: string;
   isDark: boolean;
 }> = React.memo(({ icon, label, value, isDark }) => {
-  const styles = createStyles(isDark);
-  
+  const { colors: localColors } = useTheme();
+  const styles = createStyles(localColors, isDark);
+
   return (
     <View style={styles.infoCard}>
       <View style={styles.infoIconContainer}>
-        <Ionicons name={icon} size={20} color={isDark ? COLORS.primary : COLORS.primary} />
+        <Ionicons name={icon} size={20} color={localColors.primary} />
       </View>
       <View style={styles.infoContent}>
         <Text style={styles.infoLabel}>{label}</Text>
@@ -206,8 +207,9 @@ const SpecialtyOption: React.FC<{
   translatedLabel: string;
   isRTL: boolean;
 }> = React.memo(({ specialty, isSelected, onPress, isDark, translatedLabel, isRTL }) => {
-  const styles = createStyles(isDark);
-  
+  const { colors: localColors } = useTheme();
+  const styles = createStyles(localColors, isDark);
+
   return (
     <TouchableOpacity
       style={[styles.specialtyOption, isSelected && styles.specialtyOptionSelected]}
@@ -215,11 +217,11 @@ const SpecialtyOption: React.FC<{
       activeOpacity={0.7}
     >
       <View style={[styles.iconCircle, { backgroundColor: specialty.color }]}>
-        <Ionicons name={specialty.icon} size={24} color={COLORS.white} />
+        <Ionicons name={specialty.icon} size={24} color={localColors.white} />
       </View>
       <Text style={[styles.specialtyOptionText, isRTL && { textAlign: 'right' }]}>{translatedLabel}</Text>
       {isSelected && (
-        <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+        <Ionicons name="checkmark-circle" size={24} color={localColors.success} />
       )}
     </TouchableOpacity>
   );
@@ -229,6 +231,8 @@ const SpecialtyOption: React.FC<{
  * Loading overlay component
  */
 const LoadingOverlay: React.FC<{ visible: boolean; message?: string; isDark: boolean }> = ({ visible, message, isDark }) => {
+  const { colors: localColors } = useTheme();
+
   if (!visible) return null;
 
   const overlayStyles = StyleSheet.create({
@@ -244,7 +248,7 @@ const LoadingOverlay: React.FC<{ visible: boolean; message?: string; isDark: boo
       zIndex: 9999,
     },
     card: {
-      backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+      backgroundColor: localColors.card,
       padding: SPACING.xl,
       borderRadius: RADIUS.lg,
       alignItems: 'center',
@@ -253,7 +257,7 @@ const LoadingOverlay: React.FC<{ visible: boolean; message?: string; isDark: boo
     message: {
       marginTop: SPACING.md,
       fontSize: FONT_SIZES.base,
-      color: isDark ? COLORS.darkText : COLORS.textPrimary,
+      color: localColors.textSecondary,
       fontWeight: '500',
     },
   });
@@ -261,7 +265,7 @@ const LoadingOverlay: React.FC<{ visible: boolean; message?: string; isDark: boo
   return (
     <View style={overlayStyles.overlay}>
       <View style={overlayStyles.card}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={localColors.primary} />
         {message && <Text style={overlayStyles.message}>{message}</Text>}
       </View>
     </View>
@@ -274,7 +278,7 @@ const LoadingOverlay: React.FC<{ visible: boolean; message?: string; isDark: boo
 
 export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ navigation }) => {
   // ========== STATE MANAGEMENT ==========
-  const { isDarkMode, toggleTheme } = useTheme();
+  const { isDarkMode, toggleTheme, colors } = useTheme();
   const { t, isRTL } = useLanguage();
   const analytics = useAnalytics();
   const [isEditing, setIsEditing] = useState(false);
@@ -622,7 +626,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }));
   }, []);
 
-  const styles = useMemo(() => createStyles(isDarkMode), [isDarkMode]);
+  const styles = useMemo(() => createStyles(colors, isDarkMode), [colors, isDarkMode]);
 
   // Loading state
   if (initialLoading) {
@@ -630,10 +634,10 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
       <SafeAreaView style={styles.container}>
         <StatusBar 
           barStyle={isDarkMode ? "light-content" : "dark-content"} 
-          backgroundColor={isDarkMode ? COLORS.darkBg : COLORS.white} 
+          backgroundColor={colors.background}
         />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>{t.loading}</Text>
         </View>
       </SafeAreaView>
@@ -644,7 +648,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     <SafeAreaView style={styles.container}>
       <StatusBar 
         barStyle={isDarkMode ? "light-content" : "dark-content"} 
-        backgroundColor={isDarkMode ? COLORS.darkBg : COLORS.white} 
+        backgroundColor={colors.background}
       />
       
       <ScrollView 
@@ -658,11 +662,11 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
             <Ionicons 
               name={isRTL ? "arrow-forward" : "arrow-back"} 
               size={24} 
-              color={isDarkMode ? COLORS.darkText : COLORS.textPrimary} 
+              color={colors.text} 
             />
           </TouchableOpacity>
           
-          <Text style={[styles.headerTitle, isRTL && { textAlign: 'right' }]}>{t.profile}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }, isRTL && { textAlign: 'right' }]}>{t.profile}</Text>
           
           <View style={styles.headerActions}>
             
@@ -670,7 +674,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
               <Ionicons 
                 name={isEditing ? 'close' : 'create'} 
                 size={24} 
-                color={isEditing ? COLORS.error : COLORS.primary} 
+                color={isEditing ? colors.error : colors.primary} 
               />
             </TouchableOpacity>
           </View>
@@ -687,15 +691,15 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         >
           {/* Profile Avatar Section */}
           <View style={styles.avatarSection}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>
+            <View style={[styles.avatarCircle, { backgroundColor: colors.primary }] }>
+              <Text style={[styles.avatarText, { color: colors.white }]}>
                 {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'D'}
               </Text>
             </View>
-            <Text style={[styles.profileName, isRTL && { textAlign: 'right' }]}>{profileData.name || t.name}</Text>
+            <Text style={[styles.profileName, { color: colors.text }, isRTL && { textAlign: 'right' }]}>{profileData.name || t.name}</Text>
             {selectedSpecialtyObj && (
-              <View style={styles.specialtyBadge}>
-                <Ionicons name={selectedSpecialtyObj.icon} size={16} color={COLORS.white} />
+              <View style={[styles.specialtyBadge, { backgroundColor: colors.primary }]}>
+                <Ionicons name={selectedSpecialtyObj.icon} size={16} color={colors.white} />
                 <Text style={styles.specialtyBadgeText}>{getTranslatedSpecialty(selectedSpecialtyObj.value, t)}</Text>
               </View>
             )}
@@ -706,16 +710,16 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                 style={styles.quickActionButton}
                 onPress={() => navigation.navigate('DoctorBookings')}
               >
-                <Ionicons name="calendar" size={20} color={COLORS.primary} />
-                <Text style={styles.quickActionText}>{t.myBookings}</Text>
+                <Ionicons name="calendar" size={20} color={colors.primary} />
+                <Text style={[styles.quickActionText, { color: colors.primary }]}>{t.myBookings}</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
                 style={styles.quickActionButton}
                 onPress={handleLogout}
               >
-                <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
-                <Text style={[styles.quickActionText, { color: COLORS.error }]}>{t.logout}</Text>
+                <Ionicons name="log-out-outline" size={20} color={colors.error} />
+                <Text style={[styles.quickActionText, { color: colors.error }]}>{t.logout}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -919,7 +923,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                 <OSMMap
                   style={styles.mapPreview}
                   initialRegion={{ latitude: mapRegion.latitude, longitude: mapRegion.longitude }}
-                  markers={[{ id: profileData.id || 'clinic', latitude: profileData.location.latitude, longitude: profileData.location.longitude, title: 'Your Clinic', description: profileData.location.address, color: COLORS.primary, label: profileData.name ? profileData.name.charAt(0).toUpperCase() : '' }]}
+                  markers={[{ id: profileData.id || 'clinic', latitude: profileData.location.latitude, longitude: profileData.location.longitude, title: 'Your Clinic', description: profileData.location.address, color: colors.primary, label: profileData.name ? profileData.name.charAt(0).toUpperCase() : '' }]}
                 />
               </View>
             </View>
@@ -931,8 +935,8 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
             onPress={handleLogout}
             activeOpacity={0.7}
           >
-            <Ionicons name="log-out" size={20} color={COLORS.error} />
-            <Text style={styles.logoutText}>{t.logout}</Text>
+            <Ionicons name="log-out" size={20} color={colors.error} />
+            <Text style={[styles.logoutText, { color: colors.error }]}>{t.logout}</Text>
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>
@@ -955,7 +959,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                 <Ionicons 
                   name="close" 
                   size={24} 
-                  color={isDarkMode ? COLORS.darkText : COLORS.textPrimary} 
+                  color={colors.text} 
                 />
               </TouchableOpacity>
             </View>
@@ -1042,10 +1046,10 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
 // STYLES
 // ==========================================
 
-const createStyles = (isDark: boolean) => StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: isDark ? COLORS.darkBg : COLORS.background,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -1055,7 +1059,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   loadingText: {
     marginTop: SPACING.md,
     fontSize: FONT_SIZES.base,
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   header: { 
     flexDirection: 'row', 
@@ -1063,15 +1067,15 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     justifyContent: 'space-between', 
     paddingHorizontal: SPACING.lg, 
     paddingVertical: SPACING.md, 
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white, 
+    backgroundColor: colors.card, 
     borderBottomWidth: 1, 
-    borderBottomColor: isDark ? COLORS.darkBorder : COLORS.borderLight,
+    borderBottomColor: colors.borderLight,
     ...SHADOWS.small,
   },
   headerTitle: { 
     fontSize: FONT_SIZES.xl, 
     fontWeight: 'bold', 
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
   },
   headerActions: {
     flexDirection: 'row',
@@ -1084,14 +1088,14 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   avatarSection: {
     alignItems: 'center',
     paddingVertical: SPACING.xl,
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
     marginBottom: SPACING.md,
   },
   avatarCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.md,
@@ -1100,25 +1104,25 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   avatarText: {
     fontSize: 40,
     fontWeight: 'bold',
-    color: COLORS.white,
+    color: colors.white,
   },
   profileName: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: 'bold',
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
     marginBottom: SPACING.xs,
   },
   specialtyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.full,
     gap: SPACING.xs,
   },
   specialtyBadgeText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
   },
@@ -1134,19 +1138,19 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.md,
-    backgroundColor: isDark ? COLORS.darkCardSecondary : COLORS.background,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderColor: colors.border,
   },
   quickActionText: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   sectionTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
   },
   formContainer: {
     paddingHorizontal: SPACING.lg,
@@ -1169,26 +1173,26 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.full,
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderColor: colors.border,
     ...SHADOWS.small,
   },
   modernTabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
     ...SHADOWS.medium,
   },
   modernTabText: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '700',
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   modernTabTextActive: {
-    color: COLORS.white,
+    color: colors.white,
   },
   badge: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     paddingHorizontal: SPACING.xs,
     paddingVertical: 2,
     borderRadius: RADIUS.full,
@@ -1199,11 +1203,11 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   badgeText: {
     fontSize: FONT_SIZES.xs,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   // Modern Card Layout
   modernCard: {
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
@@ -1218,11 +1222,11 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   cardTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
   },
   cardHint: {
     fontSize: FONT_SIZES.sm,
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.md,
     lineHeight: 20,
   },
@@ -1231,11 +1235,11 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     marginTop: SPACING.xl,
     paddingTop: SPACING.lg,
     borderTopWidth: 1,
-    borderTopColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderTopColor: colors.border,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.background,
+    backgroundColor: colors.card,
     padding: SPACING.xs,
     borderRadius: RADIUS.full,
     marginBottom: SPACING.lg,
@@ -1249,19 +1253,19 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     borderRadius: RADIUS.full,
   },
   tabItemActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   tabText: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '700',
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   tabTextActive: {
-    color: COLORS.white,
+    color: colors.white,
   },
   infoCard: {
     flexDirection: 'row',
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
     padding: SPACING.md,
     borderRadius: RADIUS.md,
     marginBottom: SPACING.sm,
@@ -1271,7 +1275,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: RADIUS.sm,
-    backgroundColor: isDark ? COLORS.darkBg : COLORS.background,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.md,
@@ -1282,23 +1286,23 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   },
   infoLabel: {
     fontSize: FONT_SIZES.sm,
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.xs,
   },
   infoValue: {
     fontSize: FONT_SIZES.base,
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
     fontWeight: '500',
   },
   mapLabel: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
     marginBottom: SPACING.xs,
   },
   mapHint: {
     fontSize: FONT_SIZES.xs,
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.sm,
     fontStyle: 'italic',
   },
@@ -1327,14 +1331,14 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     marginTop: SPACING.xl,
     paddingVertical: SPACING.md,
     gap: SPACING.sm,
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.error,
+    borderColor: colors.error,
   },
   logoutText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.error,
+    color: colors.error,
     fontWeight: '600',
   },
   inputContainer: {
@@ -1343,17 +1347,17 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   label: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   pickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderColor: colors.border,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
   },
@@ -1372,26 +1376,26 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   },
   pickerText: {
     fontSize: FONT_SIZES.base,
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
     fontWeight: '500',
   },
   placeholderText: {
     fontSize: FONT_SIZES.base,
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textLight,
+    color: colors.textSecondary,
   },
   inputError: {
-    borderColor: COLORS.error,
+    borderColor: colors.error,
     borderWidth: 1.5,
   },
   errorText: {
     fontSize: FONT_SIZES.xs,
-    color: COLORS.error,
+    color: colors.error,
     marginTop: SPACING.xs,
     marginLeft: SPACING.xs,
   },
   // Enhanced section card styles
   sectionCard: {
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
@@ -1406,21 +1410,21 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   },
   sectionHint: {
     fontSize: FONT_SIZES.sm,
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.md,
     lineHeight: 20,
   },
   // About section styles
   textAreaWrapper: {
     borderWidth: 1,
-    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderColor: colors.border,
     borderRadius: RADIUS.md,
-    backgroundColor: isDark ? COLORS.darkBg : COLORS.background,
+    backgroundColor: colors.background,
     padding: SPACING.sm,
   },
   characterCount: {
     fontSize: FONT_SIZES.xs,
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'right',
     marginTop: SPACING.xs,
   },
@@ -1437,13 +1441,13 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...SHADOWS.small,
   },
   addServiceButtonDisabled: {
-    backgroundColor: isDark ? COLORS.darkBorder : COLORS.border,
+    backgroundColor: colors.border,
     opacity: 0.5,
   },
   servicesGrid: {
@@ -1454,7 +1458,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   serviceChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.full,
@@ -1462,18 +1466,18 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     ...SHADOWS.small,
   },
   serviceChipText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
   },
   // Working hours styles
   hourCard: {
-    backgroundColor: isDark ? COLORS.darkBg : COLORS.background,
+    backgroundColor: colors.background,
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderColor: colors.border,
   },
   hourCardHeader: {
     flexDirection: 'row',
@@ -1499,7 +1503,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   },
   closedToggleLabel: {
     fontSize: FONT_SIZES.sm,
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
     fontWeight: '500',
   },
   timeInputsRow: {
@@ -1512,7 +1516,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   },
   timeLabel: {
     fontSize: FONT_SIZES.xs,
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.xs,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -1521,11 +1525,11 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderColor: colors.border,
     borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
   },
   timeArrow: {
     paddingHorizontal: SPACING.xs,
@@ -1539,13 +1543,13 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.md,
     borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
     borderStyle: 'dashed',
     marginTop: SPACING.sm,
   },
   addHourButtonText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '600',
   },
   // Empty state styles
@@ -1556,21 +1560,21 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   },
   emptyStateText: {
     fontSize: FONT_SIZES.base,
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
     fontWeight: '600',
     marginTop: SPACING.md,
     marginBottom: SPACING.xs,
   },
   emptyStateHint: {
     fontSize: FONT_SIZES.sm,
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   textAreaContainer: {
     borderWidth: 1,
-    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderColor: colors.border,
     borderRadius: RADIUS.md,
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
     padding: SPACING.sm,
   },
   serviceInputRow: {
@@ -1591,24 +1595,24 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   serviceTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: isDark ? COLORS.darkPrimary : COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.full,
     gap: SPACING.xs,
   },
   serviceTagText: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: FONT_SIZES.sm,
     fontWeight: '500',
   },
   hourItem: {
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
     padding: SPACING.md,
     borderRadius: RADIUS.md,
     marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderColor: colors.border,
   },
   hourRow: {
     flexDirection: 'row',
@@ -1624,7 +1628,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   },
   timeSeparator: {
     fontSize: FONT_SIZES.base,
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
     paddingHorizontal: SPACING.xs,
   },
@@ -1633,7 +1637,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   },
   closedText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.error,
+    color: colors.error,
     fontWeight: '600',
     marginBottom: SPACING.sm,
   },
@@ -1644,7 +1648,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   },
   closedToggleText: {
     fontSize: FONT_SIZES.sm,
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
   },
   hourDisplayItem: {
     flexDirection: 'row',
@@ -1654,16 +1658,16 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   },
   hourDisplayBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderBottomColor: colors.border,
   },
   hourDisplayDay: {
     fontSize: FONT_SIZES.base,
     fontWeight: '600',
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
   },
   hourDisplayTime: {
     fontSize: FONT_SIZES.base,
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   modalOverlay: {
     flex: 1,
@@ -1671,7 +1675,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
     borderTopLeftRadius: RADIUS.xl,
     borderTopRightRadius: RADIUS.xl,
     maxHeight: '80%',
@@ -1684,12 +1688,12 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: FONT_SIZES.xl,
     fontWeight: 'bold',
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
   },
   modalScroll: {
     maxHeight: 500,
@@ -1699,14 +1703,14 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: isDark ? COLORS.darkBorder : COLORS.borderLight,
+    borderBottomColor: colors.borderLight,
   },
   specialtyOptionSelected: {
-    backgroundColor: isDark ? COLORS.darkBg : COLORS.background,
+    backgroundColor: colors.background,
   },
   specialtyOptionText: {
     fontSize: FONT_SIZES.base,
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
     fontWeight: '500',
     flex: 1,
     marginLeft: SPACING.sm,
@@ -1723,7 +1727,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     zIndex: 9999,
   },
   loadingCard: {
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
     padding: SPACING.xl,
     borderRadius: RADIUS.lg,
     alignItems: 'center',
@@ -1732,7 +1736,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   loadingMessage: {
     marginTop: SPACING.md,
     fontSize: FONT_SIZES.base,
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
     fontWeight: '500',
   },
   alertOverlay: {
@@ -1743,7 +1747,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     padding: SPACING.lg,
   },
   alertContainer: {
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     padding: SPACING.xl,
     minWidth: 280,
@@ -1753,13 +1757,13 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   alertTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
     marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   alertMessage: {
     fontSize: FONT_SIZES.base,
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.lg,
     textAlign: 'center',
     lineHeight: 22,
@@ -1774,24 +1778,24 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     borderRadius: RADIUS.md,
-    backgroundColor: isDark ? COLORS.darkPrimary : COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
   },
   alertButtonCancel: {
-    backgroundColor: isDark ? COLORS.darkBorder : COLORS.border,
+    backgroundColor: colors.border,
   },
   alertButtonDestructive: {
-    backgroundColor: COLORS.error,
+    backgroundColor: colors.error,
   },
   alertButtonText: {
     fontSize: FONT_SIZES.base,
     fontWeight: '600',
-    color: COLORS.white,
+    color: colors.white,
   },
   alertButtonTextCancel: {
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
   },
   alertButtonTextDestructive: {
-    color: COLORS.white,
+    color: colors.white,
   },
 });

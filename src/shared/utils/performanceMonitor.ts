@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useRef, useCallback, useState } from 'react';
+import logger from './logger';
 
 /**
  * Measure component render time
@@ -20,7 +21,7 @@ export const useRenderTime = (componentName: string, enabled: boolean = __DEV__)
     const renderTime = Date.now() - startTime.current;
 
     if (renderTime > 16) {
-      console.warn(`⚠️  ${componentName} render #${renderCount.current} took ${renderTime}ms`);
+      logger.warn(`⚠️  ${componentName} render #${renderCount.current} took ${renderTime}ms`);
     }
 
     startTime.current = Date.now();
@@ -104,8 +105,8 @@ export const useLazyValue = <T,>(factory: () => T): T => {
 export const useComponentLifecycle = (componentName: string, enabled: boolean = __DEV__) => {
   useEffect(() => {
     if (!enabled) return;
-    console.log(`✅ ${componentName} mounted`);
-    return () => console.log(`❌ ${componentName} unmounted`);
+    logger.debug(`✅ ${componentName} mounted`);
+    return () => logger.debug(`❌ ${componentName} unmounted`);
   }, [componentName, enabled]);
 };
 
@@ -118,7 +119,7 @@ export const useDeepMemo = <T,>(factory: () => T, deps: React.DependencyList, de
   const value = useRef<T | undefined>(undefined);
 
   if (!prevDeps.current || !areEqual(prevDeps.current, deps)) {
-    if (__DEV__ && debugLabel && prevDeps.current) console.log(`🔄 ${debugLabel} recalculating due to dep change`);
+    if (__DEV__ && debugLabel && prevDeps.current) logger.debug(`🔄 ${debugLabel} recalculating due to dep change`);
     value.current = factory();
     prevDeps.current = deps;
   }

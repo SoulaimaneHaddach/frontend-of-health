@@ -5,6 +5,7 @@
 import { Client, StompSubscription } from '@stomp/stompjs';
 import { networkService } from '../shared/services/networkService';
 import { errorLoggingService, ErrorSeverity } from '../shared/services/errorLoggingService';
+import logger from '../shared/utils/logger';
 
 export interface WebSocketConfig {
   baseUrl?: string;
@@ -47,7 +48,7 @@ export class BookingWebSocketService {
     // Reconnect when network comes back online
     this.networkUnsubscribe = networkService.addListener((state) => {
       if (state.isConnected && !this.isConnected() && !this.isManualDisconnect) {
-        console.log('🔄 Network reconnected, attempting to reconnect WebSocket...');
+        logger.debug('🔄 Network reconnected, attempting to reconnect WebSocket...');
         this.connect();
       }
     });
@@ -71,21 +72,21 @@ export class BookingWebSocketService {
   connect(): void {
     // Check if already connected
     if (this.isConnected()) {
-      console.log('⚠️ WebSocket already connected');
+      logger.debug('⚠️ WebSocket already connected');
       return;
     }
 
     // Check network connectivity
     if (!networkService.isConnected()) {
-      console.log('⚠️ No internet connection, WebSocket connection postponed');
+      logger.debug('⚠️ No internet connection, WebSocket connection postponed');
       return;
     }
 
     const wsUrl = this.getWebSocketUrl();
     const destination = this.getDestination();
 
-    console.log('🔌 Connecting to WebSocket:', wsUrl);
-    console.log('📡 Subscribing to:', destination);
+    logger.debug('🔌 Connecting to WebSocket:', wsUrl);
+    logger.debug('📡 Subscribing to:', destination);
 
     this.isManualDisconnect = false;
 
@@ -96,7 +97,7 @@ export class BookingWebSocketService {
       heartbeatOutgoing: 4000,
       
       onConnect: () => {
-        console.log('✅ WebSocket connected');
+        logger.debug('✅ WebSocket connected');
         this.reconnectAttempts = 0;
         
         // Log success
@@ -112,7 +113,7 @@ export class BookingWebSocketService {
         this.subscription = this.client!.subscribe(destination, (message) => {
           try {
             const booking = JSON.parse(message.body);
-            console.log('📬 New booking received:', booking);
+            logger.debug('📬 New booking received:', booking);
             
             // Log breadcrumb
             errorLoggingService.addBreadcrumb({
@@ -124,7 +125,7 @@ export class BookingWebSocketService {
 
             this.config.onBookingReceived(booking);
           } catch (error) {
-            console.error('❌ Failed to parse booking message:', error);
+            logger.error('❌ Failed to parse booking message:', error);
             errorLoggingService.logError(
               error instanceof Error ? error : new Error('Failed to parse booking'),
               ErrorSeverity.WARNING,
@@ -136,8 +137,8 @@ export class BookingWebSocketService {
       },
 
       onStompError: (frame) => {
-        console.error('❌ STOMP error:', frame.headers['message']);
-        console.error('Details:', frame.body);
+        logger.error('❌ STOMP error:', frame.headers['message']);
+        logger.error('Details:', frame.body);
         
         // Log error
         errorLoggingService.logError(
@@ -155,12 +156,12 @@ export class BookingWebSocketService {
       },
 
       onWebSocketClose: (event) => {
-        try {
+          try {
           const code = (event && (event as any).code) || (event && (event as any).wasClean ? 1000 : undefined);
           const reason = (event && (event as any).reason) || undefined;
-          console.log('🔌 WebSocket disconnected', { code, reason });
+          logger.debug('🔌 WebSocket disconnected', { code, reason });
         } catch (e) {
-          console.log('🔌 WebSocket disconnected');
+          logger.debug('🔌 WebSocket disconnected');
         }
         
         // Log disconnection
@@ -178,7 +179,7 @@ export class BookingWebSocketService {
       },
 
       onWebSocketError: (event) => {
-        console.error('❌ WebSocket error:', event);
+        logger.error('❌ WebSocket error:', event);
 
         // Log with context
         errorLoggingService.logError(
@@ -199,7 +200,7 @@ export class BookingWebSocketService {
           const wsInstance: any = (this.client as any)?._transport?._ws || (this.client as any)?._websocket;
           if (wsInstance) {
             const socketInfo = { readyState: wsInstance.readyState, url: wsInstance.url };
-            console.log('🔓 Raw WebSocket (pre-connect) info', socketInfo);
+            logger.debug('🔓 Raw WebSocket (pre-connect) info', socketInfo);
             errorLoggingService.addBreadcrumb({ category: 'network', message: 'Raw WebSocket pre-connect', level: ErrorSeverity.INFO, data: socketInfo });
           }
         } catch (e) {
@@ -213,7 +214,7 @@ export class BookingWebSocketService {
 
   private handleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('❌ Max reconnection attempts reached');
+      logger.error('❌ Max reconnection attempts reached');
       errorLoggingService.logError(
         new Error('WebSocket max reconnection attempts reached'),
         ErrorSeverity.ERROR,
@@ -227,7 +228,7 @@ export class BookingWebSocketService {
       // Start a cooldown timer to allow future reconnect attempts (e.g., 5 minutes)
       try { if (this.cooldownTimer) clearTimeout(this.cooldownTimer); } catch {}
       this.cooldownTimer = setTimeout(() => {
-        console.log('🔁 Reconnect cooldown expired, resetting reconnectAttempts');
+        logger.debug('🔁 Reconnect cooldown expired, resetting reconnectAttempts');
         this.reconnectAttempts = 0;
         this.cooldownTimer = null;
       }, 5 * 60 * 1000);
@@ -243,7 +244,7 @@ export class BookingWebSocketService {
     const jitter = Math.floor(Math.random() * Math.min(1000, Math.floor(expo / 4)));
     const delay = expo + jitter;
 
-    console.log(`🔄 Reconnecting in ${(delay / 1000).toFixed(1)}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+    logger.debug(`🔄 Reconnecting in ${(delay / 1000).toFixed(1)}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
 
     setTimeout(() => {
       if (!this.isManualDisconnect && !this.isConnected() && networkService.isConnected()) {
@@ -251,7 +252,7 @@ export class BookingWebSocketService {
       } else {
         // If still offline, schedule another reconnect attempt when network resumes
         if (!networkService.isConnected()) {
-          console.log('⚠️ Still offline — waiting for network before reconnecting');
+          logger.debug('⚠️ Still offline — waiting for network before reconnecting');
         }
       }
     }, delay);
@@ -274,7 +275,7 @@ export class BookingWebSocketService {
       this.networkUnsubscribe = null;
     }
 
-    console.log('🔌 WebSocket manually disconnected');
+    logger.debug('🔌 WebSocket manually disconnected');
   }
 
   isConnected(): boolean {

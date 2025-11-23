@@ -9,7 +9,8 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 interface CustomAlertButton {
   text: string;
@@ -33,9 +34,11 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
   message,
   buttons = [{ text: 'OK', style: 'default' }],
   icon,
-  iconColor = COLORS.primary,
+  iconColor,
   onClose,
 }) => {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const scaleAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
@@ -83,16 +86,16 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
         >
           {/* Icon */}
           {icon && (
-            <View style={[styles.iconContainer, { backgroundColor: iconColor + '15' }]}>
-              <Ionicons name={icon} size={48} color={iconColor} />
+            <View style={[styles.iconContainer, { backgroundColor: (iconColor || colors.primary) + '15' }]}>
+              <Ionicons name={icon} size={48} color={iconColor || colors.primary} />
             </View>
           )}
 
           {/* Title */}
-          <Text style={styles.title}>{title}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
 
           {/* Message */}
-          <Text style={styles.message}>{message}</Text>
+          <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
 
           {/* Buttons */}
           <View style={styles.buttonContainer}>
@@ -108,15 +111,14 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
                 onPress={() => handleButtonPress(button)}
                 activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.buttonText,
-                    button.style === 'cancel' && styles.buttonTextCancel,
-                    button.style === 'destructive' && styles.buttonTextDestructive,
-                  ]}
-                >
-                  {button.text}
-                </Text>
+                  <Text
+                    style={[
+                      styles.buttonText,
+                      button.style === 'cancel' && { color: colors.textSecondary },
+                    ]}
+                  >
+                    {button.text}
+                  </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -125,8 +127,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
   },
   alertContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: RADIUS.xl,
     padding: SPACING.xl,
     width: '100%',
@@ -154,13 +155,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZES.xl,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.text,
     textAlign: 'center',
     marginBottom: SPACING.sm,
   },
   message: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: SPACING.xl,
@@ -175,7 +176,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
@@ -184,22 +185,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   buttonCancel: {
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   buttonDestructive: {
-    backgroundColor: COLORS.error,
+    backgroundColor: colors.error,
   },
   buttonText: {
     fontSize: FONT_SIZES.base,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
   },
   buttonTextCancel: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   buttonTextDestructive: {
-    color: COLORS.white,
+    color: colors.white,
   },
 });

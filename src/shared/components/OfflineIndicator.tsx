@@ -8,7 +8,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { networkService } from '../services/networkService';
 import { NetworkState } from '../types/network.types';
-import { COLORS, FONT_SIZES } from '../constants/theme';
+import { FONT_SIZES } from '../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 // ============================================================================
 // Offline Indicator Component
@@ -17,6 +18,8 @@ import { COLORS, FONT_SIZES } from '../constants/theme';
 export const OfflineIndicator: React.FC = () => {
   const [networkState, setNetworkState] = useState<NetworkState | null>(null);
   const [slideAnim] = useState(new Animated.Value(-50));
+
+  const { colors } = useTheme();
 
   useEffect(() => {
     // Subscribe to network changes
@@ -52,7 +55,7 @@ export const OfflineIndicator: React.FC = () => {
   }
 
   const isOffline = !networkState.isConnected;
-  const backgroundColor = isOffline ? COLORS.error : COLORS.success;
+  const backgroundColor = isOffline ? colors.error : colors.success;
   const message = isOffline ? 'No Internet Connection' : 'Back Online';
 
   return (
@@ -62,7 +65,7 @@ export const OfflineIndicator: React.FC = () => {
         { backgroundColor, transform: [{ translateY: slideAnim }] },
       ]}
     >
-      <Text style={styles.text}>{message}</Text>
+      <Text style={[styles.text, { color: colors.white }]}>{message}</Text>
     </Animated.View>
   );
 };
@@ -85,7 +88,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   text: {
-    color: COLORS.white,
+    /* color set inline from theme */
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
   },

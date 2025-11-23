@@ -18,7 +18,8 @@ import { CustomButton } from '../../shared/components/CustomButton';
 import { InputField } from '../../shared/components/InputField';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
+import logger from '../../shared/utils/logger';
+import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import ApiService from '../../services/api';
 
 type ForgotPasswordScreenProps = {
@@ -28,6 +29,7 @@ type ForgotPasswordScreenProps = {
 export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation }) => {
   const { t, isRTL } = useLanguage();
   const { isDarkMode, colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -60,7 +62,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
         [{ text: t.ok }]
       );
     } catch (err: any) {
-      console.error('❌ Password reset error:', err);
+      logger.error('❌ Password reset error:', err);
       Alert.alert(
         t.error,
         err.response?.data?.message || t.error,
@@ -95,7 +97,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
 
           <View style={styles.header}>
             <View style={[styles.iconContainer, { backgroundColor: colors.card }]}>
-              <Ionicons name="lock-closed" size={50} color={COLORS.secondary} />
+              <Ionicons name="lock-closed" size={50} color={colors.secondary} />
             </View>
             <Text style={[styles.title, isRTL && { textAlign: 'right' }, { color: colors.text }]}>{t.forgotPassword}</Text>
             <Text style={[styles.subtitle, isRTL && { textAlign: 'right' }, { color: colors.textSecondary }]}>
@@ -131,7 +133,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
               />
 
               <View style={[styles.infoBox, isRTL && { flexDirection: 'row-reverse' }]}>
-                <Ionicons name="information-circle" size={20} color={COLORS.info} />
+                <Ionicons name="information-circle" size={20} color={colors.info} />
                 <Text style={[styles.infoText, isRTL && { textAlign: 'right' }]}>
                   {t.email}
                 </Text>
@@ -140,7 +142,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
           ) : (
             <View style={styles.successContainer}>
               <View style={styles.successIcon}>
-                <Ionicons name="checkmark-circle" size={80} color={COLORS.success} />
+                <Ionicons name="checkmark-circle" size={80} color={colors.success} />
               </View>
               
               <Text style={styles.successTitle}>Email Sent!</Text>
@@ -198,10 +200,10 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   keyboardView: {
     flex: 1,
@@ -222,7 +224,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: RADIUS.full,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.lg,
@@ -231,12 +233,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZES.xxxl,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   subtitle: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: SPACING.md,
     lineHeight: 22,
@@ -250,18 +252,18 @@ const styles = StyleSheet.create({
   infoBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     padding: SPACING.md,
     borderRadius: RADIUS.md,
     marginTop: SPACING.md,
     gap: SPACING.sm,
     borderLeftWidth: 3,
-    borderLeftColor: COLORS.info || COLORS.primary,
+    borderLeftColor: colors.info || colors.primary,
   },
   infoText: {
     flex: 1,
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   successContainer: {
@@ -274,23 +276,23 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   successText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: SPACING.xs,
   },
   emailText: {
     fontSize: FONT_SIZES.base,
     fontWeight: '600',
-    color: COLORS.secondary,
+    color: colors.secondary,
     marginBottom: SPACING.lg,
   },
   instructionsBox: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     padding: SPACING.lg,
     borderRadius: RADIUS.md,
     width: '100%',
@@ -300,7 +302,7 @@ const styles = StyleSheet.create({
   instructionsTitle: {
     fontSize: FONT_SIZES.base,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.text,
     marginBottom: SPACING.md,
   },
   instructionItem: {
@@ -311,13 +313,13 @@ const styles = StyleSheet.create({
   bulletPoint: {
     fontSize: FONT_SIZES.base,
     fontWeight: 'bold',
-    color: COLORS.secondary,
+    color: colors.secondary,
     marginRight: SPACING.sm,
     width: 20,
   },
   instructionText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     flex: 1,
   },
   backToLoginButton: {
@@ -328,7 +330,7 @@ const styles = StyleSheet.create({
   },
   resendText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.secondary,
+    color: colors.secondary,
     textAlign: 'center',
     textDecorationLine: 'underline',
   },
@@ -341,11 +343,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   signInText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.secondary,
+    color: colors.secondary,
     fontWeight: '600',
   },
 });

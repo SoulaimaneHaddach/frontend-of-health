@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import logger from '../utils/logger';
 import { Alert, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
@@ -29,7 +30,7 @@ export const usePushNotifications = ({
     const register = async () => {
       try {
         if (!Device.isDevice) {
-          console.warn('Push notifications are not supported on emulators. Use a physical device.');
+          logger.warn('Push notifications are not supported on emulators. Use a physical device.');
         }
 
         const existing = await Notifications.getPermissionsAsync();
@@ -43,7 +44,7 @@ export const usePushNotifications = ({
         setPermissionStatus(finalStatus);
 
         if (finalStatus !== 'granted') {
-          console.warn('Permission for push notifications not granted');
+          logger.warn('Permission for push notifications not granted');
           return;
         }
 
@@ -57,7 +58,7 @@ export const usePushNotifications = ({
               lightColor: '#FF231F7C',
             });
           } catch (e) {
-            if (ENV.ENABLE_LOGGING && __DEV__) console.warn('Failed to create notification channel', e);
+            if (ENV.ENABLE_LOGGING && __DEV__) logger.warn('Failed to create notification channel', e);
           }
         }
 
@@ -81,11 +82,11 @@ export const usePushNotifications = ({
               try { await TokenStorage.setPushToken(expoToken.data); } catch {}
             }
           } catch (err2) {
-            console.warn('Failed to get push token:', err2);
+            logger.warn('Failed to get push token:', err2);
           }
         }
       } catch (e) {
-        console.warn('Failed to register for push notifications', e);
+        logger.warn('Failed to register for push notifications', e);
       }
     };
 

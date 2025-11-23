@@ -17,9 +17,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useBookingNotifications } from '../shared/hooks/useBookingNotifications';
-import { COLORS, FONT_SIZES, SPACING, RADIUS } from '../shared/constants/theme';
+import { FONT_SIZES, SPACING, RADIUS } from '../shared/constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 export function WebSocketTestScreen() {
+  const { colors } = useTheme();
   const [testDoctorId, setTestDoctorId] = useState('test-doctor-123');
   const [logs, setLogs] = useState<string[]>([]);
 
@@ -70,9 +72,9 @@ export function WebSocketTestScreen() {
   };
 
   const getStatusColor = () => {
-    if (isConnected) return COLORS.success;
+    if (isConnected) return colors.success;
     if (connectionStatus === 'connecting') return '#f59e0b';
-    return COLORS.textSecondary;
+    return colors.textSecondary;
   };
 
   const getStatusIcon = () => {
@@ -80,13 +82,14 @@ export function WebSocketTestScreen() {
     if (connectionStatus === 'connecting') return 'sync';
     return 'alert-circle';
   };
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView>
         {/* Header */}
         <View style={styles.header}>
-          <Ionicons name="bug" size={32} color={COLORS.primary} />
+          <Ionicons name="bug" size={32} color={colors.primary} />
           <Text style={styles.title}>WebSocket Test</Text>
           <Text style={styles.subtitle}>
             Test real-time notifications
@@ -117,7 +120,7 @@ export function WebSocketTestScreen() {
               <Ionicons 
                 name="wifi" 
                 size={24} 
-                color={isConnected ? COLORS.success : COLORS.textSecondary} 
+                color={isConnected ? colors.success : colors.textSecondary} 
               />
               <View style={styles.statusInfo}>
                 <Text style={styles.statusLabel}>Connected</Text>
@@ -131,7 +134,7 @@ export function WebSocketTestScreen() {
               <>
                 <View style={styles.divider} />
                 <View style={styles.errorBox}>
-                  <Ionicons name="warning" size={20} color={COLORS.error} />
+                  <Ionicons name="warning" size={20} color={colors.error} />
                   <Text style={styles.errorText}>{error.message}</Text>
                 </View>
               </>
@@ -151,7 +154,7 @@ export function WebSocketTestScreen() {
             }}
             disabled={isConnected}
           >
-            <Ionicons name="power" size={20} color={COLORS.white} />
+            <Ionicons name="power" size={20} color={colors.white} />
             <Text style={styles.buttonText}>Connect</Text>
           </TouchableOpacity>
 
@@ -163,7 +166,7 @@ export function WebSocketTestScreen() {
             }}
             disabled={!isConnected}
           >
-            <Ionicons name="power-outline" size={20} color={COLORS.primary} />
+            <Ionicons name="power-outline" size={20} color={colors.primary} />
             <Text style={[styles.buttonText, styles.buttonTextSecondary]}>
               Disconnect
             </Text>
@@ -176,7 +179,7 @@ export function WebSocketTestScreen() {
               addLog('🔄 Reconnecting...');
             }}
           >
-            <Ionicons name="refresh" size={20} color={COLORS.primary} />
+            <Ionicons name="refresh" size={20} color={colors.primary} />
             <Text style={[styles.buttonText, styles.buttonTextSecondary]}>
               Reconnect
             </Text>
@@ -191,7 +194,7 @@ export function WebSocketTestScreen() {
             style={[styles.button, styles.buttonSuccess]}
             onPress={simulateBooking}
           >
-            <Ionicons name="notifications" size={20} color={COLORS.white} />
+            <Ionicons name="notifications" size={20} color={colors.white} />
             <Text style={styles.buttonText}>Simulate Booking Alert</Text>
           </TouchableOpacity>
 
@@ -202,7 +205,7 @@ export function WebSocketTestScreen() {
               addLog('🗑️ Logs cleared');
             }}
           >
-            <Ionicons name="trash-outline" size={20} color={COLORS.primary} />
+            <Ionicons name="trash-outline" size={20} color={colors.primary} />
             <Text style={[styles.buttonText, styles.buttonTextSecondary]}>
               Clear Logs
             </Text>
@@ -267,10 +270,10 @@ export function WebSocketTestScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   header: {
     padding: SPACING.xl,
@@ -279,12 +282,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.text,
     marginTop: SPACING.sm,
   },
   subtitle: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   section: {
@@ -293,11 +296,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.text,
     marginBottom: SPACING.md,
   },
   statusCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
   },
@@ -312,7 +315,7 @@ const styles = StyleSheet.create({
   },
   statusLabel: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   statusValue: {
     fontSize: FONT_SIZES.lg,
@@ -321,7 +324,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     marginVertical: SPACING.sm,
   },
   errorBox: {
@@ -333,7 +336,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.error,
+    color: colors.error,
     marginLeft: SPACING.sm,
     flex: 1,
   },
@@ -347,32 +350,32 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   buttonPrimary: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   buttonSecondary: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   buttonSuccess: {
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
   },
   buttonText: {
     fontSize: FONT_SIZES.base,
     fontWeight: '600',
-    color: COLORS.white,
+    color: colors.white,
   },
   buttonTextSecondary: {
-    color: COLORS.primary,
+    color: colors.primary,
   },
   bookingCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
   },
   bookingText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textPrimary,
+    color: colors.text,
     marginBottom: SPACING.xs,
   },
   logsContainer: {
@@ -398,11 +401,11 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     padding: SPACING.lg,
     borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
+    borderLeftColor: colors.primary,
   },
   instructionText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textPrimary,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
 });
