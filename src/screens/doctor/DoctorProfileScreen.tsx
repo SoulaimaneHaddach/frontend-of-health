@@ -18,7 +18,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Region } from 'react-native-maps';
 import OSMMap from '../../components/OSMMap';
 import ModernTabBar, { TabKey } from './components/ModernTabBar';
-import SectionCard from './components/SectionCard';
 import InfoSection from './components/InfoSection';
 import AboutSection from './components/AboutSection';
 import ServicesSection from './components/ServicesSection';
@@ -26,7 +25,7 @@ import HoursSection from './components/HoursSection';
 import LocationSection from './components/LocationSection';
 import * as Location from 'expo-location';
 import { CustomButton } from '../../shared/components/CustomButton';
-import { InputField } from '../../shared/components/InputField';
+// InputField not used directly in this screen; child components handle inputs
 import { useTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAnalytics } from '../../shared/hooks/useAnalytics';

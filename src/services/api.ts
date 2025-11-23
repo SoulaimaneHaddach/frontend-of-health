@@ -15,9 +15,8 @@ import {
 import { logError } from '../shared/utils/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import ENV from '../config/env';
-import { TokenStorage, sanitizeForLogs } from '../shared/utils/secureStorage';
+import { TokenStorage } from '../shared/utils/secureStorage';
 import { rateLimiter } from '../shared/utils/securityUtils';
-import { SECURITY_CONFIG, getSecurityHeaders, isAllowedDomain } from '../shared/config/security.config';
 import { errorLoggingService, ErrorSeverity } from '../shared/services/errorLoggingService';
 import { networkService } from '../shared/services/networkService';
 import { offlineStorageService } from '../shared/services/offlineStorageService';
