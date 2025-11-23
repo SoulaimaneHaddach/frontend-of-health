@@ -52,7 +52,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
     } else {
       scaleAnim.setValue(0);
     }
-  }, [visible]);
+  }, [visible, scaleAnim]);
 
   const handleButtonPress = (button: CustomAlertButton) => {
     button.onPress?.();

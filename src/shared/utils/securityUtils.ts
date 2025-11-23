@@ -4,7 +4,6 @@
  */
 
 import { SECURITY_CONFIG, validatePassword, validateEmail } from '../config/security.config';
-import { logError } from './errorHandler';
 
 /**
  * Session timeout manager

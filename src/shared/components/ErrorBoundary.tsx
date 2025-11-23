@@ -100,7 +100,7 @@ const DefaultErrorFallback: React.FC<DefaultErrorFallbackProps> = ({
 }) => {
   const isDev = __DEV__;
   const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const styles = createStyles();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
@@ -156,7 +156,7 @@ const DefaultErrorFallback: React.FC<DefaultErrorFallbackProps> = ({
   );
 };
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',

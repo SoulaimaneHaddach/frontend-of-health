@@ -46,7 +46,7 @@ export const AppNavigator: React.FC = () => {
   // Set to false to enable push + booking notifications.
   const DISABLE_NOTIFICATIONS = true;
 
-  const FORCE_SHOW_ONBOARDING = true; 
+  const FORCE_SHOW_ONBOARDING = false; 
 
   const analytics = useAnalytics();
   const routeNameRef = useRef<string | undefined>(undefined);
@@ -92,7 +92,7 @@ export const AppNavigator: React.FC = () => {
       }
     },
 
-    onNotification: (notification) => {
+      onNotification: (_notification) => {
     },
   });
 
@@ -141,7 +141,7 @@ export const AppNavigator: React.FC = () => {
     const determineInitialRoute = async () => {
       try {
         if (FORCE_SHOW_ONBOARDING) {
-          try { await AsyncStorage.removeItem('onboarding_shown'); } catch (err) { /* ignore */ }
+          try { await AsyncStorage.removeItem('onboarding_shown'); } catch { /* ignore */ }
           setInitialRoute('Onboarding');
           return;
         }
@@ -152,7 +152,7 @@ export const AppNavigator: React.FC = () => {
         } else {
           setInitialRoute('Onboarding');
         }
-      } catch (e) {
+      } catch {
         setInitialRoute('Onboarding');
       } finally {
         setIsReady(true);
@@ -160,7 +160,7 @@ export const AppNavigator: React.FC = () => {
     };
 
     determineInitialRoute();
-  }, []);
+  }, [FORCE_SHOW_ONBOARDING]);
 
   // Track screen changes
   const onStateChange = (state: NavigationState | undefined) => {

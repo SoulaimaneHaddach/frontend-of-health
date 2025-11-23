@@ -24,7 +24,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 import logger from '../../shared/utils/logger';
 import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
-import { s, ms, vs, SIZES } from '../../shared/constants/responsive';
+import { ms, vs } from '../../shared/constants/responsive';
 import { SpecialtyType } from '../../shared/types';
 import { DoctorResponseDto, DoctorMapDto } from '../../services/api';
 import { BottomNavBar } from '../../components/BottomNavBar';
@@ -38,7 +38,6 @@ import { eventBus } from '../../shared/services/eventBus';
 const CARD_HEIGHT = ms(280);
 const NAVBAR_HEIGHT = ms(60);
 
-const MIN_ZOOM_DELTA = 0.01; 
 const MAX_ZOOM_DELTA = 0.3; // Doctors visible when zoomed in closer than this 
 
 // Map boundaries (Morocco area)
@@ -93,11 +92,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<any>(null);
-  const isSearching = (searchQuery ?? '').trim() !== '';
   // Load lightweight list for map/list; fetch full details on demand
   const [doctors, setDoctors] = useState<DoctorMapDto[]>([]);
   const [loading, setLoading] = useState(false);
-  const [didFetchOnce, setDidFetchOnce] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<(DoctorMapDto | DoctorResponseDto) | null>(null);
   const [isListVisible, setIsListVisible] = useState(false);
   const [currentZoomLevel, setCurrentZoomLevel] = useState(0.05);
@@ -209,7 +206,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
 
       setDoctors(validDoctors);
-      setDidFetchOnce(true);
+      // track that we fetched once (flag removed)
     } catch (error) {
       logger.error('❌ Error fetching doctors:', error);
       setDoctors([]);
@@ -298,7 +295,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       logger.debug('🎯 Initial fetch on location ready');
       fetchDoctors();
     }
-  }, [userLocation.latitude, userLocation.longitude]);
+  }, [userLocation, fetchDoctors]);
 
   // Listen for in-app events that should trigger a refresh (e.g., doctor created)
   useEffect(() => {
@@ -333,15 +330,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         logger.debug('🔁 HomeScreen refocused — triggering fetch');
         fetchDoctors();
       }
-    }, [])
+    }, [fetchDoctors])
   );
 
-  // Explicit refresh helper: clears cache flag and triggers a fetch
-  const refreshDoctors = useCallback(() => {
-    logger.debug('🔃 Manual refresh requested for doctors');
-    setDidFetchOnce(false);
-    fetchDoctors();
-  }, [fetchDoctors]);
+  // Manual refresh handled inline via event handlers; helper removed to avoid unused-var warning
 
   const filteredDoctors = useMemo(() => {
     const q = (searchQuery ?? '').trim().toLowerCase();
@@ -440,7 +432,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             latitudeDelta: latDelta,
             longitudeDelta: latDelta,
           }, 300);
-        } catch (e) {
+        } catch {
           // fallback to simple centering
           mapRef.current?.animateToRegion({
             latitude: doctor.location.latitude,
@@ -453,7 +445,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         setOsmCenter({ latitude: targetLat, longitude: doctor.location.longitude, zoom: 14 });
       }
     }
-  }, [showDoctorCard]);
+  }, [showDoctorCard, USE_OSM, currentZoomLevel]);
 
   const handleMapRegionChange = useCallback((region: Region) => {
     setCurrentZoomLevel(region.latitudeDelta);
@@ -517,7 +509,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     } catch (error) {
       logger.error('Error getting location:', error);
     }
-  }, []);
+  }, [USE_OSM]);
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -906,7 +898,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             const full = await api.getDoctorById(selectedDoctor.id);
             hideDoctorCard();
             navigation.navigate('DoctorDetails', { doctor: full });
-          } catch (e) {
+          } catch {
             // Fallback: navigate with what we have
             hideDoctorCard();
             navigation.navigate('DoctorDetails', { doctor: selectedDoctor });

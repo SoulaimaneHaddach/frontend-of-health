@@ -53,7 +53,7 @@ const AnimatedCard = React.memo(({ children, index }: { children: React.ReactNod
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(anim, { toValue: 1, duration: 300, delay: Math.min(index * 50, 300), useNativeDriver: true }).start();
-  }, []);
+  }, [anim, index]);
   return (
     <Animated.View style={{ opacity: anim, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [15, 0] }) }] }}>
       {children}
@@ -112,7 +112,7 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
       if (id) setDoctorId(id);
       else Alert.alert(t.error, t.doctorIdNotFound, [{ text: t.ok, onPress: () => navigation.replace('DoctorLogin') }]);
     } catch (e) { logger.error(e); }
-  }, [navigation]);
+  }, [navigation, t]);
 
   // fetchBookings as stable callback so effects can depend on it
   // Stable fetchBookings: use refs to avoid re-creating the callback when `bookings` changes
@@ -197,7 +197,7 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
       pendingRequestsRef.current.delete('fetch');
       setPendingRequests(prev => { const n = new Set(prev); n.delete('fetch'); return n; });
     }
-  }, [doctorId]);
+  }, [doctorId, t, bookings.length]);
 
   // Cancel pending requests on unmount
   useEffect(() => {
@@ -211,7 +211,7 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     Animated.timing(headerAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     loadDoctorId();
-  }, [loadDoctorId]);
+  }, [loadDoctorId, headerAnim]);
 
   useEffect(() => { 
     if (doctorId) {
@@ -221,9 +221,9 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
   }, [doctorId, fetchBookings]);
 
   useEffect(() => {
-    const unsubscribe = requestQueueService.addListener('requestCompleted', (payload: any) => {
+    const unsubscribe = requestQueueService.addListener('requestCompleted', (_payload: any) => {
       try {
-        const { request, response } = payload || {};
+        const { request, response } = _payload || {};
         if (!request || !response) return;
         if (typeof request.url === 'string' && request.url.includes('/bookings') && (request.method || '').toUpperCase() === 'POST') {
           const clientLocalId = request.body?.clientLocalId;
@@ -285,18 +285,18 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const openDetail = (booking: BookingResponse) => {
+  const openDetail = useCallback((booking: BookingResponse) => {
     setSelectedBooking(booking);
     setShowDetail(true);
     Animated.spring(modalAnim, { toValue: 1, useNativeDriver: true, tension: 65, friction: 9 }).start();
-  };
+  }, [modalAnim]);
 
-  const closeDetail = () => {
+  const closeDetail = useCallback(() => {
     Animated.timing(modalAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
       setShowDetail(false);
       setSelectedBooking(null);
     });
-  };
+  }, [modalAnim]);
 
   // Optimistic update with rollback
   const handleStatusUpdate = async (bookingId: string, newStatus: BookingStatus) => {
@@ -316,7 +316,7 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
       await ApiService.updateBookingStatus(bookingId, newStatus);
       // Update cache
       saveToCache(bookings.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
-    } catch (e) {
+    } catch {
       // Rollback on error
       setBookings(previousBookings);
       Alert.alert('Error', 'Failed to update. Please try again.');
@@ -338,7 +338,7 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
     try {
       await ApiService.deleteBooking(bookingId);
       saveToCache(bookings.filter(b => b.id !== bookingId));
-    } catch (e) {
+    } catch {
       // Rollback
       setBookings(previousBookings);
       Alert.alert('Error', 'Failed to delete. Please try again.');
@@ -435,7 +435,7 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </AnimatedCard>
     );
-  }, [colors, formatDate, pendingRequests, styles]);
+  }, [colors, formatDate, pendingRequests, styles, STATUS_CONFIG, DEFAULT_STATUS_CFG, openDetail]);
 
   const renderFooter = () => {
     if (!loadingMore) return null;

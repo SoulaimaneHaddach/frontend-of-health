@@ -15,9 +15,8 @@ import {
 import { logError } from '../shared/utils/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import ENV from '../config/env';
-import { TokenStorage, sanitizeForLogs } from '../shared/utils/secureStorage';
-import { rateLimiter } from '../shared/utils/securityUtils';
-import { SECURITY_CONFIG, getSecurityHeaders, isAllowedDomain } from '../shared/config/security.config';
+import { TokenStorage } from '../shared/utils/secureStorage';
+// rateLimiter intentionally removed: not used in this module
 import { errorLoggingService, ErrorSeverity } from '../shared/services/errorLoggingService';
 import { networkService } from '../shared/services/networkService';
 import { offlineStorageService } from '../shared/services/offlineStorageService';
@@ -29,6 +28,12 @@ import { sanitizeForLogs as sanitizeHeadersForLogs } from '../shared/utils/secur
 
 // In-flight request coalescing map to avoid duplicate identical requests
 const inFlightRequests: Map<string, Promise<any>> = new Map();
+
+// Simple circuit-breaker state per logical endpoint
+type FailureState = { count: number; blockedUntil?: number; lastError?: any };
+const endpointFailureState: Record<string, FailureState> = {};
+const CIRCUIT_BREAKER_THRESHOLD = 3; // failures before opening circuit
+const CIRCUIT_BREAKER_COOLDOWN_MS = 30 * 1000; // 30s cooldown
 
 // Retry/backoff helper
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
@@ -137,7 +142,7 @@ class ApiService {
           if (sanitizedCfg.headers) {
             sanitizedCfg.headers = sanitizeHeadersForLogs(sanitizedCfg.headers);
           }
-        } catch (e) {
+        } catch {
           // ignore
         }
 
@@ -316,9 +321,102 @@ class ApiService {
   }
 
   async getMyProfile(): Promise<DoctorResponseDto> {
-    await this.initialize(); // 
-    const response = await this.api.get<DoctorResponseDto>('/doctors/me');
-    return response.data;
+    await this.initialize();
+
+    const cacheKey = 'profile:me';
+    const endpointKey = 'profile';
+
+    // If circuit is open and we are in cooldown, avoid network attempts
+    const stateNow = endpointFailureState[endpointKey];
+    if (stateNow?.blockedUntil && stateNow.blockedUntil > Date.now()) {
+      try {
+        const cached = await offlineStorageService.get<DoctorResponseDto>(cacheKey);
+        if (cached) {
+          logger.debug('📦 Returning cached profile while circuit open');
+          return cached;
+        }
+      } catch {
+        // ignore
+      }
+      throw new Error('Service temporarily unavailable. Please try again later.');
+    }
+
+    const key = cacheKey;
+    if (inFlightRequests.has(key)) {
+      return inFlightRequests.get(key) as Promise<DoctorResponseDto>;
+    }
+
+    const fn = (async (): Promise<DoctorResponseDto> => {
+      // Try with retries on network/5xx errors and fall back to cache if available.
+      const maxAttempts = 3;
+      const baseDelay = 200; // ms
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const response = await this.api.get<DoctorResponseDto>('/doctors/me', { headers: { 'x-suppress-logging': attempt > 1 ? '1' : '0' } });
+          // Cache the profile for offline fallback
+          try {
+            await offlineStorageService.set('profile:me', response.data, { ttl: 60 * 60 * 1000, priority: CachePriority.HIGH, tags: ['profile', 'user'] });
+          } catch (e) {
+            // non-fatal
+            logger.debug('Failed to cache profile response', e);
+          }
+          // reset failure state on success
+          if (endpointFailureState[endpointKey]) {
+            endpointFailureState[endpointKey] = { count: 0 };
+          }
+          return response.data;
+        } catch (err: any) {
+          // If not retryable or last attempt, try cache fallback then rethrow enriched error
+          const status = err?.response?.status;
+          const isRetryable = shouldRetry(err);
+          if (attempt < maxAttempts && isRetryable) {
+            const jitter = Math.floor(Math.random() * 100);
+            const delay = baseDelay * Math.pow(2, attempt - 1) + jitter;
+            logger.debug(`Retrying getMyProfile (${attempt}/${maxAttempts}) after ${delay}ms`);
+            // suppress remote logging for retries
+            await sleep(delay);
+            continue;
+          }
+
+          // Final attempt failed — try returning cached profile if available
+          try {
+            const cached = await offlineStorageService.get<DoctorResponseDto>('profile:me');
+            if (cached) {
+              logger.debug('📦 Returning cached profile after API failure');
+              return cached;
+            }
+          } catch {
+            // ignore
+          }
+          // update circuit state
+          const prev = endpointFailureState[endpointKey] || { count: 0 };
+          const nextCount = (prev.count || 0) + 1;
+          const newState: FailureState = { count: nextCount, lastError: err };
+          if (nextCount >= CIRCUIT_BREAKER_THRESHOLD) {
+            newState.blockedUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
+            logger.warn(`Circuit opened for ${endpointKey} for ${CIRCUIT_BREAKER_COOLDOWN_MS}ms`);
+          }
+          endpointFailureState[endpointKey] = newState;
+
+          // Enrich error with parsed server message when available
+          const serverMessage = err?.response?.data?.message || err?.message || 'Unknown error';
+          const enriched = new Error(`API getMyProfile failed: ${serverMessage} (status: ${status ?? 'unknown'})`);
+          // attach original error for callers that need it
+          (enriched as any).original = err;
+          // Log at error level with context (errorLoggingService will have already recorded, but add breadcrumb)
+          errorLoggingService.addBreadcrumb({ category: 'network', message: 'getMyProfile final failure', level: ErrorSeverity.ERROR });
+          throw enriched;
+        }
+      }
+
+      // Should never reach here
+      throw new Error('Failed to fetch profile');
+    })();
+
+    inFlightRequests.set(key, fn);
+    fn.finally(() => inFlightRequests.delete(key)).catch(() => {});
+    return fn;
   }
 
   async updateMyProfile(doctorData: DoctorRequestDto): Promise<DoctorResponseDto> {
@@ -370,14 +468,14 @@ class ApiService {
       });
 
       return response.data;
-    } catch (error) {
+    } catch {
       // Try cache as fallback
       const cached = await offlineStorageService.get<DoctorResponseDto[]>(cacheKey);
         if (cached) {
         logger.debug('📦 Returning cached doctors (fallback)');
         return cached;
       }
-      throw error;
+      throw new Error('Failed to fetch doctors');
     }
   }
 
@@ -447,14 +545,14 @@ class ApiService {
       });
 
       return response.data;
-    } catch (error) {
+    } catch {
       // Try cache as fallback
       const cached = await offlineStorageService.get<DoctorResponseDto>(cacheKey);
       if (cached) {
         logger.debug(`📦 Returning cached doctor ${id} (fallback)`);
         return cached;
       }
-      throw error;
+      throw new Error('Failed to fetch doctor');
     }
   }
 
@@ -517,7 +615,7 @@ class ApiService {
         if (currentUser && currentUser.id === doctorId) {
           throw new Error('Doctors cannot book appointments with themselves');
         }
-      } catch (error: any) {
+      } catch {
         // If 500/404/403, user is not a doctor - allow booking to proceed
         logger.debug('ℹ️ User is not a doctor, allowing booking');
       }
@@ -577,7 +675,7 @@ class ApiService {
     try {
       await this.api.get('/doctors/me');
       return true;
-    } catch (error: any) {
+    } catch {
       logger.debug('ℹ️ isDoctor check: User is not a doctor or error occurred');
       return false;
     }

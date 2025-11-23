@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { ms, vs } from '../shared/constants/responsive';
+import { ms } from '../shared/constants/responsive';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import logger from '../shared/utils/logger';
 
@@ -122,7 +122,7 @@ const OSMMap: React.FC<Props> = ({
                 if (curZ < minZ) {
                   var el = mk.getElement(); if (el) el.style.display = 'none';
                 }
-              } catch(e) {}
+              } catch {}
 
               mk.on('click', function(){
                 window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'markerPress', id: m.id }));
@@ -131,7 +131,7 @@ const OSMMap: React.FC<Props> = ({
           });
 
           map.on('click', function(e){
-            try { window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mapPress', lat: e.latlng.lat, lng: e.latlng.lng })); } catch(e){}
+            try { window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mapPress', lat: e.latlng.lat, lng: e.latlng.lng })); } catch {}
           });
 
           // user location marker
@@ -143,43 +143,43 @@ const OSMMap: React.FC<Props> = ({
                            '</div>';
               var icon = L.divIcon({ html: html, className: '', iconSize: [${ms(40)},${ms(40)}], iconAnchor: [${ms(20)},${ms(20)}] });
               userMarker = L.marker([lat, lng], { icon: icon, interactive: false, zoomAnimation: false }).addTo(map);
-            } catch(e) {}
+            } catch {}
           }
 
           if (userLocation && userLocation.lat && userLocation.lng) {
-            try { createUserMarker(userLocation.lat, userLocation.lng); } catch(e) {}
+            try { createUserMarker(userLocation.lat, userLocation.lng); } catch {} 
           }
 
           window.setUserLocation = function(lat, lng) {
             try {
               if (userMarker) { userMarker.setLatLng([lat, lng]); }
               else { createUserMarker(lat, lng); }
-            } catch(e) {}
+            } catch {}
           };
 
           window.goToLocation = function(lat, lng, zoom) {
             try {
               if (userMarker) { userMarker.setLatLng([lat, lng]); }
               else { createUserMarker(lat, lng); }
-              try { map.setView([lat, lng], zoom || Math.max(map.getZoom(), 12)); } catch(e) {}
-              try { map.flyTo([lat, lng], zoom || Math.max(map.getZoom(), 12), { duration: 0.35 }); } catch(e) {}
-            } catch(e) {}
+              try { map.setView([lat, lng], zoom || Math.max(map.getZoom(), 12)); } catch {}
+              try { map.flyTo([lat, lng], zoom || Math.max(map.getZoom(), 12), { duration: 0.35 }); } catch {}
+            } catch {}
           };
 
           window.centerMap = function(lat, lng, zoom) {
-            try { map.flyTo([lat, lng], zoom || 12, { duration: 0.6 }); } catch(e) { try { map.setView([lat, lng], zoom || 12); } catch(e){} }
+            try { map.flyTo([lat, lng], zoom || 12, { duration: 0.6 }); } catch { try { map.setView([lat, lng], zoom || 12); } catch {} }
           };
 
           window.selectMarker = function(id, zoom) {
             try {
-              try { map.closePopup(); } catch(e) {}
-              Object.keys(leafletMarkers).forEach(function(k){ try { leafletMarkers[k].setZIndexOffset(0); var el = leafletMarkers[k].getElement(); if (el) el.style.transform = 'scale(1)'; } catch(e){} });
+              try { map.closePopup(); } catch {};
+              Object.keys(leafletMarkers).forEach(function(k){ try { leafletMarkers[k].setZIndexOffset(0); var el = leafletMarkers[k].getElement(); if (el) el.style.transform = 'scale(1)'; } catch{} });
               if (leafletMarkers[id]) {
                 leafletMarkers[id].setZIndexOffset(1000);
                 var selEl = leafletMarkers[id].getElement(); if (selEl) selEl.style.transform = 'scale(1.15)';
-                try { var latlng = leafletMarkers[id].getLatLng(); var targetZoom = (typeof zoom === 'number' && zoom) ? zoom : Math.max(map.getZoom(), 18); try { map.flyTo([latlng.lat, latlng.lng], targetZoom, { duration: 0.6 }); } catch(e) { try { map.setView([latlng.lat, latlng.lng], targetZoom); } catch(e){} } } catch(e){}
+                try { var latlng = leafletMarkers[id].getLatLng(); var targetZoom = (typeof zoom === 'number' && zoom) ? zoom : Math.max(map.getZoom(), 18); try { map.flyTo([latlng.lat, latlng.lng], targetZoom, { duration: 0.6 }); } catch { try { map.setView([latlng.lat, latlng.lng], targetZoom); } catch {} } } catch {}
               }
-            } catch(e) {}
+            } catch {}
           };
 
           // hide/show markers on zoom
@@ -193,19 +193,19 @@ const OSMMap: React.FC<Props> = ({
                   var markerData = markers.find(function(x){ return String(x.id) === String(k); });
                   var minZ = (markerData && typeof markerData.minZoom === 'number' && markerData.minZoom) ? markerData.minZoom : detailZoomThreshold;
                   if (z < minZ) { el.style.display = 'none'; } else { el.style.display = ''; }
-                } catch(e){}
+                } catch{}
               });
-            } catch(e){}
+            } catch{}
           });
 
         } catch(err) {
-          try { window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: String(err) })); } catch(e){}
+          try { window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: String(err) })); } catch {}
         }
       })();
     </script>
   </body>
   </html>
-  `, [markersJson, initialCenter.lat, initialCenter.lng, initialCenter.zoom, detailZoomThreshold]);
+  `, [markersJson, userLocationJson, initialCenter.lat, initialCenter.lng, initialCenter.zoom, detailZoomThreshold]);
 
   const handleMessage = useCallback((e: WebViewMessageEvent) => {
     try {
@@ -215,29 +215,29 @@ const OSMMap: React.FC<Props> = ({
       else if (data.type === 'mapPress') { onMapPress && onMapPress(Number(data.lat), Number(data.lng)); }
       else if (data.type === 'error') { logger.warn('OSMMap WebView error:', data.message); }
       else { logger.debug('OSMMap message:', data); }
-    } catch(e) { /* ignore */ }
+    } catch { /* ignore */ }
   }, [onMarkerPress, onMapPress]);
 
   // centerTo
   React.useEffect(() => {
     if (!centerTo || !webviewRef.current) return;
-    const js = `try{window.centerMap(${centerTo.latitude}, ${centerTo.longitude}, ${centerTo.zoom || 12});}catch(e){};true;`;
-    try { webviewRef.current.injectJavaScript(js); } catch(e) {}
+    const js = `try{window.centerMap(${centerTo.latitude}, ${centerTo.longitude}, ${centerTo.zoom || 12});}catch{};true;`;
+    try { webviewRef.current.injectJavaScript(js); } catch {}
   }, [centerTo]);
 
   // selectedId
   React.useEffect(() => {
     if (!webviewRef.current) return;
     if (selectedId === null || typeof selectedId === 'undefined') return;
-    const js = `try{window.selectMarker(${JSON.stringify(selectedId)});}catch(e){};true;`;
-    try { webviewRef.current.injectJavaScript(js); } catch(e) {}
+    const js = `try{window.selectMarker(${JSON.stringify(selectedId)});}catch{};true;`;
+    try { webviewRef.current.injectJavaScript(js); } catch {}
   }, [selectedId]);
 
   // userLocation updates
   React.useEffect(() => {
     if (!webviewRef.current || !userLocation) return;
-    const js = `try{window.setUserLocation(${userLocation.latitude}, ${userLocation.longitude});}catch(e){};true;`;
-    try { webviewRef.current.injectJavaScript(js); } catch(e) {}
+    const js = `try{window.setUserLocation(${userLocation.latitude}, ${userLocation.longitude});}catch{};true;`;
+    try { webviewRef.current.injectJavaScript(js); } catch {}
   }, [userLocation]);
 
   return (

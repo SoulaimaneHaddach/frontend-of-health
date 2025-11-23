@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { Text, StyleSheet, Animated } from 'react-native';
 import { networkService } from '../services/networkService';
 import { NetworkState } from '../types/network.types';
 import { FONT_SIZES } from '../constants/theme';

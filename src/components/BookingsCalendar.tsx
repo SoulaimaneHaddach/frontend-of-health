@@ -1,5 +1,5 @@
 // src/components/BookingsCalendar.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FONT_SIZES, SPACING, RADIUS } from '../shared/constants/theme';
@@ -25,25 +25,7 @@ export const BookingsCalendar: React.FC<BookingsCalendarProps> = ({ doctorId, co
   const requestIdRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    // increment request id so stale responses are ignored
-    // cancel previous request
-    if (abortControllerRef.current) {
-      try { abortControllerRef.current.abort(); } catch {}
-    }
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    requestIdRef.current += 1;
-    const currentRequestId = requestIdRef.current;
-    fetchBookings(currentRequestId, controller.signal);
-    return () => {
-      mountedRef.current = false;
-      try { controller.abort(); } catch {}
-    };
-  }, [doctorId]);
-
-  const fetchBookings = async (reqId?: number, signal?: AbortSignal) => {
+  const fetchBookings = useCallback(async (reqId?: number, signal?: AbortSignal) => {
     try {
       setLoading(true);
       const data = await ApiService.getBookingsByDoctorId(doctorId, { page: 1, limit: 100, signal: signal as AbortSignal });
@@ -68,7 +50,6 @@ export const BookingsCalendar: React.FC<BookingsCalendarProps> = ({ doctorId, co
           deduped.push(b);
         }
       }
-
       // Filter to only accepted/pending bookings in the future
       const futureBookings = deduped.filter((b) => {
         const appointmentDate = new Date(b.appointmentTime);
@@ -87,8 +68,25 @@ export const BookingsCalendar: React.FC<BookingsCalendarProps> = ({ doctorId, co
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  };
+  }, [doctorId]);
 
+  useEffect(() => {
+    mountedRef.current = true;
+    // increment request id so stale responses are ignored
+    // cancel previous request
+    if (abortControllerRef.current) {
+      try { abortControllerRef.current.abort(); } catch {}
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    requestIdRef.current += 1;
+    const currentRequestId = requestIdRef.current;
+    fetchBookings(currentRequestId, controller.signal);
+    return () => {
+      mountedRef.current = false;
+      try { controller.abort(); } catch {}
+    };
+  }, [doctorId, fetchBookings]);
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
     return {
@@ -118,7 +116,7 @@ export const BookingsCalendar: React.FC<BookingsCalendarProps> = ({ doctorId, co
   }
   return (
     <View style={styles.container}>
-      {displayedBookings.map((booking, index) => {
+      {displayedBookings.map((booking) => {
         const { day, date, month, time } = formatDate(booking.appointmentTime);
         const isAccepted = booking.status === 'ACCEPTED';
         return (

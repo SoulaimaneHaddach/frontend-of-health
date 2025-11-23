@@ -1,5 +1,5 @@
 // src/shared/components/CustomButton.tsx
-import React, { memo, useMemo, useCallback } from 'react';
+import React, { memo, useMemo } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { FONT_SIZES, RADIUS, SPACING, SHADOWS } from '../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
@@ -31,7 +31,7 @@ const CustomButtonComponent: React.FC<CustomButtonProps> = ({
 }) => {
   // Memoize computed styles
   const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const styles = createStyles();
 
   const variantStyle = useMemo(() => {
     switch (variant) {
@@ -69,7 +69,7 @@ const CustomButtonComponent: React.FC<CustomButtonProps> = ({
       disabled && styles.disabled,
       style,
     ],
-    [variantStyle, size, fullWidth, disabled, style]
+    [variantStyle, size, fullWidth, disabled, style, styles]
   );
 
   const textStyleCombined = useMemo(
@@ -80,7 +80,7 @@ const CustomButtonComponent: React.FC<CustomButtonProps> = ({
       disabled && styles.textDisabled,
       textStyle,
     ],
-    [textVariantStyle, size, disabled, textStyle]
+    [textVariantStyle, size, disabled, textStyle, styles]
   );
 
   // Memoize spinner color
@@ -121,7 +121,7 @@ export const CustomButton = memo(CustomButtonComponent, (prevProps, nextProps) =
   );
 });
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   button: {
     flexDirection: 'row',
     alignItems: 'center',

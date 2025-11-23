@@ -21,7 +21,7 @@ class EventBus {
     const set = this.listeners.get(event);
     if (!set) return;
     set.forEach((cb) => {
-      try { cb(payload); } catch (e) { /* swallow */ }
+      try { cb(payload); } catch { /* swallow */ }
     });
   }
 }

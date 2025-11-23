@@ -22,7 +22,7 @@ const CACHE_PREFIX = '@offline_cache:';
 const METADATA_KEY = '@offline_cache_metadata';
 const DEFAULT_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_CACHE_SIZE = 50 * 1024 * 1024; // 50 MB
-const COMPRESSION_THRESHOLD = 10 * 1024; // 10 KB
+// Compression threshold reserved for future use
 
 // ============================================================================
 // Offline Storage Service Class
@@ -287,7 +287,7 @@ class OfflineStorageService {
         });
 
         let currentSize = totalSize;
-        for (const [key, _] of sortedEntries) {
+        for (const [key] of sortedEntries) {
           if (currentSize <= MAX_CACHE_SIZE * 0.8) break; // Keep 80% of max
 
           await this.remove(key);

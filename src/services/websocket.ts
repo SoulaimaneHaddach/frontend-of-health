@@ -160,7 +160,7 @@ export class BookingWebSocketService {
           const code = (event && (event as any).code) || (event && (event as any).wasClean ? 1000 : undefined);
           const reason = (event && (event as any).reason) || undefined;
           logger.debug('🔌 WebSocket disconnected', { code, reason });
-        } catch (e) {
+        } catch {
           logger.debug('🔌 WebSocket disconnected');
         }
         
@@ -203,7 +203,7 @@ export class BookingWebSocketService {
             logger.debug('🔓 Raw WebSocket (pre-connect) info', socketInfo);
             errorLoggingService.addBreadcrumb({ category: 'network', message: 'Raw WebSocket pre-connect', level: ErrorSeverity.INFO, data: socketInfo });
           }
-        } catch (e) {
+        } catch {
           // ignore
         }
       },

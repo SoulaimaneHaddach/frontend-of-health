@@ -22,7 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 
 export function WebSocketTestScreen() {
   const { colors } = useTheme();
-  const [testDoctorId, setTestDoctorId] = useState('test-doctor-123');
+  const [testDoctorId] = useState('test-doctor-123');
   const [logs, setLogs] = useState<string[]>([]);
 
   const addLog = (message: string) => {

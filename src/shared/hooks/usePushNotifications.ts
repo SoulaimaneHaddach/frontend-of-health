@@ -3,7 +3,7 @@ import logger from '../utils/logger';
 import { Alert, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import { secureStorage, TokenStorage } from '../utils/secureStorage';
+import { TokenStorage } from '../utils/secureStorage';
 import ENV from '../../config/env';
 
 export type UsePushNotificationsOptions = {
@@ -74,7 +74,7 @@ export const usePushNotifications = ({
               try { await TokenStorage.setPushToken(deviceToken.data); } catch {}
             }
           }
-        } catch (err) {
+        } catch {
           try {
             const expoToken = await Notifications.getExpoPushTokenAsync();
             if (expoToken && expoToken.data && mounted) {
