@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity, TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONT_SIZES, RADIUS, SPACING } from '../shared/constants/theme';
+import { FONT_SIZES, RADIUS, SPACING } from '../shared/constants/theme';
 import { useTheme } from '../context/ThemeContext';
 
 interface InputFieldProps extends TextInputProps {
@@ -22,26 +22,26 @@ export const InputField: React.FC<InputFieldProps> = ({
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const { isDarkMode } = useTheme();
+  const { colors } = useTheme();
 
   const dynamicContainerStyles = {
-    backgroundColor: isDarkMode ? COLORS.darkCard : COLORS.white,
-    borderColor: isDarkMode ? COLORS.darkBorder : COLORS.border,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
   } as const;
 
   const dynamicLabelStyle = {
-    color: isDarkMode ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
   } as const;
 
   const dynamicInputStyle = {
-    color: isDarkMode ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
   } as const;
 
-  const iconColor = isFocused
-    ? COLORS.primary
-    : (isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary);
+  const iconColor = isFocused ? colors.primary : colors.textSecondary;
 
-  const placeholderColor = isDarkMode ? COLORS.darkTextSecondary : COLORS.textLight;
+  const placeholderColor = colors.textSecondary;
+
+  const focusStyle = isFocused ? { borderColor: colors.primary, borderWidth: 2 } : {};
 
   return (
     <View style={styles.container}>
@@ -50,8 +50,8 @@ export const InputField: React.FC<InputFieldProps> = ({
       <View style={[
         styles.inputContainer,
         dynamicContainerStyles,
-        isFocused && styles.inputContainerFocused,
-        error && styles.inputContainerError,
+        focusStyle,
+        error ? { borderColor: colors.error } : {},
       ]}>
         {icon && (
           <Ionicons
@@ -79,13 +79,13 @@ export const InputField: React.FC<InputFieldProps> = ({
             <Ionicons
               name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
               size={20}
-              color={isDarkMode ? COLORS.darkTextSecondary : COLORS.textSecondary}
+              color={colors.textSecondary}
             />
           </TouchableOpacity>
         )}
       </View>
       
-      {error && <Text style={[styles.error, { color: COLORS.error }]}>{error}</Text>}
+        {error && <Text style={[styles.error, { color: colors.error }]}>{error}</Text>}
     </View>
   );
 };
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    
     marginBottom: SPACING.sm,
   },
   inputContainer: {
@@ -107,13 +107,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: SPACING.md,
   },
-  inputContainerFocused: {
-    borderColor: COLORS.primary,
-    borderWidth: 2,
-  },
-  inputContainerError: {
-    borderColor: COLORS.error,
-  },
+  
   icon: {
     marginRight: SPACING.sm,
   },

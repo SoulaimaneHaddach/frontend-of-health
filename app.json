@@ -2,18 +2,24 @@
   "expo": {
     "name": "HealthConnect",
     "slug": "healthcare-platform",
+    "description": "HealthConnect — book and manage healthcare appointments",
     "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/6.png",
+    "display": "standalone",
+    "icon": "./assets/AppLogo.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/6.png",
+      "image": "./assets/AppLogo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#4A90E2"
+      "backgroundColor": "#4A90E2",
+      "dark": {
+        "backgroundColor": "#0F172A"
+      }
     },
     "assetBundlePatterns": [
       "**/*"
     ],
+    "scheme": "healthconnect",
     "jsEngine": "hermes",
     "ios": {
       "supportsTablet": true,
@@ -27,7 +33,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/6.png",
+        "foregroundImage": "./assets/AppLogo.png",
         "backgroundColor": "#4A90E2"
       },
       "googleServicesFile": "./google-services.json",
@@ -37,29 +43,25 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "INTERNET",
-        "ACCESS_NETWORK_STATE",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "ACCESS_NETWORK_STATE"
       ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
-      "favicon": "./assets/6.png"
+      "favicon": "./assets/AppLogo.png"
     },
-"plugins": [
-  [
-    "expo-notifications"
-  ],
-  [
-    "expo-location",
-    {
-      "locationAlwaysAndWhenInUsePermission": "Allow HealthConnect to use your location to find nearby doctors."
-    }
-  ],
-  "expo-font"
-],
+    "plugins": [
+      ["expo-notifications"],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow HealthConnect to use your location to find nearby doctors."
+        }
+      ],
+      "expo-font"
+    ],
     "owner": "solaabara1",
     "extra": {
       "eas": {

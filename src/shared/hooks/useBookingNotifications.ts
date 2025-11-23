@@ -6,6 +6,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Alert, Platform } from 'react-native';
+import logger from '../utils/logger';
 import { BookingWebSocketService } from '../../services/websocket';
 import { errorLoggingService, ErrorSeverity } from '../services/errorLoggingService';
 
@@ -59,7 +60,7 @@ export function useBookingNotifications(
 
   const handleBookingReceived = useCallback(
     (booking: BookingNotification) => {
-      console.log('📬 New booking notification:', booking);
+      logger.debug('📬 New booking notification:', booking);
 
       // Update state
       setLastBooking(booking);
@@ -85,7 +86,7 @@ export function useBookingNotifications(
                   try {
                     onBookingClick?.(booking);
                   } catch (e) {
-                    console.warn('onBookingClick handler error', e);
+                    logger.warn('onBookingClick handler error', e);
                   }
                 },
               },
@@ -109,35 +110,35 @@ export function useBookingNotifications(
 
   const connect = useCallback(() => {
     if (!doctorId) {
-      console.warn('⚠️ Cannot connect: doctorId is required');
+      logger.warn('⚠️ Cannot connect: doctorId is required');
       return;
     }
 
     if (wsServiceRef.current?.isConnected()) {
-      console.log('⚠️ WebSocket already connected');
+      logger.debug('⚠️ WebSocket already connected');
       return;
     }
 
-    console.log('🔌 Connecting to booking notifications...');
+    logger.debug('🔌 Connecting to booking notifications...');
     setConnectionStatus('connecting');
 
     wsServiceRef.current = new BookingWebSocketService({
       doctorId,
       baseUrl,
       onBookingReceived: handleBookingReceived,
-      onConnect: () => {
-        console.log('✅ Connected to booking notifications');
+        onConnect: () => {
+        logger.debug('✅ Connected to booking notifications');
         setIsConnected(true);
         setConnectionStatus('connected');
         setError(null);
       },
       onDisconnect: () => {
-        console.log('🔌 Disconnected from booking notifications');
+        logger.debug('🔌 Disconnected from booking notifications');
         setIsConnected(false);
         setConnectionStatus('disconnected');
       },
       onError: (err: any) => {
-        console.error('❌ WebSocket error:', err);
+        logger.error('❌ WebSocket error:', err);
         const error = new Error('WebSocket connection error');
         setError(error);
         setConnectionStatus('disconnected');
@@ -156,12 +157,12 @@ export function useBookingNotifications(
     try {
       wsServiceRef.current.connect();
     } catch (e) {
-      console.warn('WebSocket connect error', e);
+      logger.warn('WebSocket connect error', e);
     }
   }, [doctorId, baseUrl, handleBookingReceived]);
 
   const disconnect = useCallback(() => {
-    console.log('🔌 Disconnecting from booking notifications...');
+    logger.debug('🔌 Disconnecting from booking notifications...');
     wsServiceRef.current?.disconnect();
     wsServiceRef.current = null;
     setIsConnected(false);
@@ -169,7 +170,7 @@ export function useBookingNotifications(
   }, []);
 
   const reconnect = useCallback(() => {
-    console.log('🔄 Reconnecting to booking notifications...');
+    logger.debug('🔄 Reconnecting to booking notifications...');
     disconnect();
     setTimeout(() => connect(), 500);
   }, [connect, disconnect]);

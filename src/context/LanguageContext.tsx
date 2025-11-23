@@ -1,6 +1,7 @@
 // src/context/LanguageContext.tsx
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import logger from '../shared/utils/logger';
 import { I18nManager } from 'react-native';
 import { Language, translations, Translations } from '../i18n/translations';
 
@@ -34,7 +35,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         I18nManager.forceRTL(rtl);
       }
     } catch (error) {
-      console.error('Failed to load language:', error);
+      logger.error('Failed to load language:', error);
     }
   };
 
@@ -50,15 +51,15 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         I18nManager.forceRTL(rtl);
         // User will be notified via Alert in LanguageSelectionScreen
         if (__DEV__) {
-          console.log(`🌍 Language changed to ${lang}${rtl ? ' (RTL enabled - restart recommended)' : ''}`);
+          logger.debug(`🌍 Language changed to ${lang}${rtl ? ' (RTL enabled - restart recommended)' : ''}`);
         }
       } else {
         if (__DEV__) {
-          console.log(`🌍 Language changed to ${lang}`);
+          logger.debug(`🌍 Language changed to ${lang}`);
         }
       }
     } catch (error) {
-      console.error('Failed to save language:', error);
+      logger.error('Failed to save language:', error);
     }
   };
 

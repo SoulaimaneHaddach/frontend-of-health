@@ -12,6 +12,7 @@ import {
   CacheStats,
 } from '../types/network.types';
 import { errorLoggingService, ErrorSeverity } from './errorLoggingService';
+import logger from '../utils/logger';
 
 // ============================================================================
 // Constants
@@ -49,9 +50,9 @@ class OfflineStorageService {
       await this.cleanExpiredEntries();
 
       this.initialized = true;
-      console.log('[OfflineStorageService] Initialized successfully');
+      logger.debug('[OfflineStorageService] Initialized successfully');
     } catch (error) {
-      console.error('[OfflineStorageService] Initialization failed:', error);
+      logger.error('[OfflineStorageService] Initialization failed:', error);
       errorLoggingService.logError(
         error instanceof Error ? error : new Error(String(error)),
         ErrorSeverity.ERROR,
@@ -73,7 +74,7 @@ class OfflineStorageService {
         this.metadata = new Map(Object.entries(metadata));
       }
     } catch (error) {
-      console.error('[OfflineStorageService] Failed to load metadata:', error);
+      logger.error('[OfflineStorageService] Failed to load metadata:', error);
       this.metadata = new Map();
     }
   }
@@ -83,7 +84,7 @@ class OfflineStorageService {
       const metadataObj = Object.fromEntries(this.metadata);
       await AsyncStorage.setItem(METADATA_KEY, JSON.stringify(metadataObj));
     } catch (error) {
-      console.error('[OfflineStorageService] Failed to save metadata:', error);
+      logger.error('[OfflineStorageService] Failed to save metadata:', error);
     }
   }
 
@@ -124,9 +125,9 @@ class OfflineStorageService {
       this.metadata.set(key, cachedData);
       await this.saveMetadata();
 
-      console.log(`[OfflineStorageService] Cached data for key: ${key}`);
+      logger.debug(`[OfflineStorageService] Cached data for key: ${key}`);
     } catch (error) {
-      console.error(`[OfflineStorageService] Failed to cache data for key ${key}:`, error);
+      logger.error(`[OfflineStorageService] Failed to cache data for key ${key}:`, error);
       errorLoggingService.logError(
         error instanceof Error ? error : new Error(String(error)),
         ErrorSeverity.WARNING,
@@ -156,10 +157,10 @@ class OfflineStorageService {
       }
 
       this.stats.hits++;
-      console.log(`[OfflineStorageService] Cache hit for key: ${key}`);
+      logger.debug(`[OfflineStorageService] Cache hit for key: ${key}`);
       return cached.data;
     } catch (error) {
-      console.error(`[OfflineStorageService] Failed to get cached data for key ${key}:`, error);
+      logger.error(`[OfflineStorageService] Failed to get cached data for key ${key}:`, error);
       this.stats.misses++;
       return null;
     }
@@ -181,9 +182,9 @@ class OfflineStorageService {
       this.metadata.delete(key);
       await this.saveMetadata();
 
-      console.log(`[OfflineStorageService] Removed cached data for key: ${key}`);
+      logger.debug(`[OfflineStorageService] Removed cached data for key: ${key}`);
     } catch (error) {
-      console.error(`[OfflineStorageService] Failed to remove cached data for key ${key}:`, error);
+      logger.error(`[OfflineStorageService] Failed to remove cached data for key ${key}:`, error);
     }
   }
 
@@ -196,9 +197,9 @@ class OfflineStorageService {
       this.metadata.clear();
       await AsyncStorage.removeItem(METADATA_KEY);
 
-      console.log('[OfflineStorageService] Cleared all cached data');
+      logger.debug('[OfflineStorageService] Cleared all cached data');
     } catch (error) {
-      console.error('[OfflineStorageService] Failed to clear cache:', error);
+      logger.error('[OfflineStorageService] Failed to clear cache:', error);
     }
   }
 
@@ -237,7 +238,7 @@ class OfflineStorageService {
     });
 
     await Promise.all(keysToRemove.map((key) => this.remove(key)));
-    console.log(`[OfflineStorageService] Removed ${keysToRemove.length} entries with tag: ${tag}`);
+    logger.debug(`[OfflineStorageService] Removed ${keysToRemove.length} entries with tag: ${tag}`);
   }
 
   async removeByPattern(pattern: RegExp): Promise<void> {
@@ -250,7 +251,7 @@ class OfflineStorageService {
     });
 
     await Promise.all(keysToRemove.map((key) => this.remove(key)));
-    console.log(`[OfflineStorageService] Removed ${keysToRemove.length} entries matching pattern`);
+    logger.debug(`[OfflineStorageService] Removed ${keysToRemove.length} entries matching pattern`);
   }
 
   // ==========================================================================
@@ -269,7 +270,7 @@ class OfflineStorageService {
 
     if (expiredKeys.length > 0) {
       await Promise.all(expiredKeys.map((key) => this.remove(key)));
-      console.log(`[OfflineStorageService] Cleaned ${expiredKeys.length} expired entries`);
+      logger.debug(`[OfflineStorageService] Cleaned ${expiredKeys.length} expired entries`);
     }
   }
 
@@ -293,10 +294,10 @@ class OfflineStorageService {
           currentSize = await this.calculateTotalSize();
         }
 
-        console.log('[OfflineStorageService] Cache size optimized');
+        logger.debug('[OfflineStorageService] Cache size optimized');
       }
     } catch (error) {
-      console.error('[OfflineStorageService] Failed to ensure cache size:', error);
+      logger.error('[OfflineStorageService] Failed to ensure cache size:', error);
     }
   }
 

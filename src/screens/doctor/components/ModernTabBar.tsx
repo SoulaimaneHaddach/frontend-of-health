@@ -2,7 +2,8 @@
 import React, { useMemo } from 'react';
 import { ScrollView, TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONT_SIZES, RADIUS, SHADOWS, SPACING } from '../../../shared/constants/theme';
+import { FONT_SIZES, RADIUS, SHADOWS, SPACING } from '../../../shared/constants/theme';
+import { useTheme } from '../../../context/ThemeContext';
 
 export type TabKey = 'Info' | 'About' | 'Services' | 'Hours' | 'Location';
 
@@ -21,7 +22,8 @@ interface ModernTabBarProps {
 }
 
 export const ModernTabBar: React.FC<ModernTabBarProps> = ({ tabs, activeKey, onChange, isDark }) => {
-  const styles = useMemo(() => createStyles(isDark), [isDark]);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   return (
     <ScrollView
@@ -39,10 +41,10 @@ export const ModernTabBar: React.FC<ModernTabBarProps> = ({ tabs, activeKey, onC
             onPress={() => onChange(tab.key)}
             activeOpacity={0.7}
           >
-            <Ionicons
+              <Ionicons
               name={tab.icon}
               size={20}
-              color={isActive ? COLORS.white : (isDark ? COLORS.darkTextSecondary : COLORS.textSecondary)}
+              color={isActive ? colors.white : colors.textSecondary}
             />
             <Text style={[styles.modernTabText, isActive && styles.modernTabTextActive]}>
               {tab.label}
@@ -59,7 +61,7 @@ export const ModernTabBar: React.FC<ModernTabBarProps> = ({ tabs, activeKey, onC
   );
 };
 
-const createStyles = (isDark: boolean) => StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   tabScrollContainer: {
     marginBottom: SPACING.lg,
   },
@@ -74,26 +76,26 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.full,
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: isDark ? colors.card : colors.white,
     borderWidth: 1,
-    borderColor: isDark ? COLORS.darkBorder : COLORS.border,
+    borderColor: isDark ? colors.border : colors.border,
     ...SHADOWS.small,
   },
   modernTabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
     ...SHADOWS.medium,
   },
   modernTabText: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '700',
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: isDark ? colors.textSecondary : colors.textSecondary,
   },
   modernTabTextActive: {
-    color: COLORS.white,
+    color: colors.white,
   },
   badge: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     paddingHorizontal: SPACING.xs,
     paddingVertical: 2,
     borderRadius: RADIUS.full,
@@ -105,7 +107,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   badgeText: {
     fontSize: FONT_SIZES.xs,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
   },
 });
 

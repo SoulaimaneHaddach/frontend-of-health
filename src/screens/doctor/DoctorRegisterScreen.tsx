@@ -19,42 +19,45 @@ import { CustomButton } from '../../shared/components/CustomButton';
 import { InputField } from '../../shared/components/InputField';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
+import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
+import { ms } from '../../shared/constants/responsive';
 import ApiService from '../../services/api';
 import * as Location from 'expo-location';
 import { useAnalytics } from '../../shared/hooks/useAnalytics';
 import { eventBus } from '../../shared/services/eventBus';
+import logger from '../../shared/utils/logger';
 
 type DoctorRegisterScreenProps = {
   navigation: NativeStackNavigationProp<any>;
 };
 
 const SPECIALTIES = [
-  { label: 'Hearing', value: 'hearing', icon: 'ear' as const, color: '#9B59B6' },
-  { label: 'Orthopedic', value: 'orthopedic', icon: 'fitness' as const, color: '#F39C12' },
-  { label: 'Brain', value: 'brain', icon: 'pulse' as const, color: '#E74C3C' },
-  { label: 'Cardiology', value: 'cardiology', icon: 'heart' as const, color: '#E91E63' },
-  { label: 'Dermatology', value: 'dermatology', icon: 'color-palette' as const, color: '#FF9800' },
-  { label: 'Pediatrics', value: 'pediatrics', icon: 'people' as const, color: '#4CAF50' },
-  { label: 'Ophthalmology', value: 'ophthalmology', icon: 'eye' as const, color: '#00BCD4' },
-  { label: 'Psychiatry', value: 'psychiatry', icon: 'happy' as const, color: '#9C27B0' },
-  { label: 'Gastroenterology', value: 'gastroenterology', icon: 'restaurant' as const, color: '#795548' },
-  { label: 'Endocrinology', value: 'endocrinology', icon: 'flask' as const, color: '#607D8B' },
-  { label: 'Neurology', value: 'neurology', icon: 'pulse' as const, color: '#E74C3C' },
-  { label: 'ENT', value: 'ent', icon: 'volume-high' as const, color: '#3F51B5' },
-  { label: 'Urology', value: 'urology', icon: 'water-outline' as const, color: '#2196F3' },
-  { label: 'Nephrology', value: 'nephrology', icon: 'water' as const, color: '#03A9F4' },
-  { label: 'Oncology', value: 'oncology', icon: 'bandage' as const, color: '#F44336' },
-  { label: 'Gynecology', value: 'gynecology', icon: 'woman' as const, color: '#E91E63' },
-  { label: 'Dentistry', value: 'dentistry', icon: 'hammer' as const, color: '#9E9E9E' },
-  { label: 'Pulmonology', value: 'pulmonology', icon: 'cloud' as const, color: '#B0BEC5' },
-  { label: 'Rheumatology', value: 'rheumatology', icon: 'trending-up' as const, color: '#FF5722' },
-  { label: 'Allergy', value: 'allergy', icon: 'medkit' as const, color: '#CDDC39' },
+  { value: 'hearing', icon: 'ear' as const, color: '#9B59B6' },
+  { value: 'orthopedic', icon: 'fitness' as const, color: '#F39C12' },
+  { value: 'brain', icon: 'pulse' as const, color: '#E74C3C' },
+  { value: 'cardiology', icon: 'heart' as const, color: '#E91E63' },
+  { value: 'dermatology', icon: 'color-palette' as const, color: '#FF9800' },
+  { value: 'pediatrics', icon: 'people' as const, color: '#4CAF50' },
+  { value: 'ophthalmology', icon: 'eye' as const, color: '#00BCD4' },
+  { value: 'psychiatry', icon: 'happy' as const, color: '#9C27B0' },
+  { value: 'gastroenterology', icon: 'restaurant' as const, color: '#795548' },
+  { value: 'endocrinology', icon: 'flask' as const, color: '#607D8B' },
+  { value: 'neurology', icon: 'pulse' as const, color: '#E74C3C' },
+  { value: 'ent', icon: 'volume-high' as const, color: '#3F51B5' },
+  { value: 'urology', icon: 'water-outline' as const, color: '#2196F3' },
+  { value: 'nephrology', icon: 'water' as const, color: '#03A9F4' },
+  { value: 'oncology', icon: 'bandage' as const, color: '#F44336' },
+  { value: 'gynecology', icon: 'woman' as const, color: '#E91E63' },
+  { value: 'dentistry', icon: 'hammer' as const, color: '#9E9E9E' },
+  { value: 'pulmonology', icon: 'cloud' as const, color: '#B0BEC5' },
+  { value: 'rheumatology', icon: 'trending-up' as const, color: '#FF5722' },
+  { value: 'allergy', icon: 'medkit' as const, color: '#CDDC39' },
 ];
 
 export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navigation }) => {
   const { t, isRTL } = useLanguage();
   const { isDarkMode, colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -76,14 +79,14 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
-    if (!formData.specialty.trim()) newErrors.specialty = 'Specialty is required';
-    if (!formData.password) newErrors.password = 'Password is required';
-    else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
-    if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+    if (!formData.name.trim()) newErrors.name = t.requiredField;
+    if (!formData.email.trim()) newErrors.email = t.requiredField;
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = t.invalidEmail;
+    if (!formData.phone.trim()) newErrors.phone = t.requiredField;
+    if (!formData.specialty.trim()) newErrors.specialty = t.requiredField;
+    if (!formData.password) newErrors.password = t.requiredField;
+    else if (formData.password.length < 6) newErrors.password = t.passwordTooShort;
+    if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = t.passwordsDontMatch;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -93,9 +96,9 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
     setLoading(true);
     try {
       const selectedSpecialty = SPECIALTIES.find(s => s.value === formData.specialty);
-      const specializationToSend = selectedSpecialty ? selectedSpecialty.label : formData.specialty;
+      const specializationToSend = (selectedSpecialty ? t[selectedSpecialty.value as keyof typeof t] : formData.specialty) || formData.specialty;
 
-      console.log('🔍 Sending registration data:', {
+        logger.debug('🔍 Sending registration data:', {
         name: formData.name,
         email: formData.email,
         specialization: specializationToSend,
@@ -115,7 +118,7 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
           }
         }
       } catch (locErr) {
-        console.warn('Could not get device location during registration', locErr);
+        logger.warn('Could not get device location during registration', locErr);
       }
 
       await ApiService.register({
@@ -135,18 +138,17 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
       // Notify app that a doctor was created so map/list can refresh
       try { eventBus.emit('doctorCreated'); } catch (e) { /* ignore */ }
 
-      Alert.alert('Success', 'Account created successfully. Please log in.');
+      Alert.alert(t.success, t.registrationCreatedMessage);
       navigation.replace('DoctorLogin');
     } catch (error: any) {
-      console.error('❌ Registration error:', error.response?.data || error.message);
+      logger.error('❌ Registration error:', error.response?.data || error.message);
       
       // Track failed registration
       const errorMessage = error.response?.data?.message 
         || error.response?.data?.error
-        || 'Registration failed. Please try again.';
+        || t.registrationFailedDefault;
       analytics.trackRegister('email', 'doctor', false, errorMessage);
-      
-      Alert.alert('Registration Failed', errorMessage);
+      Alert.alert(t.registrationFailedTitle, errorMessage);
     } finally {
       setLoading(false);
     }
@@ -166,7 +168,7 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
             onPress={() => navigation.goBack()} 
             style={{ marginTop: SPACING.md, marginBottom: SPACING.lg }}
           >
-            <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={colors.text} />
+            <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={ms(24)} color={colors.text} />
           </TouchableOpacity>
           
           <Text style={[styles.title, isRTL && { textAlign: 'right' }, { color: colors.text }]}>{t.createAccount}</Text>
@@ -217,15 +219,15 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
                 {selectedSpecialtyObj ? (
                   <>
                     <View style={[styles.iconCircle, { backgroundColor: selectedSpecialtyObj.color }]}>
-                      <Ionicons name={selectedSpecialtyObj.icon} size={20} color={COLORS.white} />
+                      <Ionicons name={selectedSpecialtyObj.icon} size={ms(20)} color={colors.white} />
                     </View>
-                    <Text style={[styles.pickerText, isRTL && { textAlign: 'right' }]}>{selectedSpecialtyObj.label}</Text>
+                    <Text style={[styles.pickerText, isRTL && { textAlign: 'right' }]}>{t[selectedSpecialtyObj.value as keyof typeof t]}</Text>
                   </>
                 ) : (
                   <Text style={[styles.placeholderText, isRTL && { textAlign: 'right' }]}>{t.specialty}</Text>
                 )}
               </View>
-              <Ionicons name="chevron-down" size={20} color={COLORS.textSecondary} />
+              <Ionicons name="chevron-down" size={ms(20)} color={colors.textSecondary} />
             </TouchableOpacity>
             {errors.specialty && <Text style={[styles.errorText, isRTL && { textAlign: 'right' }]}>{errors.specialty}</Text>}
           </View>
@@ -280,7 +282,7 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, isRTL && { textAlign: 'right' }]}>{t.specialty}</Text>
               <TouchableOpacity onPress={() => setSpecialtyModalVisible(false)}>
-                <Ionicons name="close" size={24} color={COLORS.textPrimary} />
+                <Ionicons name="close" size={ms(24)} color={colors.text} />
               </TouchableOpacity>
             </View>
             
@@ -298,11 +300,11 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
                   }}
                 >
                   <View style={[styles.iconCircle, { backgroundColor: specialty.color }]}>
-                    <Ionicons name={specialty.icon} size={24} color={COLORS.white} />
+                    <Ionicons name={specialty.icon} size={ms(24)} color={colors.white} />
                   </View>
-                  <Text style={styles.specialtyOptionText}>{specialty.label}</Text>
+                  <Text style={styles.specialtyOptionText}>{t[specialty.value as keyof typeof t]}</Text>
                   {formData.specialty === specialty.value && (
-                    <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+                    <Ionicons name="checkmark-circle" size={ms(24)} color={colors.success} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -314,132 +316,133 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
   );
 };
 
-const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: COLORS.background 
-  },
-  title: {
-    fontSize: FONT_SIZES.xxxl,
-    fontWeight: 'bold',
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.sm,
-  },
-  subtitle: {
-    fontSize: FONT_SIZES.base,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xl,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingVertical: SPACING.lg,
-  },
-  footerText: {
-    fontSize: FONT_SIZES.base,
-    color: COLORS.textSecondary,
-  },
-  signInText: {
-    fontSize: FONT_SIZES.base,
-    color: COLORS.secondary,
-    fontWeight: '600',
-  },
-  inputContainer: {
-    marginBottom: SPACING.md,
-  },
-  label: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.sm,
-  },
-  pickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-  },
-  pickerButtonError: {
-    borderColor: COLORS.error,
-    borderWidth: 2,
-  },
-  pickerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  iconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: RADIUS.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.sm,
-  },
-  pickerText: {
-    fontSize: FONT_SIZES.base,
-    color: COLORS.textPrimary,
-    fontWeight: '500',
-  },
-  placeholderText: {
-    fontSize: FONT_SIZES.base,
-    color: COLORS.textLight,
-  },
-  errorText: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.error,
-    marginTop: SPACING.xs,
-    marginLeft: SPACING.xs,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
-    maxHeight: '80%',
-    ...SHADOWS.large,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  modalTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
-    color: COLORS.textPrimary,
-  },
-  modalScroll: {
-    maxHeight: 500,
-  },
-  specialtyOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-  },
-  specialtyOptionSelected: {
-    backgroundColor: COLORS.background,
-  },
-  specialtyOptionText: {
-    fontSize: FONT_SIZES.base,
-    color: COLORS.textPrimary,
-    fontWeight: '500',
-    flex: 1,
-    marginLeft: SPACING.sm,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    title: {
+      fontSize: FONT_SIZES.xxxl,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginBottom: SPACING.sm,
+    },
+    subtitle: {
+      fontSize: FONT_SIZES.base,
+      color: colors.textSecondary,
+      marginBottom: SPACING.xl,
+    },
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      paddingVertical: SPACING.lg,
+    },
+    footerText: {
+      fontSize: FONT_SIZES.base,
+      color: colors.textSecondary,
+    },
+    signInText: {
+      fontSize: FONT_SIZES.base,
+      color: colors.secondary,
+      fontWeight: '600',
+    },
+    inputContainer: {
+      marginBottom: SPACING.md,
+    },
+    label: {
+      fontSize: FONT_SIZES.sm,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: SPACING.sm,
+    },
+    pickerButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.md,
+    },
+    pickerButtonError: {
+      borderColor: colors.error,
+      borderWidth: 2,
+    },
+    pickerContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    iconCircle: {
+      width: ms(32),
+      height: ms(32),
+      borderRadius: ms(RADIUS.full),
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: SPACING.sm,
+    },
+    pickerText: {
+      fontSize: FONT_SIZES.base,
+      color: colors.text,
+      fontWeight: '500',
+    },
+    placeholderText: {
+      fontSize: FONT_SIZES.base,
+      color: colors.textLight,
+    },
+    errorText: {
+      fontSize: FONT_SIZES.xs,
+      color: colors.error,
+      marginTop: SPACING.xs,
+      marginLeft: SPACING.xs,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: colors.card,
+      borderTopLeftRadius: RADIUS.xl,
+      borderTopRightRadius: RADIUS.xl,
+      maxHeight: '80%',
+      ...SHADOWS.large,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.lg,
+      paddingVertical: SPACING.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    modalTitle: {
+      fontSize: FONT_SIZES.xl,
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+    modalScroll: {
+      maxHeight: ms(500),
+    },
+    specialtyOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: SPACING.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    specialtyOptionSelected: {
+      backgroundColor: colors.background,
+    },
+    specialtyOptionText: {
+      fontSize: FONT_SIZES.base,
+      color: colors.text,
+      fontWeight: '500',
+      flex: 1,
+      marginLeft: SPACING.sm,
+    },
+  });

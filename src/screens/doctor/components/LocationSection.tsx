@@ -6,7 +6,9 @@ import OSMMap from '../../../components/OSMMap';
 import SectionCard from './SectionCard';
 import { InputField } from '../../../shared/components/InputField';
 import { CustomButton } from '../../../shared/components/CustomButton';
-import { COLORS, SPACING } from '../../../shared/constants/theme';
+import { SPACING } from '../../../shared/constants/theme';
+import { useTheme } from '../../../context/ThemeContext';
+import logger from '../../../shared/utils/logger';
 
 interface LocationData {
   latitude: number;
@@ -39,6 +41,7 @@ export const LocationSection: React.FC<LocationSectionProps> = ({
   errors = {},
   styles,
 }) => {
+  const { colors } = useTheme();
   return (
     <SectionCard title="Clinic Location" icon="location" isDark={isDark}>
       <InputField 
@@ -64,13 +67,13 @@ export const LocationSection: React.FC<LocationSectionProps> = ({
         style={styles.map}
         initialRegion={{ latitude: mapRegion.latitude, longitude: mapRegion.longitude }}
         userLocation={{ latitude: location.latitude, longitude: location.longitude }}
-        markers={[{ id: 'clinic', latitude: location.latitude, longitude: location.longitude, title: 'Your Clinic', description: location.address || 'Clinic Location', color: COLORS.primary, label: 'C' }]}
+        markers={[{ id: 'clinic', latitude: location.latitude, longitude: location.longitude, title: 'Your Clinic', description: location.address || 'Clinic Location', color: colors.primary, label: 'C' }]}
         onMapPress={(lat, lng) => {
           try {
             // adapt to MapPressEvent shape expected by parent
             onMapPress({ nativeEvent: { coordinate: { latitude: lat, longitude: lng } } } as any);
           } catch (e) {
-            console.warn('OSM onMapPress handling error', e);
+            logger.warn('OSM onMapPress handling error', e);
           }
         }}
       />

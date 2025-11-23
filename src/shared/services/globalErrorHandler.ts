@@ -5,6 +5,7 @@
  */
 
 import { ErrorSeverity, errorLoggingService } from './errorLoggingService';
+import logger from '../utils/logger';
 
 // ============================================================================
 // Global Error Handler Setup
@@ -40,10 +41,10 @@ export class GlobalErrorHandler {
       this.setupUnhandledPromiseRejectionHandler();
       this.setupGlobalErrorHandler();
 
-      this.initialized = true;
-      console.log('[GlobalErrorHandler] Initialized successfully');
+        this.initialized = true;
+        logger.debug('[GlobalErrorHandler] Initialized successfully');
     } catch (error) {
-      console.error('[GlobalErrorHandler] Initialization failed:', error);
+        logger.error('[GlobalErrorHandler] Initialization failed:', error);
     }
   }
 
@@ -81,12 +82,12 @@ export class GlobalErrorHandler {
               false
             );
 
-            console.error('[GlobalErrorHandler] Unhandled promise rejection:', error);
+              logger.error('[GlobalErrorHandler] Unhandled promise rejection:', error);
           }
         }, 100);
       };
 
-      console.log('[GlobalErrorHandler] Unhandled promise rejection handler set up');
+        logger.debug('[GlobalErrorHandler] Unhandled promise rejection handler set up');
     }
   }
 
@@ -115,13 +116,13 @@ export class GlobalErrorHandler {
           originalGlobalHandler(error, isFatal);
         }
 
-        console.warn('[GlobalErrorHandler] Global error caught:', error.message);
+        logger.warn('[GlobalErrorHandler] Global error caught:', error.message);
       });
 
-      console.log('[GlobalErrorHandler] React Native ErrorUtils handler set up');
+        logger.debug('[GlobalErrorHandler] React Native ErrorUtils handler set up');
     }
 
-    console.log('[GlobalErrorHandler] Global error handler set up');
+      logger.debug('[GlobalErrorHandler] Global error handler set up');
   }
 
   // ==========================================================================

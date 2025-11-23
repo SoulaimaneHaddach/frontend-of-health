@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../../shared/constants/theme';
+import { useTheme } from '../../../context/ThemeContext';
 import SectionCard from './SectionCard';
 import { InputField } from '../../../shared/components/InputField';
 import { useLanguage } from '../../../context/LanguageContext';
@@ -42,6 +42,7 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
   styles,
 }) => {
   const { t, isRTL } = useLanguage();
+  const { colors } = useTheme();
   
   // Helper to get translated specialty
   const getTranslatedSpecialty = (value: string) => {
@@ -71,7 +72,7 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
             {selectedSpecialty ? (
               <>
                 <View style={[styles.iconCircle, { backgroundColor: selectedSpecialty.color }]}>
-                  <Ionicons name={selectedSpecialty.icon} size={20} color={COLORS.white} />
+                  <Ionicons name={selectedSpecialty.icon} size={20} color={colors.white} />
                 </View>
                 <Text style={[styles.pickerText, isRTL && { textAlign: 'right' }]}>
                   {getTranslatedSpecialty(selectedSpecialty.value)}
@@ -84,7 +85,7 @@ export const InfoSection: React.FC<InfoSectionProps> = ({
           <Ionicons 
             name={isRTL ? "chevron-back" : "chevron-down"} 
             size={20} 
-            color={isDark ? COLORS.darkTextSecondary : COLORS.textSecondary} 
+            color={colors.textSecondary} 
           />
         </TouchableOpacity>
         {errors.specialization && (

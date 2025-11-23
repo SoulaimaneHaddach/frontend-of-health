@@ -2,7 +2,8 @@
 import React, { ReactNode, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONT_SIZES, RADIUS, SHADOWS, SPACING } from '../../../shared/constants/theme';
+import { FONT_SIZES, RADIUS, SHADOWS, SPACING } from '../../../shared/constants/theme';
+import { useTheme } from '../../../context/ThemeContext';
 import { useLanguage } from '../../../context/LanguageContext';
 
 interface SectionCardProps {
@@ -15,12 +16,13 @@ interface SectionCardProps {
 
 export const SectionCard: React.FC<SectionCardProps> = ({ title, icon, hint, isDark, children }) => {
   const { isRTL } = useLanguage();
-  const styles = useMemo(() => createStyles(isDark, isRTL), [isDark, isRTL]);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors, isRTL), [colors, isRTL]);
 
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Ionicons name={icon} size={24} color={COLORS.primary} />
+        <Ionicons name={icon} size={24} color={colors.primary} />
         <Text style={styles.title}>{title}</Text>
       </View>
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
@@ -29,9 +31,9 @@ export const SectionCard: React.FC<SectionCardProps> = ({ title, icon, hint, isD
   );
 };
 
-const createStyles = (isDark: boolean, isRTL: boolean) => StyleSheet.create({
+const createStyles = (colors: any, isRTL: boolean) => StyleSheet.create({
   card: {
-    backgroundColor: isDark ? COLORS.darkCard : COLORS.white,
+    backgroundColor: colors.card,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
@@ -46,13 +48,13 @@ const createStyles = (isDark: boolean, isRTL: boolean) => StyleSheet.create({
   title: {
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
-    color: isDark ? COLORS.darkText : COLORS.textPrimary,
+    color: colors.text,
     textAlign: isRTL ? 'right' : 'left',
     flex: 1,
   },
   hint: {
     fontSize: FONT_SIZES.sm,
-    color: isDark ? COLORS.darkTextSecondary : COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.md,
     lineHeight: 20,
     textAlign: isRTL ? 'right' : 'left',

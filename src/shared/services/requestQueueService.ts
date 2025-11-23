@@ -14,6 +14,8 @@ import {
 } from '../types/network.types';
 import { networkService } from './networkService';
 import { errorLoggingService, ErrorSeverity } from './errorLoggingService';
+import { API_BASE_URL } from '../../config/env';
+import logger from '../utils/logger';
 
 // Simple UUID generator for React Native
 function generateUUID(): string {
@@ -86,9 +88,9 @@ class RequestQueueService {
       });
 
       this.initialized = true;
-      if (typeof console !== 'undefined') console.log('[RequestQueueService] Initialized successfully');
+      logger.debug('[RequestQueueService] Initialized successfully');
     } catch (error) {
-      if (typeof console !== 'undefined') console.error('[RequestQueueService] Initialization failed:', error);
+      logger.error('[RequestQueueService] Initialization failed:', error);
       errorLoggingService.logError(
         error instanceof Error ? error : new Error(String(error)),
         ErrorSeverity.ERROR,
@@ -111,7 +113,7 @@ class RequestQueueService {
         this.updateStats();
       }
     } catch (error) {
-      if (typeof console !== 'undefined') console.error('[RequestQueueService] Failed to load queue:', error);
+      logger.error('[RequestQueueService] Failed to load queue:', error);
       this.queue = new Map();
     }
   }
@@ -121,7 +123,7 @@ class RequestQueueService {
       const queueArray = Array.from(this.queue.values());
       await AsyncStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queueArray));
     } catch (error) {
-      if (typeof console !== 'undefined') console.error('[RequestQueueService] Failed to save queue:', error);
+      logger.error('[RequestQueueService] Failed to save queue:', error);
     }
   }
 
@@ -166,7 +168,7 @@ class RequestQueueService {
     await this.saveQueue();
     this.updateStats();
 
-    if (typeof console !== 'undefined') console.log(`[RequestQueueService] Added request ${request.id} to queue`);
+    logger.debug(`[RequestQueueService] Added request ${request.id} to queue`);
 
     // Try to process immediately if online
     if (networkService.isConnected()) {
@@ -238,7 +240,7 @@ class RequestQueueService {
     const startTime = Date.now();
 
     try {
-      if (typeof console !== 'undefined') console.log(`[RequestQueueService] Processing request ${request.id} (attempt ${request.attempts})`);
+      logger.debug(`[RequestQueueService] Processing request ${request.id} (attempt ${request.attempts})`);
 
       const config: AxiosRequestConfig = {
         url: request.url,
@@ -246,6 +248,11 @@ class RequestQueueService {
         headers: request.headers,
         data: request.body,
       };
+
+      // If queue contains a relative URL (e.g. '/devices'), prefix with API base URL
+      if (typeof config.url === 'string' && config.url.startsWith('/')) {
+        config.url = `${API_BASE_URL}${config.url}`;
+      }
 
       const res = await axios(config);
 
@@ -260,10 +267,10 @@ class RequestQueueService {
       // Emit event for completed request (useful for UI reconciliation)
       this.emit('requestCompleted', { request, response: res?.data });
 
-      if (typeof console !== 'undefined') console.log(`[RequestQueueService] Request ${request.id} completed successfully`);
+      logger.debug(`[RequestQueueService] Request ${request.id} completed successfully`);
     } catch (error) {
       // Failed
-      if (typeof console !== 'undefined') console.error(`[RequestQueueService] Request ${request.id} failed:`, error);
+      logger.error(`[RequestQueueService] Request ${request.id} failed:`, error);
 
       if (request.attempts >= request.maxAttempts) {
         request.status = RequestStatus.FAILED;
@@ -414,7 +421,7 @@ class RequestQueueService {
     await this.saveQueue();
     this.updateStats();
 
-    console.log(`[RequestQueueService] Cleared ${completed.length} completed requests`);
+    logger.debug(`[RequestQueueService] Cleared ${completed.length} completed requests`);
   }
 
   async clearAll(): Promise<void> {
@@ -429,7 +436,7 @@ class RequestQueueService {
       averageProcessingTime: 0,
     };
 
-    console.log('[RequestQueueService] Cleared all requests');
+    logger.debug('[RequestQueueService] Cleared all requests');
   }
 
   // ==========================================================================
@@ -449,7 +456,7 @@ class RequestQueueService {
     }
 
     this.initialized = false;
-    if (typeof console !== 'undefined') console.log('[RequestQueueService] Cleaned up');
+    logger.debug('[RequestQueueService] Cleaned up');
   }
 }
 

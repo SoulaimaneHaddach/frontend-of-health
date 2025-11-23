@@ -1,6 +1,8 @@
 import React, { useMemo, useRef, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { ms, vs } from '../shared/constants/responsive';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import logger from '../shared/utils/logger';
 
 type Marker = {
   id?: string | number;
@@ -93,22 +95,22 @@ const OSMMap: React.FC<Props> = ({
 
           function createMarkerElement(m) {
             if (m.iconName) {
-              return '<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:'+ (m.color || '#E91E63') +';">' +
-                     '<ion-icon name="' + (m.iconName || '') + '" style="font-size:18px;color:white;display:block;"></ion-icon>' +
-                     '</div>';
+              return '<div style="width:' + ${ms(40)} + 'px;height:' + ${ms(40)} + 'px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:'+ (m.color || '#E91E63') +';">' +
+                       '<ion-icon name="' + (m.iconName || '') + '" style="font-size:' + ${ms(18)} + 'px;color:white;display:block;"></ion-icon>' +
+                       '</div>';
             }
             if (m.icon) {
-              return '<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:'+ (m.color || '#E91E63') +';">' +
-                     '<img src="'+m.icon+'" style="width:22px;height:22px;border-radius:50%;object-fit:cover;"/>' +
-                     '</div>';
+              return '<div style="width:' + ${ms(40)} + 'px;height:' + ${ms(40)} + 'px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:'+ (m.color || '#E91E63') +';">' +
+                '<img src="'+m.icon+'" style="width:' + ${ms(22)} + 'px;height:' + ${ms(22)} + 'px;border-radius:50%;object-fit:cover;"/>' +
+                '</div>';
             }
-            return '<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;font-weight:700;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:'+ (m.color || '#E91E63') +';">'+(m.label || '')+'</div>';
+            return '<div style="width:' + ${ms(40)} + 'px;height:' + ${ms(40)} + 'px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;font-weight:700;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:'+ (m.color || '#E91E63') +';">'+(m.label || '')+'</div>';
           }
 
           markers.forEach(function(m){
             try {
               var elHtml = createMarkerElement(m);
-              var icon = L.divIcon({ html: elHtml, className: '', iconSize: [40,40], iconAnchor: [20,20]});
+              var icon = L.divIcon({ html: elHtml, className: '', iconSize: [${ms(40)},${ms(40)}], iconAnchor: [${ms(20)},${ms(20)}]});
               // disable zoomAnimation so icon keeps fixed pixel size
               var mk = L.marker([m.lat, m.lng], { icon: icon, zoomAnimation: false }).addTo(map);
               leafletMarkers[m.id] = mk;
@@ -136,10 +138,10 @@ const OSMMap: React.FC<Props> = ({
           var userMarker = null;
           function createUserMarker(lat, lng) {
             try {
-              var html = '<div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:#2F80ED;">' +
-                           '<ion-icon name="location" style="font-size:18px;color:white;display:block;transform:translateY(1px);"></ion-icon>' +
+              var html = '<div style="width:' + ${ms(40)} + 'px;height:' + ${ms(40)} + 'px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:#2F80ED;">' +
+                           '<ion-icon name="location" style="font-size:' + ${ms(18)} + 'px;color:white;display:block;transform:translateY(' + ${ms(1)} + 'px);"></ion-icon>' +
                            '</div>';
-              var icon = L.divIcon({ html: html, className: '', iconSize: [40,40], iconAnchor: [20,20] });
+              var icon = L.divIcon({ html: html, className: '', iconSize: [${ms(40)},${ms(40)}], iconAnchor: [${ms(20)},${ms(20)}] });
               userMarker = L.marker([lat, lng], { icon: icon, interactive: false, zoomAnimation: false }).addTo(map);
             } catch(e) {}
           }
@@ -211,8 +213,8 @@ const OSMMap: React.FC<Props> = ({
       if (!data) return;
       if (data.type === 'markerPress') { onMarkerPress && onMarkerPress(data.id); }
       else if (data.type === 'mapPress') { onMapPress && onMapPress(Number(data.lat), Number(data.lng)); }
-      else if (data.type === 'error') { console.warn('OSMMap WebView error:', data.message); }
-      else { console.log('OSMMap message:', data); }
+      else if (data.type === 'error') { logger.warn('OSMMap WebView error:', data.message); }
+      else { logger.debug('OSMMap message:', data); }
     } catch(e) { /* ignore */ }
   }, [onMarkerPress, onMapPress]);
 

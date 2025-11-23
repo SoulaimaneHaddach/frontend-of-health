@@ -14,8 +14,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
+import logger from '../shared/utils/logger';
 import { Language } from '../i18n/translations';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
+import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 import * as Updates from 'expo-updates';
 import { DevSettings } from 'react-native';
 
@@ -33,13 +35,15 @@ interface LanguageOption {
 const LANGUAGES: LanguageOption[] = [
   { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧' },
   { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
-  { code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇲🇦' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦' },
 ];
 
 export const LanguageSelectionScreen: React.FC<LanguageSelectionScreenProps> = ({ navigation }) => {
   const { language, setLanguage } = useLanguage();
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(language);
   const [scaleAnim] = useState(new Animated.Value(0));
+  const { isDarkMode, colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
 
   React.useEffect(() => {
     Animated.spring(scaleAnim, {
@@ -73,17 +77,13 @@ export const LanguageSelectionScreen: React.FC<LanguageSelectionScreenProps> = (
             text: selectedLanguage === 'ar' ? 'حسناً' :
                   selectedLanguage === 'fr' ? 'D\'accord' : 
                   'OK',
-            onPress: () => {
-              // Some native reload APIs (expo-updates / DevSettings) can
-              // throw unexpected native errors in certain build/dev setups
-              // (e.g. argument mismatches). To avoid crashing the app for
-              // users, we navigate back to the Welcome screen and instruct
-              // the user to fully close and reopen the app to apply RTL.
+              onPress: () => {
+
               try {
-                console.log('⚠️ RTL change requires full app restart. Navigating to Welcome.');
-                navigation.replace('Welcome');
+                logger.debug('⚠️ RTL change requires full app restart. Navigating to Home.');
+                navigation.replace('Home');
               } catch (navErr) {
-                console.error('Navigation fallback failed:', navErr);
+                logger.error('Navigation fallback failed:', navErr);
               }
             },
           },
@@ -91,18 +91,18 @@ export const LanguageSelectionScreen: React.FC<LanguageSelectionScreenProps> = (
         { cancelable: false }
       );
     } else {
-      navigation.replace('Welcome');
+      navigation.replace('Home');
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
       
       <View style={styles.content}>
         {/* Header */}
-        <Animated.View style={[styles.header, { transform: [{ scale: scaleAnim }] }]}>
-          <Ionicons name="language" size={64} color={COLORS.primary} />
+          <Animated.View style={[styles.header, { transform: [{ scale: scaleAnim }] }]}>
+          <Ionicons name="language" size={64} color={colors.primary} />
           <Text style={styles.title}>Select Your Language</Text>
           <Text style={styles.subtitle}>اختر لغتك • Choisissez votre langue</Text>
         </Animated.View>
@@ -158,7 +158,7 @@ export const LanguageSelectionScreen: React.FC<LanguageSelectionScreenProps> = (
                   </View>
                   
                   {isSelected && (
-                    <Ionicons name="checkmark-circle" size={28} color={COLORS.primary} />
+                    <Ionicons name="checkmark-circle" size={28} color={colors.primary} />
                   )}
                 </TouchableOpacity>
               </Animated.View>
@@ -168,7 +168,7 @@ export const LanguageSelectionScreen: React.FC<LanguageSelectionScreenProps> = (
 
         {/* Continue Button */}
         <Animated.View style={{ opacity: scaleAnim }}>
-          <TouchableOpacity
+            <TouchableOpacity
             style={[
               styles.continueButton,
               !selectedLanguage && styles.continueButtonDisabled,
@@ -182,7 +182,7 @@ export const LanguageSelectionScreen: React.FC<LanguageSelectionScreenProps> = (
                selectedLanguage === 'fr' ? 'Continuer' :
                'Continue'}
             </Text>
-            <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
+            <Ionicons name="arrow-forward" size={20} color={colors.white} />
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -190,99 +190,100 @@ export const LanguageSelectionScreen: React.FC<LanguageSelectionScreenProps> = (
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: SPACING.xl,
-    justifyContent: 'center',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: SPACING.xxl,
-  },
-  title: {
-    fontSize: FONT_SIZES.xxxl,
-    fontWeight: 'bold',
-    color: COLORS.textPrimary,
-    marginTop: SPACING.lg,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: FONT_SIZES.base,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.sm,
-    textAlign: 'center',
-  },
-  languageContainer: {
-    gap: SPACING.md,
-    marginBottom: SPACING.xxl,
-  },
-  languageButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.white,
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    borderWidth: 2,
-    borderColor: COLORS.borderLight,
-    ...SHADOWS.medium,
-  },
-  languageButtonSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: `${COLORS.primary}10`,
-  },
-  languageContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  flag: {
-    fontSize: 40,
-  },
-  languageText: {
-    gap: SPACING.xs,
-  },
-  languageName: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-  },
-  languageNameSelected: {
-    color: COLORS.primary,
-  },
-  languageSubname: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-  },
-  languageSubnameSelected: {
-    color: COLORS.primary,
-  },
-  arabicText: {
-    textAlign: 'right',
-  },
-  continueButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.xl,
-    borderRadius: RADIUS.lg,
-    gap: SPACING.sm,
-    ...SHADOWS.large,
-  },
-  continueButtonDisabled: {
-    backgroundColor: COLORS.border,
-    opacity: 0.5,
-  },
-  continueButtonText: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
-    color: COLORS.white,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: SPACING.xl,
+      justifyContent: 'center',
+    },
+    header: {
+      alignItems: 'center',
+      marginBottom: SPACING.xxl,
+    },
+    title: {
+      fontSize: FONT_SIZES.xxxl,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginTop: SPACING.lg,
+      textAlign: 'center',
+    },
+    subtitle: {
+      fontSize: FONT_SIZES.base,
+      color: colors.textSecondary,
+      marginTop: SPACING.sm,
+      textAlign: 'center',
+    },
+    languageContainer: {
+      gap: SPACING.md,
+      marginBottom: SPACING.xxl,
+    },
+    languageButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.card,
+      padding: SPACING.lg,
+      borderRadius: RADIUS.lg,
+      borderWidth: 2,
+      borderColor: colors.borderLight,
+      ...SHADOWS.medium,
+    },
+    languageButtonSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary + '10',
+    },
+    languageContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.md,
+    },
+    flag: {
+      fontSize: 40,
+    },
+    languageText: {
+      gap: SPACING.xs,
+    },
+    languageName: {
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    languageNameSelected: {
+      color: colors.primary,
+    },
+    languageSubname: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.textSecondary,
+    },
+    languageSubnameSelected: {
+      color: colors.primary,
+    },
+    arabicText: {
+      textAlign: 'right',
+    },
+    continueButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: SPACING.lg,
+      paddingHorizontal: SPACING.xl,
+      borderRadius: RADIUS.lg,
+      gap: SPACING.sm,
+      ...SHADOWS.large,
+    },
+    continueButtonDisabled: {
+      backgroundColor: colors.border,
+      opacity: 0.5,
+    },
+    continueButtonText: {
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '600',
+      color: colors.white,
+    },
+  });

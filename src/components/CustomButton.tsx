@@ -1,7 +1,8 @@
 // src/components/CustomButton.tsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
-import { COLORS, FONT_SIZES, RADIUS, SPACING, SHADOWS } from '../shared/constants/theme';
+import { FONT_SIZES, RADIUS, SPACING, SHADOWS } from '../shared/constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface CustomButtonProps {
   title: string;
@@ -27,19 +28,21 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
   style,
   textStyle,
 }) => {
+  const { colors } = useTheme();
+  const stylesLocal = useMemo(() => createStyles(colors), [colors]);
   const buttonStyle = [
-    styles.button,
-    styles[variant],
-    styles[`size_${size}`],
-    fullWidth && styles.fullWidth,
-    disabled && styles.disabled,
+    stylesLocal.button,
+    stylesLocal[variant],
+    stylesLocal[`size_${size}`],
+    fullWidth && stylesLocal.fullWidth,
+    disabled && stylesLocal.disabled,
     style,
   ];
   const textStyleCombined = [
-    styles.text,
-    styles[`text_${variant}`],
-    styles[`textSize_${size}`],
-    disabled && styles.textDisabled,
+    stylesLocal.text,
+    stylesLocal[`text_${variant}`],
+    stylesLocal[`textSize_${size}`],
+    disabled && stylesLocal.textDisabled,
     textStyle,
   ];
   return (
@@ -50,7 +53,7 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
       activeOpacity={0.7}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' ? COLORS.primary : COLORS.white} />
+        <ActivityIndicator color={variant === 'outline' ? colors.primary : colors.white} />
       ) : (
         <>
           {icon}
@@ -60,8 +63,7 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
     </TouchableOpacity>
   );
 };
-
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   button: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -71,17 +73,17 @@ const styles = StyleSheet.create({
   },
   
   primary: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     ...SHADOWS.small,
   },
   secondary: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: colors.secondary,
     ...SHADOWS.small,
   },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -114,16 +116,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   text_primary: {
-    color: COLORS.white,
+    color: colors.white,
   },
   text_secondary: {
-    color: COLORS.white,
+    color: colors.white,
   },
   text_outline: {
-    color: COLORS.primary,
+    color: colors.primary,
   },
   text_ghost: {
-    color: COLORS.primary,
+    color: colors.primary,
   },
   
   textSize_small: {

@@ -18,8 +18,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { InputField } from '../shared/components/InputField';
 import { CustomButton } from '../shared/components/CustomButton';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
+import logger from '../shared/utils/logger';
 // import { CustomAlert } from './CustomAlert'; // TODO: Use custom alert in future for better design
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
+import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 import ApiService from '../services/api';
 import { DoctorResponseDto } from '../shared/types';
 
@@ -37,6 +39,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   onSuccess,
 }) => {
   const { t, isRTL } = useLanguage();
+  const { isDarkMode, colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [appointmentDate, setAppointmentDate] = useState(new Date());
@@ -57,7 +61,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   // Log initial date on mount
   React.useEffect(() => {
-    console.log('🎯 BookingModal opened, initial date:', appointmentDate.toLocaleString());
+    logger.debug('🎯 BookingModal opened, initial date:', appointmentDate.toLocaleString());
   }, [visible]);
 
   const validateForm = () => {
@@ -119,7 +123,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     } catch {}
 
     setLoading(true);
-    console.log('🚀 Creating booking with:', {
+    logger.debug('🚀 Creating booking with:', {
       doctorId: doctor.id,
       name,
       phone,
@@ -148,7 +152,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       // Surface a clearer message to the user to avoid confusion when the booking isn't immediately visible on the doctor's side.
       const isQueued = booking?.status === 'PENDING' || booking?.id === 'pending';
       if (isQueued) {
-        console.log('📤 Booking queued locally (offline) ->', booking);
+        logger.info('📤 Booking queued locally (offline) ->', booking);
         Alert.alert(
           t.bookingQueuedTitle || t.bookingSuccess,
           t.bookingQueuedMessage || `${t.bookingSuccess}\n\nYour booking was queued and will be sent when your device is online.`,
@@ -163,7 +167,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           ]
         );
       } else {
-        console.log('✅ Booking created on server ->', booking);
+        logger.info('✅ Booking created on server ->', booking);
         Alert.alert(
           t.bookingSuccess,
           `${t.bookingSuccess}\n\n${t.bookingDetails}`,
@@ -179,7 +183,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         );
       }
     } catch (error: any) {
-      console.error('❌ Booking error:', {
+      logger.error('❌ Booking error:', {
         status: error?.response?.status,
         data: error?.response?.data,
         message: error?.message,
@@ -215,7 +219,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     const newDate = new Date(selectedDate);
     newDate.setHours(appointmentDate.getHours());
     newDate.setMinutes(appointmentDate.getMinutes());
-    console.log('✅ Date updated to:', newDate.toLocaleString());
+    logger.debug('✅ Date updated to:', newDate.toLocaleString());
     setAppointmentDate(newDate);
     if (errors.date) {
       const { date, ...rest } = errors;
@@ -230,7 +234,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     const newDate = new Date(appointmentDate);
     newDate.setHours(selectedDate.getHours());
     newDate.setMinutes(selectedDate.getMinutes());
-    console.log('✅ Time updated to:', newDate.toLocaleString());
+    logger.debug('✅ Time updated to:', newDate.toLocaleString());
     setAppointmentDate(newDate);
     if (errors.date) {
       const { date, ...rest } = errors;
@@ -241,7 +245,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const formatDate = (date: Date) => {
     try {
       if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-        console.error('❌ Invalid date object:', date);
+        logger.error('❌ Invalid date object:', date);
         return t.selectDate;
       }
       return date.toLocaleDateString('en-US', {
@@ -251,7 +255,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         day: 'numeric',
       });
     } catch (error) {
-      console.error('❌ Error formatting date:', error);
+      logger.error('❌ Error formatting date:', error);
       return t.selectDate;
     }
   };
@@ -259,7 +263,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const formatTime = (date: Date) => {
     try {
       if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-        console.error('❌ Invalid date object:', date);
+        logger.error('❌ Invalid date object:', date);
         return t.selectTime;
       }
       return date.toLocaleTimeString('en-US', {
@@ -267,7 +271,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         minute: '2-digit',
       });
     } catch (error) {
-      console.error('❌ Error formatting time:', error);
+      logger.error('❌ Error formatting time:', error);
       return t.selectTime;
     }
   };
@@ -280,13 +284,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       onRequestClose={handleClose}
       transparent={false}
     >
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Ionicons name="close" size={28} color={COLORS.textSecondary} />
+            <Ionicons name="close" size={28} color={colors.textSecondary} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, isRTL && { textAlign: 'right' }]}>{t.bookAppointment}</Text>
+          <Text style={[styles.headerTitle, isRTL && { textAlign: 'right' }, { color: colors.text }]}>{t.bookAppointment}</Text>
           <View style={{ width: 28 }} />
         </View>
 
@@ -298,21 +302,21 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           keyboardDismissMode="on-drag"
         >
           {/* Doctor Info Card */}
-          <View style={[styles.doctorCard, isRTL && { flexDirection: 'row-reverse' }]}>
+          <View style={[styles.doctorCard, isRTL && { flexDirection: 'row-reverse' }, { backgroundColor: colors.primary }]}>
             <View style={styles.doctorAvatar}>
-              <Ionicons name="medical" size={32} color={COLORS.white} />
+              <Ionicons name="medical" size={32} color={colors.white} />
             </View>
             <View style={styles.doctorInfo}>
-              <Text style={[styles.doctorLabel, isRTL && { textAlign: 'right' }]}>{t.bookingDetails}</Text>
-              <Text style={[styles.doctorName, isRTL && { textAlign: 'right' }]}>Dr. {doctor.name}</Text>
-              <Text style={[styles.doctorSpecialty, isRTL && { textAlign: 'right' }]}>{doctor.specialization}</Text>
+              <Text style={[styles.doctorLabel, isRTL && { textAlign: 'right' }, { color: colors.white + 'CC' }]}>{t.bookingDetails}</Text>
+              <Text style={[styles.doctorName, isRTL && { textAlign: 'right' }, { color: colors.white } ]}>Dr. {doctor.name}</Text>
+              <Text style={[styles.doctorSpecialty, isRTL && { textAlign: 'right' }, { color: colors.white + 'DD' }]}>{doctor.specialization}</Text>
             </View>
           </View>
 
           {/* Patient Info - MOVED TO TOP */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>
-              <Ionicons name="person-outline" size={18} color={COLORS.primary} /> {t.patientName}
+            <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }, { color: colors.text }]}>
+              <Ionicons name="person-outline" size={18} color={colors.primary} /> {t.patientName}
             </Text>
 
             <InputField
@@ -350,7 +354,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           {/* Date & Time Selection - MOVED TO BOTTOM */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>
-              <Ionicons name="calendar-outline" size={18} color={COLORS.primary} /> {t.selectDate} & {t.selectTime}
+              <Ionicons name="calendar-outline" size={18} color={colors.primary} /> {t.selectDate} & {t.selectTime}
             </Text>
 
             <View style={styles.dateTimeRow}>
@@ -360,8 +364,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 onPress={() => setShowDatePicker(true)}
                 activeOpacity={0.7}
               >
-                <View style={styles.iconCircle}>
-                  <Ionicons name="calendar" size={22} color={COLORS.primary} />
+                <View style={[styles.iconCircle, { backgroundColor: colors.primary + '10' }]}> 
+                  <Ionicons name="calendar" size={22} color={colors.primary} />
                 </View>
                 <Text style={[styles.cardLabel, isRTL && { textAlign: 'right' }]}>{t.selectDate}</Text>
                 <Text style={[styles.cardValue, isRTL && { textAlign: 'right' }]} numberOfLines={2}>
@@ -375,8 +379,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 onPress={() => setShowTimePicker(true)}
                 activeOpacity={0.7}
               >
-                <View style={styles.iconCircle}>
-                  <Ionicons name="time" size={22} color={COLORS.secondary} />
+                <View style={[styles.iconCircle, { backgroundColor: colors.secondary + '10' }]}> 
+                  <Ionicons name="time" size={22} color={colors.secondary} />
                 </View>
                 <Text style={[styles.cardLabel, isRTL && { textAlign: 'right' }]}>{t.selectTime}</Text>
                 <Text style={[styles.cardValue, isRTL && { textAlign: 'right' }]}>
@@ -408,10 +412,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           display="spinner"
           onConfirm={onConfirmDate}
           onCancel={onCancelDate}
-          isDarkModeEnabled={false}
-          themeVariant="light"
-          textColor="#000000"
-          pickerContainerStyleIOS={{ backgroundColor: '#FFFFFF' }}
+          isDarkModeEnabled={isDarkMode}
+          themeVariant={isDarkMode ? 'dark' : 'light'}
+          textColor={isDarkMode ? '#FFFFFF' : '#000000'}
+          pickerContainerStyleIOS={{ backgroundColor: isDarkMode ? colors.background : '#FFFFFF' }}
           confirmTextIOS={t.confirm}
           cancelTextIOS={t.cancel}
         />
@@ -422,171 +426,161 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           display="spinner"
           onConfirm={onConfirmTime}
           onCancel={onCancelTime}
-          isDarkModeEnabled={false}
-          themeVariant="light"
-          textColor="#000000"
-          pickerContainerStyleIOS={{ backgroundColor: '#FFFFFF' }}
+          isDarkModeEnabled={isDarkMode}
+          themeVariant={isDarkMode ? 'dark' : 'light'}
+          textColor={isDarkMode ? '#FFFFFF' : '#000000'}
+          pickerContainerStyleIOS={{ backgroundColor: isDarkMode ? colors.background : '#FFFFFF' }}
           confirmTextIOS={t.confirm}
           cancelTextIOS={t.cancel}
         />
-
-        {/* Custom Alert - Preserved for future use */}
-        {/* <CustomAlert
-          visible={alertVisible}
-          title={alertConfig.title}
-          message={alertConfig.message}
-          icon={alertConfig.icon}
-          iconColor={alertConfig.iconColor}
-          buttons={alertConfig.buttons}
-          onClose={() => setAlertVisible(false)}
-        /> */}
       </SafeAreaView>
     </Modal>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: SPACING.lg,
-  },
-  doctorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    marginBottom: SPACING.xl,
-    ...SHADOWS.medium,
-  },
-  doctorAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.white + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.md,
-  },
-  doctorAvatarText: {
-    fontSize: FONT_SIZES.xxxl,
-    fontWeight: 'bold',
-    color: COLORS.white,
-  },
-  doctorInfo: {
-    flex: 1,
-  },
-  doctorLabel: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.white + 'CC',
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  doctorName: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '700',
-    color: COLORS.white,
-    marginBottom: 2,
-  },
-  doctorSpecialty: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.white + 'DD',
-    fontWeight: '500',
-  },
-  section: {
-    marginBottom: SPACING.lg,
-  },
-  sectionTitle: {
-    fontSize: FONT_SIZES.base,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.md,
-  },
-  dateTimeRow: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-    marginBottom: SPACING.sm,
-  },
-  halfCard: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    ...SHADOWS.medium,
-  },
-  iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.primary + '10',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.sm,
-  },
-  cardLabel: {
-    fontSize: FONT_SIZES.xs,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
-    textAlign: 'center',
-  },
-  cardValue: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-  },
-  errorText: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.error,
-    marginTop: SPACING.xs,
-    marginLeft: SPACING.xs,
-  },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: COLORS.primary + '08',
-    padding: SPACING.md,
-    borderRadius: RADIUS.md,
-    marginBottom: SPACING.lg,
-    gap: SPACING.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.primary,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    lineHeight: 20,
-  },
-  submitButton: {
-    marginBottom: SPACING.xl,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.lg,
+      paddingVertical: SPACING.md,
+      backgroundColor: colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    closeButton: {
+      padding: 4,
+    },
+    headerTitle: {
+      fontSize: FONT_SIZES.lg,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      padding: SPACING.lg,
+    },
+    doctorCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.lg,
+      padding: SPACING.lg,
+      marginBottom: SPACING.xl,
+      ...SHADOWS.medium,
+    },
+    doctorAvatar: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: colors.white + '20',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: SPACING.md,
+    },
+    doctorAvatarText: {
+      fontSize: FONT_SIZES.xxxl,
+      fontWeight: 'bold',
+      color: colors.white,
+    },
+    doctorInfo: {
+      flex: 1,
+    },
+    doctorLabel: {
+      fontSize: FONT_SIZES.xs,
+      color: colors.white + 'CC',
+      fontWeight: '600',
+      marginBottom: 2,
+    },
+    doctorName: {
+      fontSize: FONT_SIZES.xl,
+      fontWeight: '700',
+      color: colors.white,
+      marginBottom: 2,
+    },
+    doctorSpecialty: {
+      fontSize: FONT_SIZES.sm,
+      color: colors.white + 'DD',
+      fontWeight: '500',
+    },
+    section: {
+      marginBottom: SPACING.lg,
+    },
+    sectionTitle: {
+      fontSize: FONT_SIZES.base,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: SPACING.md,
+    },
+    dateTimeRow: {
+      flexDirection: 'row',
+      gap: SPACING.md,
+      marginBottom: SPACING.sm,
+    },
+    halfCard: {
+      flex: 1,
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.lg,
+      padding: SPACING.lg,
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: colors.border,
+      ...SHADOWS.medium,
+    },
+    iconCircle: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.primary + '10',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: SPACING.sm,
+    },
+    cardLabel: {
+      fontSize: FONT_SIZES.xs,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: SPACING.xs,
+      textAlign: 'center',
+    },
+    cardValue: {
+      fontSize: FONT_SIZES.sm,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    errorText: {
+      fontSize: FONT_SIZES.xs,
+      color: colors.error,
+      marginTop: SPACING.xs,
+      marginLeft: SPACING.xs,
+    },
+    infoBox: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: colors.primary + '08',
+      padding: SPACING.md,
+      borderRadius: RADIUS.md,
+      marginBottom: SPACING.lg,
+      gap: SPACING.sm,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.primary,
+    },
+    infoText: {
+      flex: 1,
+      fontSize: FONT_SIZES.sm,
+      color: colors.textSecondary,
+      lineHeight: 20,
+    },
+    submitButton: {
+      marginBottom: SPACING.xl,
+    },
+  });

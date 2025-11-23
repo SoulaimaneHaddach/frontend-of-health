@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import SectionCard from './SectionCard';
 import { InputField } from '../../../shared/components/InputField';
-import { COLORS } from '../../../shared/constants/theme';
+import { useTheme } from '../../../context/ThemeContext';
 import { useLanguage } from '../../../context/LanguageContext';
 
 interface ServicesSectionProps {
@@ -27,6 +27,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
   styles,
 }) => {
   const { t, isRTL } = useLanguage();
+  const { colors } = useTheme();
   
   return (
     <SectionCard 
@@ -51,28 +52,28 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
           activeOpacity={0.7}
           disabled={!newService.trim()}
         >
-          <Ionicons name="add" size={24} color={COLORS.white} />
+          <Ionicons name="add" size={24} color={colors.white} />
         </TouchableOpacity>
       </View>
 
       {services && services.length > 0 ? (
         <View style={styles.servicesGrid}>
-          {services.map((service, index) => (
-            <View key={index} style={[styles.serviceChip, isRTL && { flexDirection: 'row-reverse' }]}>
-              <Ionicons name="checkmark-circle" size={16} color={COLORS.white} />
-              <Text style={styles.serviceChipText}>{service}</Text>
-              <TouchableOpacity 
-                onPress={() => onRemoveService(index)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close" size={18} color={COLORS.white} />
-              </TouchableOpacity>
-            </View>
-          ))}
+            {services.map((service, index) => (
+              <View key={index} style={[styles.serviceChip, isRTL && { flexDirection: 'row-reverse' }]}>
+                <Ionicons name="checkmark-circle" size={16} color={colors.white} />
+                <Text style={styles.serviceChipText}>{service}</Text>
+                <TouchableOpacity 
+                  onPress={() => onRemoveService(index)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close" size={18} color={colors.white} />
+                </TouchableOpacity>
+              </View>
+            ))}
         </View>
       ) : (
         <View style={styles.emptyState}>
-          <Ionicons name="medical-outline" size={48} color={isDark ? COLORS.darkTextSecondary : COLORS.textSecondary} />
+          <Ionicons name="medical-outline" size={48} color={colors.textSecondary} />
           <Text style={styles.emptyStateText}>{t.noBookings}</Text>
           <Text style={styles.emptyStateHint}>{t.services}</Text>
         </View>

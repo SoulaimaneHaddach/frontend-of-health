@@ -19,9 +19,10 @@ import { CustomButton } from '../../shared/components/CustomButton';
 import { InputField } from '../../shared/components/InputField';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { COLORS, FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
+import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import ApiService, { LoginRequestDTO, AuthResponse } from '../../services/api';
 import { useAnalytics } from '../../shared/hooks/useAnalytics';
+import logger from '../../shared/utils/logger';
 
 type DoctorLoginScreenProps = {
   navigation: NativeStackNavigationProp<any>;
@@ -30,6 +31,7 @@ type DoctorLoginScreenProps = {
 export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation }) => {
   const { t, isRTL } = useLanguage();
   const { isDarkMode, colors } = useTheme();
+  const styles = createStyles(colors);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -66,7 +68,7 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
     try {
       const credentials: LoginRequestDTO = { email: email.trim(), password };
       
-      console.log('🔐 Attempting login for:', email);
+      logger.debug('🔐 Attempting login for:', email);
       
       const authResponse: AuthResponse = await ApiService.login(credentials);
 
@@ -75,7 +77,7 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
         ['doctorEmail', authResponse.email],
         ['doctorId', authResponse.id],
       ]);
-      console.log('✅ Login successful for:', authResponse.email);
+      logger.debug('✅ Login successful for:', authResponse.email);
       // Track successful login
       analytics.trackLogin('email', 'doctor', true);
       analytics.setUserId(authResponse.id);
@@ -86,7 +88,7 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
       }); 
       navigation.replace('DoctorProfile')
     } catch (error: any) {
-      console.error('❌ Login error:', error.response?.data || error.message);
+      logger.error('❌ Login error:', error.response?.data || error.message);
       
       // Track failed login
       const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
@@ -160,10 +162,10 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <View style={[styles.iconContainer, { backgroundColor: colors.card }]}>
-              <Ionicons name="medical" size={50} color={COLORS.secondary} />
+            <View style={[styles.iconContainer, { backgroundColor: colors.card }]}> 
+              <Ionicons name="medical" size={50} color={colors.secondary} />
             </View>
-            <Text style={[styles.title, isRTL && styles.rtlText, { color: colors.text }]}>
+            <Text style={[styles.title, isRTL && styles.rtlText, { color: colors.text }]}> 
               {isRTL ? 'تسجيل دخول الطبيب' : t.login}
             </Text>
             <Text style={[styles.subtitle, isRTL && styles.rtlText, { color: colors.textSecondary }]}>
@@ -215,9 +217,9 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
           </View>
 
           <View style={styles.footer}>
-            <Text style={[styles.footerText, { color: colors.textSecondary }]}>Don't have an account? </Text>
+            <Text style={[styles.footerText, { color: colors.textSecondary }]}>{t.dontHaveAccount} </Text>
             <TouchableOpacity onPress={() => navigation.navigate('DoctorRegister')}>
-              <Text style={styles.signUpText}>Sign Up</Text>
+              <Text style={styles.signUpText}>{t.signUp}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -226,10 +228,10 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   keyboardView: { 
     flex: 1 
@@ -250,7 +252,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: RADIUS.full,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.lg,
@@ -259,12 +261,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZES.xxxl,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.text,
     marginBottom: SPACING.sm,
   },
   subtitle: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   form: {
@@ -276,24 +278,24 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.secondary,
+    color: colors.secondary,
     fontWeight: '600',
   },
   infoBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     padding: SPACING.md,
     borderRadius: RADIUS.md,
     marginTop: SPACING.md,
     gap: SPACING.sm,
     borderLeftWidth: 3,
-    borderLeftColor: COLORS.info || COLORS.primary,
+    borderLeftColor: colors.info || colors.primary,
   },
   infoText: {
     flex: 1,
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   footer: {
@@ -305,11 +307,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   signUpText: {
     fontSize: FONT_SIZES.base,
-    color: COLORS.secondary,
+    color: colors.secondary,
     fontWeight: '700',
   },
   rtlText: {
