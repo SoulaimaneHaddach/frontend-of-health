@@ -11,8 +11,6 @@ import {
   ActivityIndicator,
   Animated,
   Keyboard,
-  Platform,
-  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -320,62 +318,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
   const scaleAnim = useState(new Animated.Value(0.9))[0];
 
   // ========== EFFECTS ==========
-  
-  /**
-   * Load profile data on component mount
-   */
-  useEffect(() => {
-    loadProfile();
-    // Track profile view
-    analytics.trackProfileViewed();
-  }, []);
 
-  /**
-   * Animate content entrance
-   */
-  useEffect(() => {
-    if (!initialLoading) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [initialLoading]);
-
-  const selectedSpecialtyObj = useMemo(() => 
-    SPECIALTIES.find(
-      s => s.label.toLowerCase() === profileData.specialization.toLowerCase() ||
-           s.value === profileData.specialization.toLowerCase()
-    ),
-    [profileData.specialization]
-  );
-
-  /**
-   * Map region configuration
-   */
-  const mapRegion: Region = useMemo(() => ({
-    latitude: profileData.location.latitude,
-    longitude: profileData.location.longitude,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
-  }), [profileData.location.latitude, profileData.location.longitude]);
-
-  // ========== CALLBACKS ==========
-  
   /**
    * Load profile data from API
    */
@@ -423,6 +366,61 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
       }
     }
   }, [navigation]);
+
+  /**
+   * Load profile data on component mount
+   */
+  useEffect(() => {
+    loadProfile();
+    // Track profile view
+    analytics.trackProfileViewed();
+  }, [loadProfile, analytics]);
+
+  /**
+   * Animate content entrance
+   */
+  useEffect(() => {
+    if (!initialLoading) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [initialLoading]);
+
+  const selectedSpecialtyObj = useMemo(() => 
+    SPECIALTIES.find(
+      s => s.label.toLowerCase() === profileData.specialization.toLowerCase() ||
+           s.value === profileData.specialization.toLowerCase()
+    ),
+    [profileData.specialization]
+  );
+
+  /**
+   * Map region configuration
+   */
+  const mapRegion: Region = useMemo(() => ({
+    latitude: profileData.location.latitude,
+    longitude: profileData.location.longitude,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  }), [profileData.location.latitude, profileData.location.longitude]);
+
+  // ========== CALLBACKS ==========
 
   const handleSave = useCallback(async () => {
 

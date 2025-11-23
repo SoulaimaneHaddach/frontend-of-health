@@ -18,8 +18,7 @@ import { useTheme } from '../context/ThemeContext';
 import logger from '../shared/utils/logger';
 import { Language } from '../i18n/translations';
 import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
-import * as Updates from 'expo-updates';
-import { DevSettings } from 'react-native';
+// Updates and DevSettings are intentionally not used here; removed unused imports
 
 type LanguageSelectionScreenProps = {
   navigation: NativeStackNavigationProp<any>;
@@ -52,7 +51,7 @@ export const LanguageSelectionScreen: React.FC<LanguageSelectionScreenProps> = (
       friction: 7,
       useNativeDriver: true,
     }).start();
-  }, []);
+  }, [scaleAnim]);
 
   const handleLanguageSelect = (lang: Language) => {
     setSelectedLanguage(lang);
@@ -109,10 +108,9 @@ export const LanguageSelectionScreen: React.FC<LanguageSelectionScreenProps> = (
 
         {/* Language Options */}
         <View style={styles.languageContainer}>
-          {LANGUAGES.map((lang, index) => {
+          {LANGUAGES.map((lang) => {
             const isSelected = selectedLanguage === lang.code;
-            const delay = index * 100;
-
+            
             return (
               <Animated.View
                 key={lang.code}

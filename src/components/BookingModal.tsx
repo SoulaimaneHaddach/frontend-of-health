@@ -8,8 +8,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Platform,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -59,10 +57,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   //   buttons: [] as Array<{ text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }>,
   // });
 
-  // Log initial date on mount
+  // Log initial date on mount or when visible/appointment changes
   React.useEffect(() => {
     logger.debug('🎯 BookingModal opened, initial date:', appointmentDate.toLocaleString());
-  }, [visible]);
+  }, [visible, appointmentDate]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -86,24 +84,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  // Helpers to contact the doctor when server blocks guest bookings
-  const callDoctor = () => {
-    if (doctor.phoneNumber) {
-      Linking.openURL(`tel:${doctor.phoneNumber}`);
-    }
-  };
-
-  const whatsappDoctor = async () => {
-    if (!doctor.phoneNumber) return;
-    const text = encodeURIComponent(
-      `Hello Dr. ${doctor.name}, I'd like to request an appointment on ${formatDate(appointmentDate)} at ${formatTime(appointmentDate)}.`
-    );
-    const phone = doctor.phoneNumber.replace(/[^0-9+]/g, '');
-    const waURI = `whatsapp://send?phone=${phone}&text=${text}`;
-    const waWeb = `https://wa.me/${phone}?text=${text}`;
-    const can = await Linking.canOpenURL(waURI);
-    Linking.openURL(can ? waURI : waWeb);
-  };
+  // (Removed contact helpers - they were unused; keep code lean)
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
@@ -222,7 +203,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     logger.debug('✅ Date updated to:', newDate.toLocaleString());
     setAppointmentDate(newDate);
     if (errors.date) {
-      const { date, ...rest } = errors;
+      const rest = { ...errors };
+      delete (rest as any).date;
       setErrors(rest);
     }
   };
@@ -237,7 +219,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     logger.debug('✅ Time updated to:', newDate.toLocaleString());
     setAppointmentDate(newDate);
     if (errors.date) {
-      const { date, ...rest } = errors;
+      const rest = { ...errors };
+      delete (rest as any).date;
       setErrors(rest);
     }
   };

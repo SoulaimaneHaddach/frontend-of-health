@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { ms, vs } from '../shared/constants/responsive';
+import { ms } from '../shared/constants/responsive';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import logger from '../shared/utils/logger';
 
@@ -205,7 +205,7 @@ const OSMMap: React.FC<Props> = ({
     </script>
   </body>
   </html>
-  `, [markersJson, initialCenter.lat, initialCenter.lng, initialCenter.zoom, detailZoomThreshold]);
+  `, [markersJson, userLocationJson, initialCenter.lat, initialCenter.lng, initialCenter.zoom, detailZoomThreshold]);
 
   const handleMessage = useCallback((e: WebViewMessageEvent) => {
     try {
