@@ -33,7 +33,7 @@ export function useThemedStyles<T extends NamedStyles<T>>(
 
   return useMemo(
     () => StyleSheet.create(styleFactory(theme)),
-    [theme.isDarkMode, styleFactory]
+    [theme, styleFactory]
   );
 }
 

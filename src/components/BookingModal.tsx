@@ -18,7 +18,6 @@ import { CustomButton } from '../shared/components/CustomButton';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import logger from '../shared/utils/logger';
-// import { CustomAlert } from './CustomAlert'; // TODO: Use custom alert in future for better design
 import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
 import ApiService from '../services/api';
 import { DoctorResponseDto } from '../shared/types';
@@ -46,16 +45,33 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [hasSelectedDate, setHasSelectedDate] = useState(false);
+  const [hasSelectedTime, setHasSelectedTime] = useState(false);
   
-  // TODO: Custom alert state (for future use with CustomAlert component)
-  // const [alertVisible, setAlertVisible] = useState(false);
-  // const [alertConfig, setAlertConfig] = useState({
-  //   title: '',
-  //   message: '',
-  //   icon: 'checkmark-circle' as keyof typeof Ionicons.glyphMap,
-  //   iconColor: COLORS.primary,
-  //   buttons: [] as Array<{ text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }>,
-  // });
+  // Moroccan phone validation helpers
+  // RegExp version: matches 10 digits, starts with 0, second digit 5-8, digits only
+  const MOROCCO_PHONE_REGEX = /^0[5-8]\d{8}$/;
+
+  const validateMoroccanPhone = (raw: string) => {
+    const phone = (raw || '').trim();
+    if (!/^[0-9]+$/.test(phone)) {
+      return { valid: false, error: `${t.invalidPhone}: no spaces or letters allowed` };
+    }
+    if (phone.length !== 10) {
+      return { valid: false, error: `${t.invalidPhone}: must be exactly 10 digits` };
+    }
+    if (!phone.startsWith('0')) {
+      return { valid: false, error: `${t.invalidPhone}: must start with 0` };
+    }
+    if (!/^0[5-8]/.test(phone)) {
+      return { valid: false, error: `${t.invalidPhone}: second digit must be 5, 6, 7 or 8` };
+    }
+    if (!MOROCCO_PHONE_REGEX.test(phone)) {
+      return { valid: false, error: t.invalidPhone };
+    }
+    return { valid: true };
+  };
+  
 
   // Log initial date on mount or when visible/appointment changes
   React.useEffect(() => {
@@ -71,13 +87,21 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
     if (!phone.trim()) {
       newErrors.phone = t.requiredField;
-    } else if (!/^\+?[0-9\s-]{8,}$/.test(phone)) {
-      newErrors.phone = t.invalidPhone;
+    } else {
+      const res = validateMoroccanPhone(phone);
+      if (!res.valid) {
+        newErrors.phone = res.error || t.invalidPhone;
+      }
     }
 
-    // Check if appointment is in the past
-    if (appointmentDate < new Date()) {
-      newErrors.date = t.error;
+    // If neither date nor time were explicitly selected, require user to pick one
+    if (!hasSelectedDate && !hasSelectedTime) {
+      newErrors.date = t.selectDateOrTime;
+    } else {
+      // If at least one was selected, still ensure appointment is not in the past
+      if (appointmentDate < new Date()) {
+        newErrors.date = t.error;
+      }
     }
 
     setErrors(newErrors);
@@ -192,6 +216,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setPhone('');
     setAppointmentDate(new Date());
     setErrors({});
+    setHasSelectedDate(false);
+    setHasSelectedTime(false);
     onClose();
   };
 
@@ -202,6 +228,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     newDate.setMinutes(appointmentDate.getMinutes());
     logger.debug('✅ Date updated to:', newDate.toLocaleString());
     setAppointmentDate(newDate);
+    setHasSelectedDate(true);
     if (errors.date) {
       const rest = { ...errors };
       delete (rest as any).date;
@@ -218,6 +245,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     newDate.setMinutes(selectedDate.getMinutes());
     logger.debug('✅ Time updated to:', newDate.toLocaleString());
     setAppointmentDate(newDate);
+    setHasSelectedTime(true);
     if (errors.date) {
       const rest = { ...errors };
       delete (rest as any).date;

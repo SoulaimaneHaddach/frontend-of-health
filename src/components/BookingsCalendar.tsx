@@ -50,7 +50,6 @@ export const BookingsCalendar: React.FC<BookingsCalendarProps> = ({ doctorId, co
           deduped.push(b);
         }
       }
-
       // Filter to only accepted/pending bookings in the future
       const futureBookings = deduped.filter((b) => {
         const appointmentDate = new Date(b.appointmentTime);
@@ -88,9 +87,6 @@ export const BookingsCalendar: React.FC<BookingsCalendarProps> = ({ doctorId, co
       try { controller.abort(); } catch {}
     };
   }, [doctorId, fetchBookings]);
-
-  
-
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
     return {

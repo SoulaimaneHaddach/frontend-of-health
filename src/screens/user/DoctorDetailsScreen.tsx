@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Linking,
   StatusBar,
@@ -43,7 +42,6 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
   const { isDarkMode, colors } = useTheme();
   const { t, isRTL } = useLanguage();
   const [scrollY] = useState(new Animated.Value(0));
-  const [isScrolled, setIsScrolled] = useState(false);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
 
   const handleCall = useCallback(() => {
@@ -115,11 +113,7 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
     },
   ].filter(action => action.available), [handleCall, handleEmail, handleDirections, handleShare, doctor, t]);
 
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
+  // header opacity calculated inline where needed or currently unused
 
   const fixedButtonsOpacity = scrollY.interpolate({
     inputRange: [0, 100],
@@ -161,13 +155,7 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
       <Animated.ScrollView
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { 
-            useNativeDriver: true,
-            listener: (event: any) => {
-              const offsetY = event.nativeEvent.contentOffset.y;
-              setIsScrolled(offsetY > 50);
-            }
-          }
+          { useNativeDriver: true }
         )}
         scrollEventThrottle={16}
         contentContainerStyle={styles.scrollContent}

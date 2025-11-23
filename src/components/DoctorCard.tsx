@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  PanResponder,
   Linking,
   Platform,
 } from 'react-native';
@@ -252,7 +251,7 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
   );
 };
 
-const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+const createStyles = (colors: any, _isDark: boolean) => StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 0,

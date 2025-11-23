@@ -136,7 +136,7 @@ export const DoctorRegisterScreen: React.FC<DoctorRegisterScreenProps> = ({ navi
       analytics.trackRegister('email', 'doctor', true);
 
       // Notify app that a doctor was created so map/list can refresh
-      try { eventBus.emit('doctorCreated'); } catch (e) { /* ignore */ }
+      try { eventBus.emit('doctorCreated'); } catch { }
 
       Alert.alert(t.success, t.registrationCreatedMessage);
       navigation.replace('DoctorLogin');

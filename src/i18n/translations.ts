@@ -75,6 +75,7 @@ export interface Translations {
   patientPhone: string;
   selectDate: string;
   selectTime: string;
+  selectDateOrTime: string;
   confirmBooking: string;
   bookingSuccess: string;
   bookingFailed: string;
@@ -270,6 +271,7 @@ export const translations: Record<Language, Translations> = {
     patientPhone: 'Your Phone',
     selectDate: 'Select Date',
     selectTime: 'Select Time',
+    selectDateOrTime: 'Please select date or hour',
     confirmBooking: 'Confirm Booking',
     bookingSuccess: 'Booking Successful',
     bookingFailed: 'Booking Failed',
@@ -467,6 +469,7 @@ export const translations: Record<Language, Translations> = {
     patientPhone: 'Votre téléphone',
     selectDate: 'Sélectionner la date',
     selectTime: 'Sélectionner l\'heure',
+    selectDateOrTime: 'Veuillez sélectionner la date ou l\'heure',
     confirmBooking: 'Confirmer la réservation',
     bookingSuccess: 'Réservation réussie',
     bookingFailed: 'Échec de la réservation',
@@ -663,6 +666,7 @@ export const translations: Record<Language, Translations> = {
     patientPhone: 'هاتفك',
     selectDate: 'اختر التاريخ',
     selectTime: 'اختر الوقت',
+    selectDateOrTime: 'الرجاء اختيار التاريخ أو الوقت',
     confirmBooking: 'تأكيد الحجز',
     bookingSuccess: 'تم الحجز بنجاح',
     bookingFailed: 'فشل الحجز',

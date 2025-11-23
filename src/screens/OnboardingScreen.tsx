@@ -17,7 +17,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { ms } from '../shared/constants/responsive';
 import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
-import Svg, { Path, Circle, Rect, G, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -47,7 +47,7 @@ const PulseRing = ({ color, delay = 0 }: { color: string; delay?: number }) => {
       ).start();
     };
     animate();
-  }, []);
+  }, [delay, scale, opacity]);
 
   return (
     <Animated.View
@@ -128,7 +128,7 @@ const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
         Animated.timing(floatAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
       ])
     ).start();
-  }, [showLanguageScreen, currentIndex]);
+  }, [showLanguageScreen, currentIndex, fadeAnim, slideAnim, scaleAnim, floatAnim]);
 
   const slides = useMemo(() => [
     {
@@ -203,7 +203,7 @@ const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
               { code: 'en' as const, label: t.english, native: 'English', flag: '🇬🇧' },
               { code: 'fr' as const, label: t.french, native: 'Français', flag: '🇫🇷' },
               { code: 'ar' as const, label: t.arabic, native: 'العربية', flag: '🇸🇦' },
-            ].map((l, idx) => {
+            ].map((l) => {
               const selected = l.code === language;
               return (
                 <Animated.View key={l.code} style={{ transform: [{ translateX: slideAnim }], opacity: fadeAnim }}>

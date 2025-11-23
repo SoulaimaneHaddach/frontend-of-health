@@ -28,15 +28,7 @@ export function useDoctors(options: UseDoctorsOptions = {}) {
   const doctorsApi = useApi<DoctorResponseDto[]>();
   const doctorByIdApi = useApi<DoctorResponseDto>();
 
-  useEffect(() => {
-    if (options.autoFetch) {
-      fetchDoctors(options.initialParams);
-    }
-  }, []);
 
-  useEffect(() => {
-    filterDoctors();
-  }, [doctors, searchQuery, specialty]);
 
   const fetchDoctors = useCallback(
     async (params?: DoctorQueryParams) => {
@@ -52,7 +44,7 @@ export function useDoctors(options: UseDoctorsOptions = {}) {
         if (result) {
           setDoctors(result);
         }
-      } catch (err) {
+      } catch {
         // Error already handled by useApi
       }
     },
@@ -63,7 +55,7 @@ export function useDoctors(options: UseDoctorsOptions = {}) {
     async (id: string) => {
       try {
         return await doctorByIdApi.execute(() => ApiService.getDoctorById(id));
-      } catch (err) {
+      } catch {
         return null;
       }
     },
@@ -109,6 +101,16 @@ export function useDoctors(options: UseDoctorsOptions = {}) {
     [fetchDoctors]
   );
 
+  useEffect(() => {
+    if (options.autoFetch) {
+      fetchDoctors(options.initialParams);
+    }
+  }, [options.autoFetch, options.initialParams, fetchDoctors]);
+
+  useEffect(() => {
+    filterDoctors();
+  }, [filterDoctors]);
+
   return {
     doctors: filteredDoctors,
     allDoctors: doctors,
@@ -133,12 +135,6 @@ export function useDoctorsMap(options: UseDoctorsOptions = {}) {
   const [mapDoctors, setMapDoctors] = useState<DoctorMapDto[]>([]);
   const mapApi = useApi<DoctorMapDto[]>();
 
-  useEffect(() => {
-    if (options.autoFetch) {
-      fetchMapDoctors(options.initialParams);
-    }
-  }, []);
-
   const fetchMapDoctors = useCallback(
     async (params?: DoctorQueryParams) => {
       try {
@@ -153,12 +149,18 @@ export function useDoctorsMap(options: UseDoctorsOptions = {}) {
         if (result) {
           setMapDoctors(result);
         }
-      } catch (err) {
+      } catch {
         // Error already handled by useApi
       }
     },
     [mapApi]
   );
+
+  useEffect(() => {
+    if (options.autoFetch) {
+      fetchMapDoctors(options.initialParams);
+    }
+  }, [options.autoFetch, options.initialParams, fetchMapDoctors]);
 
   return {
     mapDoctors,
@@ -186,7 +188,7 @@ export function useNearbyDoctors(
         radiusKm,
       });
     }
-  }, [userLocation?.latitude, userLocation?.longitude, radiusKm]);
+  }, [userLocation, radiusKm, fetchDoctors]);
 
   return {
     nearbyDoctors: doctors,

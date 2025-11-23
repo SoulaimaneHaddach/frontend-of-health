@@ -227,7 +227,7 @@ const SpecialtyOption: React.FC<{
 /**
  * Loading overlay component
  */
-const LoadingOverlay: React.FC<{ visible: boolean; message?: string; isDark: boolean }> = ({ visible, message, isDark }) => {
+const LoadingOverlay: React.FC<{ visible: boolean; message?: string; isDark: boolean }> = ({ visible, message, isDark: _isDark }) => {
   const { colors: localColors } = useTheme();
 
   if (!visible) return null;
@@ -275,7 +275,7 @@ const LoadingOverlay: React.FC<{ visible: boolean; message?: string; isDark: boo
 
 export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ navigation }) => {
   // ========== STATE MANAGEMENT ==========
-  const { isDarkMode, toggleTheme, colors } = useTheme();
+  const { isDarkMode, colors } = useTheme();
   const { t, isRTL } = useLanguage();
   const analytics = useAnalytics();
   const [isEditing, setIsEditing] = useState(false);
@@ -285,7 +285,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
   const [locationLoading, setLocationLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [newService, setNewService] = useState(''); // For adding new services
-  const [hoursModalVisible, setHoursModalVisible] = useState(false); // Modal for editing hours
+  // hours modal state removed (unused)
   const [activeTab, setActiveTab] = useState<TabKey>('Info');
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
@@ -336,20 +336,22 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
       
       setInitialLoading(false);
     } catch (err: any) {
-      console.error('❌ Fetch profile error:', err.response || err);
+      // Support wrapped/enriched errors (ApiService may attach original)
+      const status = err?.response?.status || err?.original?.response?.status;
+      console.error('❌ Fetch profile error:', err?.response || err || err?.original || err);
       setInitialLoading(false);
-      
-      if (err.response?.status === 401) {
-        showCustomAlert(setAlertConfig, t.sessionExpired, t.sessionExpired, [
+
+      if (status === 401) {
+              showCustomAlert(setAlertConfig, t.sessionExpired, t.sessionExpired, [
           {
             text: t.ok,
             onPress: () => {
               ApiService.logout();
-              navigation.replace('Welcome');
+              navigation.replace('DoctorLogin');
             }
           }
         ]);
-      } else if (err.response?.status === 500) {
+      } else if (status === 500) {
         showCustomAlert(setAlertConfig, t.sessionExpired, t.serverError, [
           { 
             text: t.logout, 
@@ -364,16 +366,18 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         ]);
       }
     }
-  }, [navigation]);
+  }, [navigation, t]);
 
   /**
    * Load profile data on component mount
    */
   useEffect(() => {
     loadProfile();
-    // Track profile view
+    // Track profile view once on mount
     analytics.trackProfileViewed();
-  }, [loadProfile, analytics]);
+    // Intentionally run on mount only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * Animate content entrance
@@ -399,7 +403,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
         }),
       ]).start();
     }
-  }, [initialLoading]);
+  }, [initialLoading, fadeAnim, slideAnim, scaleAnim]);
 
   const selectedSpecialtyObj = useMemo(() => 
     SPECIALTIES.find(
@@ -469,7 +473,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
             text: t.ok,
             onPress: () => {
               ApiService.logout();
-              navigation.replace('Welcome');
+              navigation.replace('DoctorLogin');
             }
           }
         ]);
@@ -480,7 +484,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     } finally {
       setLoading(false);
     }
-  }, [profileData, navigation]);
+  }, [profileData, navigation, t]);
 
 
   const handleLogout = useCallback(() => {
@@ -495,9 +499,9 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
             
             await ApiService.logout();
           
-            setTimeout(() => {
+              setTimeout(() => {
               setLoading(false);
-              navigation.replace('Welcome');
+              navigation.replace('DoctorLogin');
             }, 150);
           } catch (err) {
             setLoading(false);
@@ -574,9 +578,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     setValidationErrors(prev => ({ ...prev, specialization: undefined }));
   }, []);
 
-  const toggleDarkModeLocal = useCallback(() => {
-    toggleTheme();
-  }, [toggleTheme]);
+  // local dark mode toggle removed (unused)
 
   const handleAddService = useCallback(() => {
     if (newService.trim()) {
@@ -1043,7 +1045,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
 // STYLES
 // ==========================================
 
-const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+const createStyles = (colors: any, _isDark: boolean) => StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: colors.background,

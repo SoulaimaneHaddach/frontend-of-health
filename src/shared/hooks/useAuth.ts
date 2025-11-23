@@ -51,12 +51,47 @@ export function useAuth(): UseAuthReturn {
   const loginApi = useApi<AuthResponse>();
   const registerApi = useApi<AuthResponse>();
 
-  // Load auth state from storage on mount
-  useEffect(() => {
-    loadAuthState();
+  const clearAuthState = useCallback(async () => {
+    try {
+      await Promise.all([
+        TokenStorage.removeToken(),
+        secureStorage.removeItem(USER_INFO_KEY),
+      ]);
+      setToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
+      // Clear session manager
+      sessionManager.clear();
+    } catch (err) {
+      logError(err as Error, 'useAuth.clearAuthState');
+    }
   }, []);
 
-  const loadAuthState = async () => {
+  const logout = useCallback(async () => {
+    await clearAuthState();
+  }, [clearAuthState]);
+
+  const saveAuthState = useCallback(async (authToken: string, userInfo: UserInfo) => {
+    try {
+      await Promise.all([
+        TokenStorage.setToken(authToken),
+        secureStorage.setObject(USER_INFO_KEY, userInfo),
+      ]);
+      setToken(authToken);
+      setUser(userInfo);
+      setIsAuthenticated(true);
+
+      // Initialize session manager
+      sessionManager.init(async () => {
+        await logout();
+      });
+    } catch (err) {
+      logError(err as Error, 'useAuth.saveAuthState');
+      throw err;
+    }
+  }, [logout]);
+
+  const loadAuthState = useCallback(async () => {
     try {
       const [storedToken, storedUser] = await Promise.all([
         TokenStorage.getToken(),
@@ -67,7 +102,7 @@ export function useAuth(): UseAuthReturn {
         setToken(storedToken);
         setUser(storedUser);
         setIsAuthenticated(true);
-        
+
         // Initialize session manager
         sessionManager.init(async () => {
           await logout();
@@ -78,44 +113,11 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setLoading(false);
     }
-  };
+  }, [logout]);
 
-  const saveAuthState = async (authToken: string, userInfo: UserInfo) => {
-    try {
-      await Promise.all([
-        TokenStorage.setToken(authToken),
-        secureStorage.setObject(USER_INFO_KEY, userInfo),
-      ]);
-      setToken(authToken);
-      setUser(userInfo);
-      setIsAuthenticated(true);
-      
-      // Initialize session manager
-      sessionManager.init(async () => {
-        await logout();
-      });
-    } catch (err) {
-      logError(err as Error, 'useAuth.saveAuthState');
-      throw err;
-    }
-  };
-
-  const clearAuthState = async () => {
-    try {
-      await Promise.all([
-        TokenStorage.removeToken(),
-        secureStorage.removeItem(USER_INFO_KEY),
-      ]);
-      setToken(null);
-      setUser(null);
-      setIsAuthenticated(false);
-      
-      // Clear session manager
-      sessionManager.clear();
-    } catch (err) {
-      logError(err as Error, 'useAuth.clearAuthState');
-    }
-  };
+  useEffect(() => {
+    loadAuthState();
+  }, [loadAuthState]);
 
   const login = useCallback(
     async (credentials: LoginRequestDTO) => {
@@ -166,7 +168,7 @@ export function useAuth(): UseAuthReturn {
         throw error;
       }
     },
-    [loginApi]
+    [loginApi, saveAuthState]
   );
 
   const register = useCallback(
@@ -197,17 +199,13 @@ export function useAuth(): UseAuthReturn {
         await saveAuthState(response.accessToken, userInfo);
       }
     },
-    [registerApi]
+    [registerApi, saveAuthState]
   );
-
-  const logout = useCallback(async () => {
-    await clearAuthState();
-  }, []);
 
   const refreshAuth = useCallback(async () => {
     setLoading(true);
     await loadAuthState();
-  }, []);
+  }, [loadAuthState]);
 
   return {
     isAuthenticated,

@@ -148,7 +148,7 @@ class SecureStorage {
           await SecureStore.setItemAsync(SECURE_PREFIX + key, value, { keychainAccessible: SecureStore.ALWAYS_THIS_DEVICE_ONLY });
           return;
         }
-      } catch (e) {
+      } catch {
         // fall through to AsyncStorage fallback
       }
 
@@ -173,7 +173,7 @@ class SecureStorage {
           const v = await SecureStore.getItemAsync(SECURE_PREFIX + key);
           return v;
         }
-      } catch (e) {
+      } catch {
         // fall through to AsyncStorage fallback
       }
 
@@ -221,7 +221,7 @@ class SecureStorage {
           await SecureStore.deleteItemAsync(SECURE_PREFIX + key);
           return;
         }
-      } catch (e) {
+      } catch {
         // fall through
       }
       await AsyncStorage.removeItem(SECURE_PREFIX + key);

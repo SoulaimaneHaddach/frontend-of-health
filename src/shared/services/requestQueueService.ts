@@ -368,7 +368,7 @@ class RequestQueueService {
     const set = this.eventListeners.get(event);
     if (!set) return;
     set.forEach((cb) => {
-      try { cb(payload); } catch (e) { /* swallow */ }
+      try { cb(payload); } catch { /* swallow */ }
     });
   }
 
@@ -451,7 +451,7 @@ class RequestQueueService {
 
     // Unsubscribe from network listener if provided
     if (this.networkUnsubscribe) {
-      try { this.networkUnsubscribe(); } catch (e) { /* ignore */ }
+      try { this.networkUnsubscribe(); } catch { /* ignore */ }
       this.networkUnsubscribe = null;
     }
 

@@ -38,43 +38,7 @@ export function useLocation(): UseLocationReturn {
   const [error, setError] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
 
-  useEffect(() => {
-    checkPermissionAndGetLocation();
-  }, []);
-
-  const checkPermissionAndGetLocation = async () => {
-    const { status } = await Location.getForegroundPermissionsAsync();
-    const granted = status === 'granted';
-    setHasPermission(granted);
-
-    if (granted) {
-      await getCurrentLocation();
-    }
-  };
-
-  const requestPermission = useCallback(async (): Promise<boolean> => {
-    try {
-      setError(null);
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      const granted = status === 'granted';
-      setHasPermission(granted);
-
-      if (granted) {
-        await getCurrentLocation();
-        return true;
-      } else {
-        setError('Location permission denied');
-        return false;
-      }
-    } catch (err) {
-      const message = 'Failed to request location permission';
-      setError(message);
-      logError(err as Error, 'useLocation.requestPermission');
-      return false;
-    }
-  }, []);
-
-  const getCurrentLocation = async () => {
+  const getCurrentLocation = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -115,7 +79,45 @@ export function useLocation(): UseLocationReturn {
       setLoading(false);
       logError(err as Error, 'useLocation.getCurrentLocation');
     }
-  };
+  }, []);
+
+  const checkPermissionAndGetLocation = useCallback(async () => {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    const granted = status === 'granted';
+    setHasPermission(granted);
+
+    if (granted) {
+      await getCurrentLocation();
+    }
+  }, [getCurrentLocation]);
+
+  useEffect(() => {
+    checkPermissionAndGetLocation();
+  }, [checkPermissionAndGetLocation]);
+
+  const requestPermission = useCallback(async (): Promise<boolean> => {
+    try {
+      setError(null);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      const granted = status === 'granted';
+      setHasPermission(granted);
+
+      if (granted) {
+        await getCurrentLocation();
+        return true;
+      } else {
+        setError('Location permission denied');
+        return false;
+      }
+    } catch (err) {
+      const message = 'Failed to request location permission';
+      setError(message);
+      logError(err as Error, 'useLocation.requestPermission');
+      return false;
+    }
+  }, [getCurrentLocation]);
+
+  
 
   const refreshLocation = useCallback(async () => {
     if (hasPermission) {
@@ -123,7 +125,7 @@ export function useLocation(): UseLocationReturn {
     } else {
       await requestPermission();
     }
-  }, [hasPermission, requestPermission]);
+  }, [hasPermission, requestPermission, getCurrentLocation]);
 
   return {
     location,

@@ -58,34 +58,9 @@ export class GlobalErrorHandler {
     // Additional tracking can be done via promise/setimmediate/rejection-tracking
     
     // Override the default promise rejection tracker
-    const originalHandler = global.Promise;
-    if (originalHandler && typeof originalHandler === 'function') {
-      // Track unhandled rejections
-      const rejectionTracker = new Set<Promise<any>>();
-      
-      const trackRejection = (promise: Promise<any>, reason: any) => {
-        rejectionTracker.add(promise);
-        
-        // Wait to see if it gets handled
-        setTimeout(() => {
-          if (rejectionTracker.has(promise)) {
-            const error = reason instanceof Error 
-              ? reason 
-              : new Error(String(reason));
-
-            errorLoggingService.logError(
-              error,
-              ErrorSeverity.ERROR,
-              {
-                action: 'unhandled_promise_rejection',
-              },
-              false
-            );
-
-              logger.error('[GlobalErrorHandler] Unhandled promise rejection:', error);
-          }
-        }, 100);
-      };
+      const originalHandler = global.Promise;
+      if (originalHandler && typeof originalHandler === 'function') {
+        // Placeholder for rejection tracking; implement tracking if needed.
 
         logger.debug('[GlobalErrorHandler] Unhandled promise rejection handler set up');
     }

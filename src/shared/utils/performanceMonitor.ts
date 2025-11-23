@@ -3,7 +3,7 @@
  * Performance monitoring and optimization utilities
  */
 
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import logger from './logger';
 
 /**

@@ -10,11 +10,11 @@ interface SectionCardProps {
   title: string;
   icon: keyof typeof Ionicons.glyphMap;
   hint?: string;
-  isDark: boolean;
   children: ReactNode;
+  isDark?: boolean;
 }
 
-export const SectionCard: React.FC<SectionCardProps> = ({ title, icon, hint, isDark, children }) => {
+export const SectionCard: React.FC<SectionCardProps> = ({ title, icon, hint, children, isDark: _isDark }) => {
   const { isRTL } = useLanguage();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors, isRTL), [colors, isRTL]);
