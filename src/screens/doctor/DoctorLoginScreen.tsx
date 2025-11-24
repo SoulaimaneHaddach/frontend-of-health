@@ -157,7 +157,7 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
 

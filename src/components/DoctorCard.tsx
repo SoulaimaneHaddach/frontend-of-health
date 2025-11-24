@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
-import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
+import { FONT_SIZES, SPACING, SHADOWS } from '../shared/constants/theme';
 import { vs, ms } from '../shared/constants/responsive';
 
 import { DoctorMapDto } from '../services/api';
@@ -80,14 +80,6 @@ const calculateDistance = (
   return R * c;
 };
 
-// Helper to translate specialty (kept for future use)
-/* eslint-disable @typescript-eslint/no-unused-vars */
-const getTranslatedSpecialty = (specialty: string, t: any): string => {
-  const key = specialty?.toLowerCase() || '';
-  return (t[key] as string) || specialty;
-};
-/* eslint-enable @typescript-eslint/no-unused-vars */
-
 const DoctorCardComponent: React.FC<DoctorCardProps> = ({
   doctor,
   visible,
@@ -99,16 +91,12 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
   userLocation,
 }) => {
   const { isDarkMode, colors } = useTheme();
-  const { t, isRTL } = useLanguage();
+  const { t } = useLanguage();
   const styles = useMemo(() => createStyles(colors, isDarkMode), [colors, isDarkMode]);
 
-  // Respect safe area / bottom nav so card isn't hidden.
-  // Position the card above the navbar by accounting for the safe-area inset
-  // plus the card's bottom padding so action buttons aren't covered.
   const insets = useSafeAreaInsets();
   const bottomPosition = (insets?.bottom ?? 0) + SPACING.lg + 1;
 
-  // Memoize distance calculation
   const distance = useMemo(() => {
     if (!userLocation || !doctor?.location) return null;
     return calculateDistance(
@@ -119,7 +107,6 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
     );
   }, [userLocation, doctor?.location]);
 
-  // Memoize specialty config
   const specialtyIcon = useMemo(
     () => getSpecialtyIcon(doctor?.specialization),
     [doctor?.specialization]
@@ -130,7 +117,6 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
     [doctor?.specialization, colors]
   );
 
-  // Memoize callback
   const handleDirections = useCallback(() => {
     if (doctor?.location) {
       const url = Platform.select({
@@ -168,209 +154,182 @@ const DoctorCardComponent: React.FC<DoctorCardProps> = ({
         <View style={styles.handle} />
       </View>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View
-          style={[
-            styles.avatar,
-            { backgroundColor: specialtyColor },
-          ]}
-        >
-          <Ionicons
-            name={specialtyIcon}
-            size={ms(40)}
-            color={colors.white}
-          />
-        </View>
-        <View style={styles.headerInfo}>
-          <Text style={styles.name} numberOfLines={1}>
-            {doctor.name}
-          </Text>
+      {/* Card Content */}
+      <View style={styles.content}>
+        {/* Header with Avatar and Info */}
+        <View style={styles.header}>
+          <View style={styles.avatarContainer}>
+            <View
+              style={[
+                styles.avatar,
+                { backgroundColor: specialtyColor },
+              ]}
+            >
+              <Ionicons
+                name={specialtyIcon}
+                size={ms(36)}
+                color={colors.white}
+              />
+            </View>
+            {distance !== null && (
+              <View style={[styles.distancePill, { backgroundColor: colors.surface }]}>
+                <Ionicons name="location" size={ms(12)} color={specialtyColor} />
+                <Text style={[styles.distancePillText, { color: specialtyColor }]}>
+                  {distance < 1 
+                    ? `${Math.round(distance * 1000)}m` 
+                    : `${distance.toFixed(1)}km`}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.headerInfo}>
+            <Text style={styles.name} numberOfLines={1}>
+              {doctor.name}
+            </Text>
             <View style={[
               styles.specialtyBadge,
-              { backgroundColor: (specialtyColor || colors.primary) + '20' }
+              { backgroundColor: (specialtyColor || colors.primary) + '15' }
             ]}>
-            <Text style={[
-              styles.specialty,
-              { color: specialtyColor }
-            ]}>
-              {doctor.specialization}
-            </Text>
-          </View>
-        </View>
-        {doctor.location?.address && (
-          <View style={styles.headerRight}>
-            <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>{t.address}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: ms(6) }}>
-              <Ionicons name="location" size={ms(14)} color={colors.primary} />
-              <Text style={[styles.headerAddressText, isRTL && { textAlign: 'right', marginLeft: 0 }]} numberOfLines={2}>
-                {doctor.location.address}
+              <View style={[styles.specialtyDot, { backgroundColor: specialtyColor }]} />
+              <Text style={[
+                styles.specialty,
+                { color: specialtyColor }
+              ]}>
+                {doctor.specialization}
               </Text>
             </View>
           </View>
-        )}
-      </View>
-
-      {/* Distance Badge */}
-      {distance !== null && (
-        <View style={styles.distanceContainer}>
-            <View style={styles.distanceBadge}>
-              <Ionicons name="navigate" size={ms(16)} color={colors.primary} />
-              <Text style={[styles.distanceText, isRTL && { textAlign: 'right' }]}> 
-              {distance < 1 
-                ? `${Math.round(distance * 1000)}m` 
-                : `${distance.toFixed(1)}km`}
-            </Text>
-          </View>
         </View>
-      )}
 
-      {/* Address moved to header (top-right) */}
+        {/* Divider */}
+        <View style={styles.divider} />
 
-
-      {/* Action Buttons */}
-      <View style={styles.actions}>
+        {/* Action Buttons */}
+        <View style={styles.actions}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.primaryButton]}
-          onPress={onViewDetails}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="information-circle" size={ms(20)} color={colors.white} />
-          <Text style={styles.primaryButtonText}>{t.viewProfile}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.secondaryButton]}
-          onPress={handleDirections}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="navigate" size={ms(20)} color={colors.primary} />
-          <Text style={styles.secondaryButtonText}>{t.address}</Text>
-        </TouchableOpacity>
+            style={[styles.actionButton, styles.primaryButton, { backgroundColor: specialtyColor }]}
+            onPress={onViewDetails}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="person-circle-outline" size={ms(24)} color={colors.white} />
+            <Text style={styles.buttonLabel}>{t.viewProfile}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.secondaryButton]}
+            onPress={handleDirections}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="navigate" size={ms(24)} color={specialtyColor} />
+            <Text style={[styles.buttonLabelSecondary, { color: colors.text }]}>{t.directions}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </Animated.View>
   );
 };
 
-const createStyles = (colors: any, _isDark: boolean) => StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: colors.card,
-    borderTopLeftRadius: ms(24),
-    borderTopRightRadius: ms(24),
-    paddingBottom: ms(60),
+    borderTopLeftRadius: ms(28),
+    borderTopRightRadius: ms(28),
+    paddingBottom: ms(50),
     ...SHADOWS.large,
-    elevation: 20,
+    elevation: 24,
+    borderTopWidth: isDark ? 0 : 0.5,
+    borderTopColor: colors.border + '30',
   },
   handleContainer: {
     paddingTop: SPACING.sm,
-    paddingBottom: SPACING.md,
+    paddingBottom: SPACING.xs,
     alignItems: 'center',
   },
   handle: {
-    width: ms(40),
-    height: vs(4),
+    width: ms(42),
+    height: vs(5),
     backgroundColor: colors.border,
-    borderRadius: ms(2),
+    borderRadius: ms(3),
+    opacity: 0.4,
+  },
+  content: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
   },
   header: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.lg,
+  },
+  avatarContainer: {
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.md,
-  },
-  headerRight: {
-    alignItems: 'flex-end',
-    marginLeft: SPACING.md,
-    maxWidth: ms(140),
-  },
-  headerAddressText: {
-    fontSize: FONT_SIZES.sm,
-    color: colors.textSecondary,
-    marginTop: ms(4),
+    marginRight: SPACING.md,
   },
   avatar: {
-    width: ms(70),
-    height: ms(70),
-    borderRadius: ms(RADIUS.lg),
+    width: ms(72),
+    height: ms(72),
+    borderRadius: ms(20),
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING.md,
-    ...SHADOWS.small,
+    ...SHADOWS.medium,
+    elevation: 8,
+  },
+  distancePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: ms(8),
+    paddingVertical: ms(4),
+    borderRadius: ms(12),
+    marginTop: ms(8),
+    gap: ms(4),
+  },
+  distancePillText: {
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '700',
   },
   headerInfo: {
     flex: 1,
+    paddingTop: ms(4),
   },
   name: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
+    fontSize: FONT_SIZES.xxl,
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: ms(6),
+    marginBottom: ms(8),
+    letterSpacing: -0.5,
   },
   specialtyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-start',
     paddingHorizontal: ms(12),
-    paddingVertical: ms(6),
-    borderRadius: ms(RADIUS.sm),
+    paddingVertical: ms(7),
+    borderRadius: ms(10),
+    gap: ms(6),
+  },
+  specialtyDot: {
+    width: ms(6),
+    height: ms(6),
+    borderRadius: ms(3),
   },
   specialty: {
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
+    letterSpacing: 0.2,
   },
-  closeButton: {
-    padding: 4,
-  },
-  distanceContainer: {
-    paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.md,
-  },
-  distanceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ms(8),
-    backgroundColor: colors.surface,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: ms(RADIUS.full),
-    alignSelf: 'flex-start',
-  },
-  distanceText: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  section: {
-    paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.md,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    marginBottom: SPACING.xs,
-  },
-  sectionTitle: {
-    fontSize: FONT_SIZES.base,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  addressText: {
-    fontSize: FONT_SIZES.base,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginLeft: ms(28),
-  },
-  contactText: {
-    fontSize: FONT_SIZES.base,
-    color: colors.primary,
-    fontWeight: '600',
-    marginLeft: 28,
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginBottom: SPACING.lg,
+    opacity: 0.15,
   },
   actions: {
     flexDirection: 'row',
-    paddingHorizontal: SPACING.lg,
     gap: SPACING.sm,
   },
   actionButton: {
@@ -379,27 +338,29 @@ const createStyles = (colors: any, _isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: SPACING.md,
-    borderRadius: ms(RADIUS.md),
-    gap: ms(6),
+    paddingHorizontal: SPACING.md,
+    borderRadius: ms(16),
+    gap: ms(8),
   },
   primaryButton: {
-    backgroundColor: colors.primary,
-    ...SHADOWS.small,
+    ...SHADOWS.medium,
+    elevation: 6,
   },
   secondaryButton: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.border + '30',
   },
-  primaryButtonText: {
+  buttonLabel: {
     fontSize: FONT_SIZES.base,
     fontWeight: '600',
     color: colors.white,
+    letterSpacing: 0.1,
   },
-  secondaryButtonText: {
-    fontSize: FONT_SIZES.sm,
+  buttonLabelSecondary: {
+    fontSize: FONT_SIZES.base,
     fontWeight: '600',
-    color: colors.primary,
+    letterSpacing: 0.1,
   },
 });
 

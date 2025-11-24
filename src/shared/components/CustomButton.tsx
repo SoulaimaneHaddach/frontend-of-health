@@ -1,6 +1,7 @@
 // src/shared/components/CustomButton.tsx
 import React, { memo, useMemo } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { FONT_SIZES, RADIUS, SPACING, SHADOWS } from '../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -12,7 +13,7 @@ interface CustomButtonProps {
   fullWidth?: boolean;
   disabled?: boolean;
   loading?: boolean;
-  icon?: React.ReactNode;
+  icon?: React.ReactNode | keyof typeof Ionicons.glyphMap;
   style?: ViewStyle;
   textStyle?: TextStyle;
 }
@@ -86,6 +87,17 @@ const CustomButtonComponent: React.FC<CustomButtonProps> = ({
   // Memoize spinner color
   const spinnerColor = useMemo(() => (variant === 'outline' ? colors.primary : colors.white), [variant, colors]);
 
+  // Render icon: if a string was passed (icon name), render Ionicons component
+  const renderedIcon = useMemo(() => {
+    if (!icon) return null;
+    if (typeof icon === 'string') {
+      const iconSize = size === 'small' ? 16 : size === 'large' ? 20 : 18;
+      const iconColor = variant === 'outline' || variant === 'ghost' ? colors.primary : colors.white;
+      return <Ionicons name={icon as any} size={iconSize} color={iconColor} />;
+    }
+    return icon as React.ReactNode;
+  }, [icon, size, variant, colors]);
+
   return (
     <TouchableOpacity
       style={buttonStyle}
@@ -97,7 +109,7 @@ const CustomButtonComponent: React.FC<CustomButtonProps> = ({
         <ActivityIndicator color={spinnerColor} />
       ) : (
         <>
-          {icon}
+          {renderedIcon}
           <Text style={textStyleCombined}>{title}</Text>
         </>
       )}
