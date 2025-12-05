@@ -214,10 +214,6 @@ export const translations: Record<Language, Translations> = {
     bookAppointments: 'Book appointments easily',
     manageHealth: 'Manage your health',
     getStarted: 'Get Started',
-
-    // Role Selection
-
-
     // Common
     login: 'Login',
     register: 'Register',
