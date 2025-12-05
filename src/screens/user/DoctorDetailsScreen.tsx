@@ -174,7 +174,7 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
           </View>
           
           <Text style={[styles.doctorName, { color: colors.text }]}>
-            Dr. {doctor.name}
+           {doctor.name}
           </Text>
           
           <View style={[styles.chip, { backgroundColor: colors.primary + '15' }]}>
@@ -321,8 +321,8 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
       {/* Book Appointment FAB */}
       <TouchableOpacity 
         style={[styles.bookFab, { 
-          backgroundColor: COLORS.success || '#10B981',
-          shadowColor: COLORS.success || '#10B981',
+          backgroundColor: '#2196F3',
+          shadowColor:'#2196F3',
         }]} 
         onPress={() => setBookingModalVisible(true)}
         activeOpacity={0.85}

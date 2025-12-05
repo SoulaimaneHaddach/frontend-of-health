@@ -56,8 +56,8 @@ export type {
   WorkingHours,
 };
 
-const API_BASE_URL = 'https://healingbackend-production-a872.up.railway.app/api';
-// const API_BASE_URL = 'https://vsrwljl6-8080.uks1.devtunnels.ms/api'; // Local dev only
+// const API_BASE_URL = 'https://healingbackend-production-a872.up.railway.app/api';
+const API_BASE_URL = 'https://vsrwljl6-8080.uks1.devtunnels.ms/api'; // Local dev only
 
 class ApiService {
   private api: AxiosInstance;

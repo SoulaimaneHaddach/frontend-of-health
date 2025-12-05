@@ -152,9 +152,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         phoneNumberUser: phone.trim(),
         appointmentTime: toLocalDateTimeString(appointmentDate),
       });
-
-      // If the booking was queued (offline) ApiService returns a placeholder with status 'PENDING' and id 'pending'.
-      // Surface a clearer message to the user to avoid confusion when the booking isn't immediately visible on the doctor's side.
       const isQueued = booking?.status === 'PENDING' || booking?.id === 'pending';
       if (isQueued) {
         logger.info('📤 Booking queued locally (offline) ->', booking);
@@ -347,8 +344,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             {/* Email removed from booking model */}
 
             <InputField
-              label={t.phone}
-              placeholder={t.phone}
+              label={t.patientPhone}
+              placeholder="0123456789"
               value={phone}
               onChangeText={(text) => {
                 setPhone(text);

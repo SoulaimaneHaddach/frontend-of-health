@@ -16,13 +16,6 @@ export interface Translations {
   manageHealth: string;
   getStarted: string;
 
-  // Role Selection
-  selectRole: string;
-  imADoctor: string;
-  imAPatient: string;
-  doctorDescription: string;
-  patientDescription: string;
-
   // Common
   login: string;
   register: string;
@@ -68,6 +61,8 @@ export interface Translations {
   viewOnMap: string;
   viewList: string;
 
+  // DoctorCard
+  directions: string;
   // Booking
   bookingDetails: string;
   patientName: string;
@@ -117,6 +112,7 @@ export interface Translations {
   networkError: string;
   invalidEmail: string;
   invalidPhone: string;
+  invalidDoctorName: string;
   requiredField: string;
   passwordTooShort: string;
   passwordsDontMatch: string;
@@ -218,14 +214,6 @@ export const translations: Record<Language, Translations> = {
     bookAppointments: 'Book appointments easily',
     manageHealth: 'Manage your health',
     getStarted: 'Get Started',
-
-    // Role Selection
-    selectRole: 'I am...',
-    imADoctor: 'Doctor',
-    imAPatient: 'Patient',
-    doctorDescription: 'Manage appointments and patient records',
-    patientDescription: 'Find and book appointments with doctors',
-
     // Common
     login: 'Login',
     register: 'Register',
@@ -263,7 +251,8 @@ export const translations: Record<Language, Translations> = {
     allSpecialties: 'All Specialties',
     viewOnMap: 'Map View',
     viewList: 'List View',
-
+    // DoctorCard
+    directions: 'Direction',
     // Booking
     bookingDetails: 'Booking Details',
     patientName: 'Your Name',
@@ -284,6 +273,7 @@ export const translations: Record<Language, Translations> = {
     networkError: 'Network Error',
     invalidEmail: 'Invalid email address',
     invalidPhone: 'Invalid phone number',
+    invalidDoctorName: "Name must start with 'Dr.' e.g. Dr. Ahmed",
     requiredField: 'This field is required',
     passwordTooShort: 'Password must be at least 6 characters',
     passwordsDontMatch: 'Passwords do not match',
@@ -302,7 +292,7 @@ export const translations: Record<Language, Translations> = {
     password: 'Password',
     confirmPassword: 'Confirm Password',
     forgotPassword: 'Forgot Password?',
-    createAccount: 'Create Account',
+    createAccount: 'Create',
     alreadyHaveAccount: 'Already have an account?',
     dontHaveAccount: "Don't have an account?",
     signIn: 'Sign In',
@@ -417,13 +407,6 @@ export const translations: Record<Language, Translations> = {
     manageHealth: 'Gérez votre santé',
     getStarted: 'Commencer',
 
-    // Role Selection
-    selectRole: 'Je suis...',
-    imADoctor: 'Un Médecin',
-    imAPatient: 'Un Patient',
-    doctorDescription: 'Gérer les rendez-vous et les dossiers patients',
-    patientDescription: 'Trouver et réserver des rendez-vous avec des médecins',
-
     // Common
     login: 'Connexion',
     register: 'S\'inscrire',
@@ -462,6 +445,9 @@ export const translations: Record<Language, Translations> = {
     viewOnMap: 'Vue carte',
     viewList: 'Vue liste',
 
+    // DoctorCard
+    directions: 'Direction',
+
     // Booking
     bookingDetails: 'Détails de la réservation',
     patientName: 'Votre nom',
@@ -482,6 +468,7 @@ export const translations: Record<Language, Translations> = {
     networkError: 'Erreur réseau',
     invalidEmail: 'Adresse email invalide',
     invalidPhone: 'Numéro de téléphone invalide',
+    invalidDoctorName: "Le nom doit commencer par 'Dr.' ex: Dr. Ahmed",
     requiredField: 'Ce champ est obligatoire',
     passwordTooShort: 'Le mot de passe doit contenir au moins 6 caractères',
     passwordsDontMatch: 'Les mots de passe ne correspondent pas',
@@ -500,7 +487,7 @@ export const translations: Record<Language, Translations> = {
     password: 'Mot de passe',
     confirmPassword: 'Confirmer le mot de passe',
     forgotPassword: 'Mot de passe oublié?',
-    createAccount: 'Créer un compte',
+    createAccount: 'Créer',
     alreadyHaveAccount: 'Vous avez déjà un compte?',
     dontHaveAccount: "Vous n'avez pas de compte?",
     signIn: 'Se connecter',
@@ -615,11 +602,6 @@ export const translations: Record<Language, Translations> = {
     getStarted: 'ابدأ الآن',
 
     // Role Selection
-    selectRole: 'أنا...',
-    imADoctor: 'طبيب',
-    imAPatient: 'مريض',
-    doctorDescription: 'إدارة المواعيد وسجلات المرضى',
-    patientDescription: 'ابحث واحجز مواعيد مع الأطباء',
 
     // Common
     login: 'تسجيل الدخول',
@@ -658,6 +640,9 @@ export const translations: Record<Language, Translations> = {
     allSpecialties: 'جميع التخصصات',
     viewOnMap: 'عرض الخريطة',
     viewList: 'عرض القائمة',
+
+    // DoctorCard
+    directions: 'اتجاه',
 
     // Booking
     bookingDetails: 'تفاصيل الحجز',
@@ -698,7 +683,7 @@ export const translations: Record<Language, Translations> = {
     password: 'كلمة المرور',
     confirmPassword: 'تأكيد كلمة المرور',
     forgotPassword: 'هل نسيت كلمة المرور؟',
-    createAccount: 'إنشاء حساب',
+    createAccount: 'إنشاء',
     alreadyHaveAccount: 'هل لديك حساب؟',
     dontHaveAccount: 'ليس لديك حساب؟',
     signIn: 'تسجيل الدخول',
@@ -718,6 +703,7 @@ export const translations: Record<Language, Translations> = {
     rejectBooking: 'رفض',
     completeBooking: 'إكمال',
     invalidPhone: 'رقم هاتف غير صالح',
+    invalidDoctorName: "الاسم يجب أن يبدأ بـ 'Dr.' مثال: Dr. Ahmed",
     requiredField: 'هذا الحقل مطلوب',
     
     // Profile Tabs & Sections

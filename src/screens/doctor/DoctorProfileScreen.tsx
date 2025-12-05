@@ -29,6 +29,7 @@ import { CustomButton } from '../../shared/components/CustomButton';
 import { useTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAnalytics } from '../../shared/hooks/useAnalytics';
+import { validateMoroccanPhone, validateDoctorName } from '../../shared/utils/validation';
 import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../../shared/constants/theme';
 import ApiService, { DoctorRequestDto, WorkingHours } from '../../services/api';
 
@@ -130,18 +131,13 @@ const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email);
 };
 
-const isValidPhoneNumber = (phone: string): boolean => {
-  const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
-  return phoneRegex.test(phone.replace(/\s/g, ''));
-};
-
-const validateProfileData = (data: ProfileData): ValidationErrors => {
+const validateProfileData = (data: ProfileData, t: any): ValidationErrors => {
   const errors: ValidationErrors = {};
 
-  if (!data.name.trim()) {
-    errors.name = 'Name is required';
-  } else if (data.name.trim().length < 3) {
-    errors.name = 'Name must be at least 3 characters';
+  // Name: must start with Dr. or dr.
+  const nameValidation = validateDoctorName(data.name, t);
+  if (!nameValidation.valid) {
+    errors.name = nameValidation.error as string;
   }
 
   if (!data.email.trim()) {
@@ -150,10 +146,9 @@ const validateProfileData = (data: ProfileData): ValidationErrors => {
     errors.email = 'Please enter a valid email address';
   }
 
-  if (!data.phoneNumber.trim()) {
-    errors.phoneNumber = 'Phone number is required';
-  } else if (!isValidPhoneNumber(data.phoneNumber)) {
-    errors.phoneNumber = 'Please enter a valid phone number';
+  const phoneValidation = validateMoroccanPhone(data.phoneNumber, t);
+  if (!phoneValidation.valid) {
+    errors.phoneNumber = phoneValidation.error as string;
   }
 
   if (!data.specialization.trim()) {
@@ -430,7 +425,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     Keyboard.dismiss();
 
 
-    const errors = validateProfileData(profileData);
+    const errors = validateProfileData(profileData, t);
     setValidationErrors(errors);
     if (Object.keys(errors).length > 0) {
       const firstError = Object.values(errors)[0];

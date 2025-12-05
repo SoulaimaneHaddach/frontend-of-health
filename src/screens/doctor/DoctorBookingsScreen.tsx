@@ -14,6 +14,7 @@ import {
   Modal,
   Pressable,
   Linking,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -29,17 +30,16 @@ import { BookingResponse, BookingStatus } from '../../shared/types/booking';
 import ApiService from '../../services/api';
 import logger from '../../shared/utils/logger';
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 type Props = { navigation: NativeStackNavigationProp<any> };
 type FilterType = 'all' | 'PENDING' | 'ACCEPTED' | 'DONE';
 
-// STATUS_CONFIG will be created per-render using theme colors inside the component
-
 const CACHE_KEY = 'doctor_bookings_cache';
-const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
+const CACHE_DURATION = 2 * 60 * 1000;
 const PAGE_SIZE = 15;
 const DEBOUNCE_MS = 300;
 
-// Debounce hook
 const useDebounce = (callback: Function, delay: number) => {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   return useCallback((...args: any[]) => {
@@ -48,7 +48,6 @@ const useDebounce = (callback: Function, delay: number) => {
   }, [callback, delay]);
 };
 
-// Animated List Item
 const AnimatedCard = React.memo(({ children, index }: { children: React.ReactNode; index: number }) => {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -77,23 +76,21 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
   const [isOnline, setIsOnline] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
-  // Request management
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
   const pendingRequestsRef = useRef<Set<string>>(new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
   const pageRef = useRef<number>(page);
   
-  const modalAnim = useRef(new Animated.Value(0)).current;
+  const modalSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const modalOpacityAnim = useRef(new Animated.Value(0)).current;
   const headerAnim = useRef(new Animated.Value(0)).current;
 
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
-  // Make status colors/theme available at runtime so design tokens can adapt
   const STATUS_CONFIG = React.useMemo(() => ({
     PENDING: { color: (colors as any).warning || '#F59E0B', bg: withOpacity((colors as any).warning || '#F59E0B', 0.12), icon: 'time' as const, label: t.pending },
     ACCEPTED: { color: (colors as any).success || '#10B981', bg: withOpacity((colors as any).success || '#10B981', 0.12), icon: 'checkmark-circle' as const, label: t.confirmed },
     REJECTED: { color: (colors as any).error || '#EF4444', bg: withOpacity((colors as any).error || '#EF4444', 0.12), icon: 'close-circle' as const, label: t.rejectBooking },
-    // Use success for DONE so it contrasts with typical primary/blue themes
     DONE: { color: (colors as any).success || '#10B981', bg: withOpacity((colors as any).success || '#10B981', 0.12), icon: 'checkmark-done-circle' as const, label: t.completeBooking },
     CANCELED: { color: (colors as any).muted || '#6B7280', bg: withOpacity(colors.surface || '#F3F4F6', 0.06), icon: 'ban' as const, label: t.canceled },
   }), [colors, t]);
@@ -105,7 +102,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
     label: '',
   }), [colors]);
 
-  // loadDoctorId moved above effects to satisfy hook/order constraints
   const loadDoctorId = useCallback(async () => {
     try {
       const id = await AsyncStorage.getItem('doctorId');
@@ -114,13 +110,10 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
     } catch (e) { logger.error(e); }
   }, [navigation, t]);
 
-  // fetchBookings as stable callback so effects can depend on it
-  // Stable fetchBookings: use refs to avoid re-creating the callback when `bookings` changes
   const fetchBookings = useCallback(async (reset = false) => {
     if (!doctorId) return;
-    if (pendingRequestsRef.current.has('fetch')) return; // Prevent duplicate requests
+    if (pendingRequestsRef.current.has('fetch')) return;
 
-    // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -129,7 +122,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
     const currentPage = reset ? 1 : pageRef.current;
 
     try {
-      // mark pending
       pendingRequestsRef.current.add('fetch');
       setPendingRequests(prev => { const n = new Set(prev); n.add('fetch'); return n; });
 
@@ -142,7 +134,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
         signal: abortControllerRef.current.signal,
       });
 
-      // Normalize known nullable fields and deduplicate: prefer server-returned items from `data`
       const normalized = data
         .map((b: BookingResponse) => ({
           ...b,
@@ -150,21 +141,17 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
           phoneNumberUser: (b.phoneNumberUser ?? '').toString(),
           appointmentTime: (b.appointmentTime ?? '').toString(),
         }))
-        // filter out invalid entries with missing id or appointmentTime
         .filter((b: BookingResponse) => Boolean(b && b.id && b.appointmentTime));
 
       setBookings(prev => {
         if (reset) {
-          const next = normalized;
-          return next;
+          return normalized;
         }
-        // merge: put newest server items first, then append older items that aren't in the new page
         const ids = new Set(normalized.map((b) => b.id));
         const merged = [...normalized, ...prev.filter((p) => !ids.has(p.id))];
         return merged;
       });
 
-      // advance page
       const nextPage = currentPage + 1;
       setPage(nextPage);
       pageRef.current = nextPage;
@@ -173,22 +160,18 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
       setLastUpdated(new Date());
       setIsOnline(true);
 
-      // Cache the data when resetting
       if (reset) {
-        // Use the latest bookings from state by reading after setBookings;
-        // best-effort: save normalized results for the page when reset
         saveToCache(normalized);
       }
 
     } catch (e: any) {
-      if (e?.name === 'AbortError') return; // Ignore aborted requests
+      if (e?.name === 'AbortError') return;
       logger.error('Fetch error:', e);
       setIsOnline(false);
-      // if we have no visible data, show an alert
       setBookings(prev => {
         if (prev.length === 0) {
-            Alert.alert(t.error, t.failedLoadAppointments);
-          }
+          Alert.alert(t.error, t.failedLoadAppointments);
+        }
         return prev;
       });
     } finally {
@@ -199,7 +182,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
     }
   }, [doctorId, t, bookings.length]);
 
-  // Cancel pending requests on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -241,7 +223,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
     return () => { try { if (typeof unsubscribe === 'function') unsubscribe(); } catch {} };
   }, []);
 
-  // Load cached data first for instant UI
   const loadCachedData = async () => {
     try {
       const cached = await AsyncStorage.getItem(CACHE_KEY);
@@ -257,7 +238,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
     } catch (e) { logger.warn('Cache load error:', e); }
   };
 
-  // Save to cache
   const saveToCache = async (data: BookingResponse[]) => {
     try {
       await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
@@ -272,7 +252,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  // Debounced load more
   const loadMore = useDebounce(() => {
     if (!loadingMore && hasMore && !loading) {
       fetchBookings(false);
@@ -288,19 +267,24 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
   const openDetail = useCallback((booking: BookingResponse) => {
     setSelectedBooking(booking);
     setShowDetail(true);
-    Animated.spring(modalAnim, { toValue: 1, useNativeDriver: true, tension: 65, friction: 9 }).start();
-  }, [modalAnim]);
+    Animated.parallel([
+      Animated.timing(modalOpacityAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.spring(modalSlideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 })
+    ]).start();
+  }, [modalSlideAnim, modalOpacityAnim]);
 
   const closeDetail = useCallback(() => {
-    Animated.timing(modalAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+    Animated.parallel([
+      Animated.timing(modalOpacityAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(modalSlideAnim, { toValue: SCREEN_HEIGHT, duration: 250, useNativeDriver: true })
+    ]).start(() => {
       setShowDetail(false);
       setSelectedBooking(null);
     });
-  }, [modalAnim]);
+  }, [modalSlideAnim, modalOpacityAnim]);
 
-  // Optimistic update with rollback
   const handleStatusUpdate = async (bookingId: string, newStatus: BookingStatus) => {
-    if (pendingRequests.has(bookingId)) return; // Prevent duplicate
+    if (pendingRequests.has(bookingId)) return;
     
     const previousBookings = [...bookings];
     const booking = bookings.find(b => b.id === bookingId);
@@ -308,16 +292,13 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
 
     closeDetail();
     
-    // Optimistic update
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
     setPendingRequests(prev => new Set(prev).add(bookingId));
 
     try {
       await ApiService.updateBookingStatus(bookingId, newStatus);
-      // Update cache
       saveToCache(bookings.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
     } catch {
-      // Rollback on error
       setBookings(previousBookings);
       Alert.alert('Error', 'Failed to update. Please try again.');
     } finally {
@@ -331,7 +312,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
     const previousBookings = [...bookings];
     closeDetail();
     
-    // Optimistic delete
     setBookings(prev => prev.filter(b => b.id !== bookingId));
     setPendingRequests(prev => new Set(prev).add(bookingId));
 
@@ -339,7 +319,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
       await ApiService.deleteBooking(bookingId);
       saveToCache(bookings.filter(b => b.id !== bookingId));
     } catch {
-      // Rollback
       setBookings(previousBookings);
       Alert.alert('Error', 'Failed to delete. Please try again.');
     } finally {
@@ -349,7 +328,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
 
   const callPatient = (phone: string) => Linking.openURL(`tel:${phone}`);
 
-  // Memoized filtered data
   const filteredBookings = React.useMemo(() => {
     return filter === 'all' ? bookings : bookings.filter(b => b.status === filter);
   }, [bookings, filter]);
@@ -374,7 +352,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
     return { date: dateStr, time: d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), full: d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) };
   }, [t]);
 
-  // Memoized card renderer
   const renderCard = useCallback(({ item, index }: { item: BookingResponse; index: number }) => {
     const { date, time } = formatDate(item.appointmentTime);
     const cfg = STATUS_CONFIG[item.status] ?? DEFAULT_STATUS_CFG;
@@ -389,14 +366,14 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
           onPress={() => openDetail(item)}
           disabled={isUpdating}
         >
-            <View style={[styles.cardAccent, { backgroundColor: cfg.color || colors.primary }]} />
+          <View style={[styles.cardAccent, { backgroundColor: cfg.color || colors.primary }]} />
           
           <View style={styles.cardContent}>
             <View style={styles.cardTop}>
               <View style={styles.patientRow}>
                 <View style={[styles.avatar, { backgroundColor: cfg.bg || colors.card }]}>
-                    <Text style={[styles.avatarText, { color: cfg.color || colors.text }]}>{item.nameUser.charAt(0).toUpperCase()}</Text>
-                  </View>
+                  <Text style={[styles.avatarText, { color: cfg.color || colors.text }]}>{item.nameUser.charAt(0).toUpperCase()}</Text>
+                </View>
                 <View style={styles.patientInfo}>
                   <Text style={styles.patientName} numberOfLines={1}>{item.nameUser}</Text>
                   <View style={styles.phoneRow}>
@@ -467,84 +444,170 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
 
     return (
       <Modal visible={showDetail} transparent animationType="none" onRequestClose={closeDetail}>
-        <Pressable style={styles.overlay} onPress={closeDetail}>
-          <Animated.View style={[styles.modal, { transform: [{ scale: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }, { translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }], opacity: modalAnim }]}>
-            <Pressable>
-              <TouchableOpacity style={styles.modalClose} onPress={closeDetail}>
-                <Ionicons name="close" size={ms(22)} color={colors.textSecondary} />
+        <Animated.View style={[styles.modalOverlay, { opacity: modalOpacityAnim }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeDetail} />
+        </Animated.View>
+
+        <Animated.View 
+          style={[
+            styles.bottomSheet,
+            {
+              transform: [{ translateY: modalSlideAnim }]
+            }
+          ]}
+        >
+          {/* Handle Bar */}
+          <View style={styles.handleBar} />
+
+          {/* Header with Status */}
+          <View style={styles.sheetHeader}>
+            <View style={styles.headerTop}>
+              <Text style={styles.sheetTitle}>Appointment Details</Text>
+              <TouchableOpacity onPress={closeDetail} style={styles.closeBtn}>
+                <Ionicons name="close" size={ms(24)} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={[styles.statusPill, { backgroundColor: cfg.bg }]}>
+              <View style={[styles.statusDot, { backgroundColor: cfg.color }]} />
+              <Text style={[styles.statusPillText, { color: cfg.color }]}>{cfg.label}</Text>
+            </View>
+          </View>
+
+          {/* Patient Info Card */}
+          <View style={styles.patientCard}>
+            <View style={[styles.patientAvatar, { backgroundColor: cfg.bg }]}>
+              <Text style={[styles.patientAvatarText, { color: cfg.color }]}>
+                {selectedBooking.nameUser.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.patientDetails}>
+              <Text style={styles.patientCardName}>{selectedBooking.nameUser}</Text>
+              <TouchableOpacity 
+                style={styles.phoneButton} 
+                onPress={() => callPatient(selectedBooking.phoneNumberUser)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="call" size={ms(16)} color={colors.primary} />
+                <Text style={styles.phoneButtonText}>{selectedBooking.phoneNumberUser}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Date & Time Grid */}
+          <View style={styles.detailsGrid}>
+            <View style={styles.detailCard}>
+              <View style={[styles.detailIconBox, { backgroundColor: withOpacity(colors.primary, 0.1) }]}>
+                <Ionicons name="calendar" size={ms(20)} color={colors.primary} />
+              </View>
+              <Text style={styles.detailLabel}>Date</Text>
+              <Text style={styles.detailValue}>{date}</Text>
+            </View>
+
+            <View style={styles.detailCard}>
+              <View style={[styles.detailIconBox, { backgroundColor: withOpacity(colors.primary, 0.1) }]}>
+                <Ionicons name="time" size={ms(20)} color={colors.primary} />
+              </View>
+              <Text style={styles.detailLabel}>Time</Text>
+              <Text style={styles.detailValue}>{time}</Text>
+            </View>
+          </View>
+
+          <View style={styles.fullDateContainer}>
+            <Ionicons name="information-circle" size={ms(16)} color={colors.textSecondary} />
+            <Text style={styles.fullDateLabel}>{full}</Text>
+          </View>
+
+          {/* Action Buttons */}
+          {selectedBooking.status === 'PENDING' && (
+            <View style={styles.actionButtons}>
+              <TouchableOpacity 
+                style={[styles.primaryActionBtn, { backgroundColor: '#10B981' }]}
+                onPress={() => handleStatusUpdate(selectedBooking.id, 'ACCEPTED')}
+                disabled={isUpdating}
+                activeOpacity={0.8}
+              >
+                {isUpdating ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={ms(22)} color="#fff" />
+                    <Text style={styles.primaryActionText}>Accept</Text>
+                  </>
+                )}
               </TouchableOpacity>
 
-              <View style={styles.modalHeader}>
-                <View style={[styles.modalAvatar, { backgroundColor: cfg.bg || colors.card }]}>
-                  <Text style={[styles.modalAvatarText, { color: cfg.color || colors.text }]}>{selectedBooking.nameUser.charAt(0).toUpperCase()}</Text>
-                </View>
-                <Text style={styles.modalName}>{selectedBooking.nameUser}</Text>
-                <View style={[styles.modalStatus, { backgroundColor: cfg.bg || colors.card }]}>
-                  <Ionicons name={cfg.icon ?? 'time'} size={ms(14)} color={cfg.color || colors.text} />
-                  <Text style={[styles.modalStatusText, { color: cfg.color || colors.text }]}>{cfg.label || selectedBooking.status}</Text>
-                </View>
-              </View>
+              <TouchableOpacity 
+                style={[styles.secondaryActionBtn, { borderColor: '#EF4444' }]}
+                onPress={() => handleStatusUpdate(selectedBooking.id, 'REJECTED')}
+                disabled={isUpdating}
+                activeOpacity={0.8}
+              >
+                {isUpdating ? (
+                  <ActivityIndicator color="#EF4444" />
+                ) : (
+                  <>
+                    <Ionicons name="close-circle" size={ms(22)} color="#EF4444" />
+                    <Text style={[styles.secondaryActionText, { color: '#EF4444' }]}>Reject</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
 
-              <View style={styles.infoGrid}>
-                <View style={styles.infoCard}>
-                  <View style={[styles.infoIcon, { backgroundColor: colors.primary + '15' }]}>
-                    <Ionicons name="calendar" size={ms(18)} color={colors.primary} />
-                  </View>
-                    <Text style={styles.infoLabel}>{t.date}</Text>
-                    <Text style={styles.infoValue}>{date}</Text>
-                </View>
-                <View style={styles.infoCard}>
-                  <View style={[styles.infoIcon, { backgroundColor: colors.primary + '15' }]}>
-                    <Ionicons name="time" size={ms(18)} color={colors.primary} />
-                  </View>
-                    <Text style={styles.infoLabel}>{t.time}</Text>
-                    <Text style={styles.infoValue}>{time}</Text>
-                </View>
-              </View>
-
-              <View style={styles.fullDateRow}>
-                <Ionicons name="information-circle-outline" size={ms(16)} color={colors.textSecondary} />
-                <Text style={styles.fullDateText}>{full}</Text>
-              </View>
-
-              <TouchableOpacity style={styles.callBtn} onPress={() => callPatient(selectedBooking.phoneNumberUser)} activeOpacity={0.8}>
-                <Ionicons name="call" size={ms(18)} color={colors.primary} />
-                <Text style={styles.callBtnText}>{selectedBooking.phoneNumberUser}</Text>
-                <View style={styles.callBtnArrow}>
-                  <Ionicons name="arrow-forward" size={ms(14)} color={colors.primary} />
-                </View>
+          {selectedBooking.status === 'ACCEPTED' && (
+            <View style={styles.actionButtons}>
+              <TouchableOpacity 
+                style={[styles.primaryActionBtn, { backgroundColor: colors.primary }]}
+                onPress={() => handleStatusUpdate(selectedBooking.id, 'DONE')}
+                disabled={isUpdating}
+                activeOpacity={0.8}
+              >
+                {isUpdating ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-done-circle" size={ms(22)} color="#fff" />
+                    <Text style={styles.primaryActionText}>Complete</Text>
+                  </>
+                )}
               </TouchableOpacity>
 
-              {selectedBooking.status === 'PENDING' && (
-                <View style={styles.actions}>
-                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#10B981' }]} onPress={() => handleStatusUpdate(selectedBooking.id, 'ACCEPTED')} activeOpacity={0.85} disabled={isUpdating}>
-                    {isUpdating ? <ActivityIndicator color="#fff" size="small" /> : <><Ionicons name="checkmark-circle" size={ms(20)} color="#fff" /><Text style={styles.actionBtnText}>{t.confirm}</Text></>}
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#EF4444' }]} onPress={() => handleStatusUpdate(selectedBooking.id, 'REJECTED')} activeOpacity={0.85} disabled={isUpdating}>
-                    {isUpdating ? <ActivityIndicator color="#fff" size="small" /> : <><Ionicons name="close-circle" size={ms(20)} color="#fff" /><Text style={styles.actionBtnText}>{t.rejectBooking}</Text></>}
-                  </TouchableOpacity>
-                </View>
-              )}
+              <TouchableOpacity 
+                style={[styles.secondaryActionBtn, { borderColor: colors.textSecondary }]}
+                onPress={() => handleStatusUpdate(selectedBooking.id, 'CANCELED')}
+                disabled={isUpdating}
+                activeOpacity={0.8}
+              >
+                {isUpdating ? (
+                  <ActivityIndicator color={colors.textSecondary} />
+                ) : (
+                  <>
+                    <Ionicons name="ban" size={ms(22)} color={colors.textSecondary} />
+                    <Text style={[styles.secondaryActionText, { color: colors.textSecondary }]}>Cancel</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
 
-              {selectedBooking.status === 'ACCEPTED' && (
-                <View style={styles.actions}>
-                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#6366F1' }]} onPress={() => handleStatusUpdate(selectedBooking.id, 'DONE')} activeOpacity={0.85} disabled={isUpdating}>
-                    {isUpdating ? <ActivityIndicator color="#fff" size="small" /> : <><Ionicons name="checkmark-done-circle" size={ms(20)} color="#fff" /><Text style={styles.actionBtnText}>{t.completeBooking}</Text></>}
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#6B7280' }]} onPress={() => handleStatusUpdate(selectedBooking.id, 'CANCELED')} activeOpacity={0.85} disabled={isUpdating}>
-                    {isUpdating ? <ActivityIndicator color="#fff" size="small" /> : <><Ionicons name="ban" size={ms(20)} color="#fff" /><Text style={styles.actionBtnText}>{t.cancel}</Text></>}
-                  </TouchableOpacity>
-                </View>
+          {(selectedBooking.status === 'DONE' || selectedBooking.status === 'REJECTED' || selectedBooking.status === 'CANCELED') && (
+            <TouchableOpacity 
+              style={styles.deleteButton}
+              onPress={() => handleDelete(selectedBooking.id)}
+              disabled={isUpdating}
+              activeOpacity={0.8}
+            >
+              {isUpdating ? (
+                <ActivityIndicator color="#EF4444" />
+              ) : (
+                <>
+                  <Ionicons name="trash-outline" size={ms(20)} color="#EF4444" />
+                  <Text style={styles.deleteButtonText}>Delete Record</Text>
+                </>
               )}
-
-              {(selectedBooking.status === 'DONE' || selectedBooking.status === 'REJECTED' || selectedBooking.status === 'CANCELED') && (
-                <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(selectedBooking.id)} activeOpacity={0.8} disabled={isUpdating}>
-                  {isUpdating ? <ActivityIndicator color="#EF4444" size="small" /> : <><Ionicons name="trash-outline" size={ms(18)} color="#EF4444" /><Text style={styles.deleteBtnText}>{t.deleteRecord}</Text></>}
-                </TouchableOpacity>
-              )}
-            </Pressable>
-          </Animated.View>
-        </Pressable>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
       </Modal>
     );
   };
@@ -565,7 +628,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
 
-      {/* Offline Banner */}
       {!isOnline && (
         <View style={styles.offlineBanner}>
           <Ionicons name="cloud-offline-outline" size={ms(16)} color="#fff" />
@@ -573,7 +635,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       )}
 
-      {/* Header */}
       <Animated.View style={[styles.header, { opacity: headerAnim }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={ms(22)} color={colors.text} />
@@ -589,13 +650,7 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Stats Bar */}
       <View style={styles.statsBar}>
-        <View style={styles.statItem}>
-          <Text style={[styles.statCount, { color: STATUS_CONFIG.PENDING?.color || colors.warning || '#F59E0B' }]}>{getCount('PENDING')}</Text>
-          <Text style={styles.statLabel}>{t.pending}</Text>
-        </View>
-        <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={[styles.statCount, { color: colors.primary }]}>{getTodayCount()}</Text>
           <Text style={styles.statLabel}>{t.today}</Text>
@@ -607,7 +662,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Filters */}
       <View style={styles.filters}>
         {[
           { key: 'all', label: t.all },
@@ -626,7 +680,6 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
         ))}
       </View>
 
-      {/* List */}
       <FlatList
         data={filteredBookings}
         renderItem={renderCard}
@@ -655,37 +708,31 @@ const createStyles = (colors: any) => StyleSheet.create({
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.md },
   loadingText: { color: colors.textSecondary, fontSize: FONT_SIZES.sm },
 
-  // Offline Banner
   offlineBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F59E0B', paddingVertical: SPACING.xs },
   offlineText: { color: '#fff', fontSize: FONT_SIZES.xs, fontWeight: '600' },
 
-  // Header
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, backgroundColor: colors.card },
   headerBtn: { width: ms(42), height: ms(42), borderRadius: ms(21), justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: { fontSize: FONT_SIZES.lg, fontWeight: '700', color: colors.text },
   headerSubtitle: { fontSize: FONT_SIZES.xs, color: colors.textSecondary, marginTop: 2 },
 
-  // Stats Bar
   statsBar: { flexDirection: 'row', backgroundColor: colors.card, paddingVertical: SPACING.md, paddingHorizontal: SPACING.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
   statItem: { flex: 1, alignItems: 'center' },
   statCount: { fontSize: ms(22), fontWeight: '700' },
   statLabel: { fontSize: FONT_SIZES.xs, color: colors.textSecondary, marginTop: 2 },
   statDivider: { width: 1, backgroundColor: colors.border, marginVertical: 4 },
 
-  // Filters
   filters: { flexDirection: 'row', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, gap: SPACING.xs },
   filterBtn: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs + 2, borderRadius: RADIUS.full, backgroundColor: colors.card },
   filterActive: { backgroundColor: colors.primary },
   filterText: { fontSize: FONT_SIZES.sm, color: colors.textSecondary, fontWeight: '500' },
   filterTextActive: { color: '#fff' },
 
-  // List
   list: { padding: SPACING.md, gap: SPACING.sm, paddingBottom: SPACING.xl * 2 },
   loadingMore: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: SPACING.md, gap: SPACING.sm },
   loadingMoreText: { fontSize: FONT_SIZES.sm, color: colors.textSecondary },
 
-  // Card
   card: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: RADIUS.lg, overflow: 'hidden', ...SHADOWS.small },
   cardPending: { borderWidth: 1, borderColor: withOpacity(colors.warning || '#F59E0B', 0.3) },
   cardUpdating: { opacity: 0.7 },
@@ -707,45 +754,217 @@ const createStyles = (colors: any) => StyleSheet.create({
   dateTimeText: { fontSize: FONT_SIZES.sm, color: colors.text, fontWeight: '500' },
   dateTimeDivider: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.border },
 
-  // Empty
   empty: { alignItems: 'center', paddingVertical: SPACING.xl * 2 },
   emptyIcon: { width: ms(72), height: ms(72), borderRadius: ms(36), backgroundColor: colors.card, justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.md },
   emptyTitle: { fontSize: FONT_SIZES.lg, fontWeight: '600', color: colors.text },
   emptyText: { fontSize: FONT_SIZES.sm, color: colors.textSecondary, marginTop: 4 },
 
-  // Modal
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: SPACING.lg },
-  modal: { backgroundColor: colors.card, borderRadius: RADIUS.xl, padding: SPACING.lg, ...SHADOWS.large },
-  modalClose: { position: 'absolute', top: SPACING.sm, right: SPACING.sm, zIndex: 10, width: ms(36), height: ms(36), borderRadius: ms(18), backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' },
-  modalHeader: { alignItems: 'center', marginBottom: SPACING.lg, paddingTop: SPACING.sm },
-  modalAvatar: { width: ms(64), height: ms(64), borderRadius: ms(32), justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.sm },
-  modalAvatarText: { fontSize: ms(26), fontWeight: '700' },
-  modalName: { fontSize: FONT_SIZES.xl, fontWeight: '700', color: colors.text, marginBottom: SPACING.xs },
-  modalStatus: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: 6, borderRadius: RADIUS.full, gap: 6 },
-  modalStatusText: { fontSize: FONT_SIZES.sm, fontWeight: '600' },
-
-  // Info Grid
-  infoGrid: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.sm },
-  infoCard: { flex: 1, backgroundColor: colors.background, borderRadius: RADIUS.md, padding: SPACING.md, alignItems: 'center' },
-  infoIcon: { width: ms(40), height: ms(40), borderRadius: ms(20), justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.xs },
-  infoLabel: { fontSize: FONT_SIZES.xs, color: colors.textSecondary },
-  infoValue: { fontSize: FONT_SIZES.base, fontWeight: '700', color: colors.text, marginTop: 2 },
-
-  // Full Date
-  fullDateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: SPACING.md },
-  fullDateText: { fontSize: FONT_SIZES.xs, color: colors.textSecondary },
-
-  // Call Button
-  callBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: withOpacity(colors.primary, 0.08), padding: SPACING.md, borderRadius: RADIUS.md, marginBottom: SPACING.md },
-  callBtnText: { flex: 1, fontSize: FONT_SIZES.base, fontWeight: '600', color: colors.primary, marginLeft: SPACING.sm },
-  callBtnArrow: { width: ms(28), height: ms(28), borderRadius: ms(14), backgroundColor: withOpacity(colors.primary, 0.12), justifyContent: 'center', alignItems: 'center' },
-
-  // Actions
-  actions: { flexDirection: 'row', gap: SPACING.sm },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: SPACING.md, borderRadius: RADIUS.md },
-  actionBtnText: { color: '#fff', fontSize: FONT_SIZES.sm, fontWeight: '700' },
-  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: SPACING.md, backgroundColor: '#FEF2F2', borderRadius: RADIUS.md, borderWidth: 1, borderColor: '#FECACA' },
-  deleteBtnText: { color: '#EF4444', fontSize: FONT_SIZES.sm, fontWeight: '600' },
+  // REDESIGNED BOTTOM SHEET MODAL
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  bottomSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.card,
+    borderTopLeftRadius: ms(28),
+    borderTopRightRadius: ms(28),
+    paddingBottom: SPACING.xl,
+    ...SHADOWS.large,
+    maxHeight: SCREEN_HEIGHT * 0.85,
+  },
+  handleBar: {
+    width: ms(40),
+    height: ms(4),
+    backgroundColor: colors.border,
+    borderRadius: ms(2),
+    alignSelf: 'center',
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  sheetHeader: {
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  sheetTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  closeBtn: {
+    width: ms(36),
+    height: ms(36),
+    borderRadius: ms(18),
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.full,
+    gap: SPACING.xs,
+  },
+  statusDot: {
+    width: ms(8),
+    height: ms(8),
+    borderRadius: ms(4),
+  },
+  statusPillText: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+  },
+  patientCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+    padding: SPACING.md,
+    borderRadius: RADIUS.lg,
+  },
+  patientAvatar: {
+    width: ms(56),
+    height: ms(56),
+    borderRadius: ms(28),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  patientAvatarText: {
+    fontSize: ms(24),
+    fontWeight: '700',
+  },
+  patientDetails: {
+    marginLeft: SPACING.md,
+    flex: 1,
+  },
+  patientCardName: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: SPACING.xs,
+  },
+  phoneButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  phoneButtonText: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  detailsGrid: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+    gap: SPACING.md,
+  },
+  detailCard: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    alignItems: 'center',
+  },
+  detailIconBox: {
+    width: ms(44),
+    height: ms(44),
+    borderRadius: ms(22),
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  detailLabel: {
+    fontSize: FONT_SIZES.xs,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: FONT_SIZES.base,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  fullDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+  },
+  fullDateLabel: {
+    fontSize: FONT_SIZES.xs,
+    color: colors.textSecondary,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.xl,
+    gap: SPACING.md,
+  },
+  primaryActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.md + 2,
+    borderRadius: RADIUS.lg,
+    ...SHADOWS.small,
+  },
+  primaryActionText: {
+    color: '#fff',
+    fontSize: FONT_SIZES.base,
+    fontWeight: '700',
+  },
+  secondaryActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.md + 2,
+    borderRadius: RADIUS.lg,
+    backgroundColor: colors.background,
+    borderWidth: 2,
+  },
+  secondaryActionText: {
+    fontSize: FONT_SIZES.base,
+    fontWeight: '700',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+    paddingVertical: SPACING.md + 2,
+    borderRadius: RADIUS.lg,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  deleteButtonText: {
+    color: '#EF4444',
+    fontSize: FONT_SIZES.base,
+    fontWeight: '700',
+  },
 });
 
 export default DoctorBookingsScreen;
