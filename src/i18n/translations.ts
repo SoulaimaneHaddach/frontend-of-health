@@ -113,6 +113,7 @@ export interface Translations {
   invalidEmail: string;
   invalidPhone: string;
   invalidDoctorName: string;
+  invalidCredentials: string;
   requiredField: string;
   passwordTooShort: string;
   passwordsDontMatch: string;
@@ -280,6 +281,7 @@ export const translations: Record<Language, Translations> = {
     registrationCreatedMessage: 'Account created successfully. Please log in.',
     registrationFailedDefault: 'Registration failed. Please try again.',
     registrationFailedTitle: 'Registration Failed',
+    invalidCredentials: 'Email or password is incorrect',
 
     // New additions
     back: 'Back',
@@ -475,6 +477,7 @@ export const translations: Record<Language, Translations> = {
     registrationCreatedMessage: 'Compte créé avec succès. Veuillez vous connecter.',
     registrationFailedDefault: 'Échec de l\'inscription. Veuillez réessayer.',
     registrationFailedTitle: 'Échec de l\'inscription',
+    invalidCredentials: 'Email ou mot de passe incorrect',
 
     // New additions
     back: 'Retour',
@@ -669,6 +672,7 @@ export const translations: Record<Language, Translations> = {
     registrationCreatedMessage: 'تم إنشاء الحساب بنجاح. يرجى تسجيل الدخول.',
     registrationFailedDefault: 'فشل التسجيل. حاول مرة أخرى.',
     registrationFailedTitle: 'فشل التسجيل',
+    invalidCredentials: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
 
     // Navigation & Actions
     back: 'رجوع',

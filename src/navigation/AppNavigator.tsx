@@ -17,8 +17,6 @@ import OnboardingScreen from '../screens/OnboardingScreen'; //added
 // import { WelcomeScreen } from '../screens/WelcomeScreen';
 // import { RoleSelectionScreen } from '../screens/RoleSelectionScreen';
 import { DoctorLoginScreen } from '../screens/doctor/DoctorLoginScreen';
-import { DoctorRegisterScreen } from '../screens/doctor/DoctorRegisterScreen';
-import { ForgotPasswordScreen } from '../screens/doctor/ForgotPasswordScreen';
 import { DoctorProfileScreen } from '../screens/doctor/DoctorProfileScreen';
 import { DoctorBookingsScreen } from '../screens/doctor/DoctorBookingsScreen';
 import { HomeScreen } from '../screens/user/HomeScreen';
@@ -31,8 +29,7 @@ export type RootStackParamList = {
   LanguageSelection: undefined;
   Welcome: undefined;
   DoctorLogin: undefined;
-  DoctorRegister: undefined;
-  ForgotPassword: undefined;
+  // ForgotPassword route removed
   DoctorProfile: undefined;
   DoctorBookings: undefined;
   Home: undefined;
@@ -214,8 +211,7 @@ export const AppNavigator: React.FC = () => {
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="LanguageSelection" component={LanguageSelectionScreen} />
         <Stack.Screen name="DoctorLogin" component={DoctorLoginScreen} />
-        <Stack.Screen name="DoctorRegister" component={DoctorRegisterScreen} />
-        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        {/* ForgotPassword route removed */}
         <Stack.Screen name="DoctorProfile" component={DoctorProfileScreen} />
         <Stack.Screen name="DoctorBookings" component={DoctorBookingsScreen} />
         <Stack.Screen

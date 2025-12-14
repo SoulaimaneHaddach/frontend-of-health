@@ -99,11 +99,10 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
         const errorData = error.response.data;
 
         if (status === 401 || status === 404 || status === 400) {
-        
           Alert.alert(
-            'Login Failed',
-            'Invalid email or password. Please check your credentials and try again.',
-            [{ text: 'OK' }]
+            t.error,
+            t.invalidCredentials,
+            [{ text: t.ok }]
           );
         } else {
           Alert.alert(
@@ -196,15 +195,7 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
               error={errors.password}
             />
 
-            {/* FORGOT PASSWORD BUTTON */}
-            <TouchableOpacity 
-              style={styles.forgotPassword}
-              onPress={() => navigation.navigate('ForgotPassword')}
-            >
-              <Text style={[styles.forgotPasswordText, isRTL && styles.rtlText]}>
-                {isRTL ? 'هل نسيت كلمة المرور؟' : 'Forgot Password?'}
-              </Text>
-            </TouchableOpacity>
+            {/* Forgot password removed (disabled in-app) */}
             
             <CustomButton
               title={t.login}
@@ -216,12 +207,7 @@ export const DoctorLoginScreen: React.FC<DoctorLoginScreenProps> = ({ navigation
             />
           </View>
 
-          <View style={styles.footer}>
-            <Text style={[styles.footerText, { color: colors.textSecondary }]}>{t.dontHaveAccount} </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('DoctorRegister')}>
-              <Text style={styles.signUpText}>{t.signUp}</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Sign up removed — registration is disabled in-app */}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -272,15 +258,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   form: {
     marginBottom: SPACING.xl,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: SPACING.lg,
-  },
-  forgotPasswordText: {
-    fontSize: FONT_SIZES.sm,
-    color: colors.secondary,
-    fontWeight: '600',
-  },
+  // forgotPassword styles removed as feature is disabled
   infoBox: {
     flexDirection: 'row',
     alignItems: 'center',
