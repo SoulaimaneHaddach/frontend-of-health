@@ -231,7 +231,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         // If the backend explicitly marks the account disabled
         if (typeof profile.enabled === 'boolean' && profile.enabled === false) {
           logger.info('🔒 Account disabled detected locally — logging out');
-          try { await api.logout(); } catch (e) { /* ignore logout errors */ }
+          try { await api.logout(); } catch { /* ignore logout errors */ }
           // Remove any markers that match the disabled doctor
           if (profile.id) setDoctors((prev) => prev.filter((d) => d.id !== profile.id));
           try { navigation.replace('DoctorLogin' as any); } catch { /* ignore */ }
@@ -242,7 +242,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         // If server explicitly forbids access or mentions disabled account, logout
         if (status === 403 || /disabled/i.test(String(msg))) {
           logger.info('🔒 Account disabled detected via API error — logging out');
-          try { await api.logout(); } catch (e) { /* ignore */ }
+          try { await api.logout(); } catch { /* ignore */ }
           // Try to remove our marker if we can read the cached profile id
           try {
             const cached = await api.getMyProfile().catch(() => null) as any;
