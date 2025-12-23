@@ -69,7 +69,7 @@ class ApiService {
     // Authenticated API instance
     this.api = axios.create({
       baseURL: API_BASE_URL,
-      timeout: 15000, // Reduced from 30s to 15s for faster failure
+      timeout: 30000, // increase timeout to 30s to tolerate longer devtunnel/backend latency
       headers: { 
         'Content-Type': 'application/json',
       },
@@ -85,6 +85,27 @@ class ApiService {
 
     // Setup interceptors
     this.setupInterceptors();
+  }
+  private async safeGet<T>(client: AxiosInstance, url: string, config: any = {}, maxAttempts = 3): Promise<T> {
+    const baseDelay = 200;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const headers = { ...(config.headers || {}), 'x-suppress-logging': attempt > 1 ? '1' : '0' };
+        const response = await client.get<T>(url, { ...config, headers });
+        return response.data;
+      } catch (err: any) {
+        const isRetryable = shouldRetry(err);
+        if (attempt < maxAttempts && isRetryable) {
+          const jitter = Math.floor(Math.random() * 100);
+          const delay = baseDelay * Math.pow(2, attempt - 1) + jitter;
+          logger.debug(`Retrying ${url} (${attempt}/${maxAttempts}) after ${delay}ms`);
+          await sleep(delay);
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error('safeGet: exhausted retries');
   }
   private setupInterceptors(): void {
     this.api.interceptors.request.use(
@@ -458,24 +479,23 @@ class ApiService {
     }
 
     try {
-      const response = await this.api.get<DoctorResponseDto[]>('/doctors', { params });
-      
+      const data = await this.safeGet<DoctorResponseDto[]>(this.api, '/doctors', { params });
       // Cache the response
-      await offlineStorageService.set(cacheKey, response.data, {
+      await offlineStorageService.set(cacheKey, data, {
         ttl: 10 * 60 * 1000, // 10 minutes
         priority: CachePriority.HIGH,
         tags: ['doctors'],
       });
 
-      return response.data;
-    } catch {
+      return data;
+    } catch (err) {
       // Try cache as fallback
       const cached = await offlineStorageService.get<DoctorResponseDto[]>(cacheKey);
-        if (cached) {
+      if (cached) {
         logger.debug('📦 Returning cached doctors (fallback)');
         return cached;
       }
-      throw new Error('Failed to fetch doctors');
+      throw err;
     }
   }
 
@@ -493,8 +513,8 @@ class ApiService {
     if (typeof radiusKm === 'number') params.radiusKm = radiusKm;
 
     try {
-      const response = await this.publicApi.get<DoctorResponseDto[]>('/doctors', { params });
-      const list = Array.isArray(response.data) ? response.data : [];
+      const listData = await this.safeGet<DoctorResponseDto[]>(this.publicApi, '/doctors', { params });
+      const list = Array.isArray(listData) ? listData : [];
       return list.map((d) => ({
         id: d.id,
         email: d.email,
