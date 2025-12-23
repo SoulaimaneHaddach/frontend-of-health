@@ -194,13 +194,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       }
       
       // Filter out invalid entries
+      // Also filter out disabled doctors if backend provides `enabled` flag
       const validDoctors = safeData.filter((doctor: any) => 
         doctor && 
         typeof doctor === 'object' && 
         doctor.location && 
         typeof doctor.location.latitude === 'number' && 
         typeof doctor.location.longitude === 'number'
-      );
+      ).filter((d: any) => (typeof d.enabled === 'boolean' ? d.enabled === true : true));
       
       logger.debug('✅ Fetched doctors (response):', validDoctors.length);
 
@@ -216,6 +217,55 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       isFetchingRef.current = false;
     }
   }, [userLocation, selectedSpecialty]);
+
+  // Periodically / on-foreground check the logged-in doctor's profile.
+  // If the backend indicates the account is disabled (either via `enabled: false`
+  // or a 403/disabled message), log out and remove the doctor from the map.
+  useEffect(() => {
+    let mounted = true;
+
+    const checkProfile = async () => {
+      try {
+        const profile: any = await api.getMyProfile();
+        if (!mounted) return;
+        // If the backend explicitly marks the account disabled
+        if (typeof profile.enabled === 'boolean' && profile.enabled === false) {
+          logger.info('🔒 Account disabled detected locally — logging out');
+          try { await api.logout(); } catch (e) { /* ignore logout errors */ }
+          // Remove any markers that match the disabled doctor
+          if (profile.id) setDoctors((prev) => prev.filter((d) => d.id !== profile.id));
+          try { navigation.replace('DoctorLogin' as any); } catch { /* ignore */ }
+        }
+      } catch (err: any) {
+        const status = err?.original?.response?.status || err?.response?.status;
+        const msg = err?.original?.response?.data?.message || err?.response?.data?.message || err?.message || '';
+        // If server explicitly forbids access or mentions disabled account, logout
+        if (status === 403 || /disabled/i.test(String(msg))) {
+          logger.info('🔒 Account disabled detected via API error — logging out');
+          try { await api.logout(); } catch (e) { /* ignore */ }
+          // Try to remove our marker if we can read the cached profile id
+          try {
+            const cached = await api.getMyProfile().catch(() => null) as any;
+            if (cached && cached.id) setDoctors((prev) => prev.filter((d) => d.id !== cached.id));
+          } catch {}
+          try { navigation.replace('DoctorLogin' as any); } catch { /* ignore */ }
+        }
+      }
+    };
+
+    // Run on mount
+    checkProfile();
+
+    // And whenever the app comes to foreground
+    const sub = AppState.addEventListener?.('change', (next) => {
+      if (next === 'active') checkProfile();
+    });
+
+    return () => {
+      mounted = false;
+      try { sub?.remove?.(); } catch {}
+    };
+  }, [navigation]);
 
   // Get user location on mount and center map
   useEffect(() => {
