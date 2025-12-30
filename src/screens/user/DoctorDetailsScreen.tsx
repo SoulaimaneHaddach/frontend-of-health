@@ -16,6 +16,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
 import logger from '../../shared/utils/logger';
+// lazy import AdBanner where used to avoid hard dependency if lib not installed
+const AdBanner = require('../../shared/components/AdBanner').AdBanner;
 import {
   COLORS,
   FONT_SIZES,
@@ -318,6 +320,9 @@ export const DoctorDetailsScreen: React.FC<DoctorDetailsScreenProps> = ({
         onClose={() => setBookingModalVisible(false)}
       />
 
+      {/* Fixed bottom banner */}
+      <AdBanner style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }} />
+
       {/* Book Appointment FAB */}
       <TouchableOpacity 
         style={[styles.bookFab, { 
@@ -555,11 +560,11 @@ const styles = StyleSheet.create({
   },
   bookFab: {
     position: "absolute",
-    bottom: 50,
-    right: SPACING.xl,
+    bottom: 90,
+    right: 50,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 20,
     paddingHorizontal: 65,
     paddingVertical: 20,
     borderRadius: 28,

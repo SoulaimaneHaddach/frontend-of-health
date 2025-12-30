@@ -35,6 +35,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  // lazy import banner to avoid hard dependency at top-level
+  const AdBanner = require('../shared/components/AdBanner').AdBanner;
   const { t, isRTL } = useLanguage();
   const { isDarkMode, colors } = useTheme();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
@@ -77,6 +79,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   React.useEffect(() => {
     logger.debug('🎯 BookingModal opened, initial date:', appointmentDate.toLocaleString());
   }, [visible, appointmentDate]);
+
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -293,6 +296,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       transparent={false}
     >
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        {/* Top banner (reduce gap to header) */}
+        <AdBanner style={{ marginBottom: -20 }} />
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>

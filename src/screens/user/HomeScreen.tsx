@@ -87,6 +87,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { isDarkMode, colors } = useTheme();
   const { t, isRTL } = useLanguage();
   const analytics = useAnalytics();
+  const { showAdAndThen } = require('../../shared/hooks/useSmartRewardedAd').useSmartRewardedAd();
 
   const [selectedSpecialty, setSelectedSpecialty] = useState<SpecialtyType>('all');
   const [searchVisible, setSearchVisible] = useState(false);
@@ -226,8 +227,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
     const checkProfile = async () => {
       try {
-        const profile: any = await api.getMyProfile();
+        const profile: any = await api.getMyProfileSafe();
         if (!mounted) return;
+        if (!profile) {
+          // Server error returned 500 earlier; treat as non-fatal and skip profile checks
+          logger.warn('checkProfile: no profile available (server error), skipping profile validation');
+          return;
+        }
         // If the backend explicitly marks the account disabled
         if (typeof profile.enabled === 'boolean' && profile.enabled === false) {
           logger.info('🔒 Account disabled detected locally — logging out');
@@ -245,7 +251,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           try { await api.logout(); } catch { /* ignore */ }
           // Try to remove our marker if we can read the cached profile id
           try {
-            const cached = await api.getMyProfile().catch(() => null) as any;
+            const cached = await api.getMyProfileSafe().catch(() => null) as any;
             if (cached && cached.id) setDoctors((prev) => prev.filter((d) => d.id !== cached.id));
           } catch {}
           try { navigation.replace('DoctorLogin' as any); } catch { /* ignore */ }
@@ -944,15 +950,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         onClose={hideDoctorCard}
         onViewDetails={async () => {
           if (!selectedDoctor?.id) return;
-          try {
-            const full = await api.getDoctorById(selectedDoctor.id);
-            hideDoctorCard();
-            navigation.navigate('DoctorDetails', { doctor: full });
-          } catch {
-            // Fallback: navigate with what we have
-            hideDoctorCard();
-            navigation.navigate('DoctorDetails', { doctor: selectedDoctor });
-          }
+          // Use smart rewarded ad logic: sometimes show rewarded, otherwise proceed.
+          await showAdAndThen(async () => {
+            try {
+              const full = await api.getDoctorById(selectedDoctor.id);
+              hideDoctorCard();
+              navigation.navigate('DoctorDetails', { doctor: full });
+            } catch {
+              hideDoctorCard();
+              navigation.navigate('DoctorDetails', { doctor: selectedDoctor });
+            }
+          });
         }}
         slideAnim={slideAnim}
         panY={panY}
