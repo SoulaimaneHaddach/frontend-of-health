@@ -13,28 +13,6 @@ export function useSmartRewardedAd() {
 
   const getKey = (uid: string) => `rewarded_ad_usage:${uid}`;
 
-  const loadState = async (uid: string): Promise<UsageState> => {
-    try {
-      const raw = await AsyncStorage.getItem(getKey(uid));
-      if (!raw) return { count: 0, weekStart: Date.now() };
-      const parsed = JSON.parse(raw) as UsageState;
-      if (!parsed.weekStart || Date.now() - parsed.weekStart > WEEK_MS) {
-        return { count: 0, weekStart: Date.now() };
-      }
-      return parsed;
-    } catch {
-      return { count: 0, weekStart: Date.now() };
-    }
-  };
-
-  const saveState = async (uid: string, state: UsageState) => {
-    try {
-      await AsyncStorage.setItem(getKey(uid), JSON.stringify(state));
-    } catch {
-      // ignore
-    }
-  };
-
   // show ad with randomness + weekly cap. If ad fails to load/shown, calls fallback
   const showAdAndThen = useCallback(
     async (onAfter: () => void, options?: { chance?: number }) => {
@@ -61,14 +39,13 @@ export function useSmartRewardedAd() {
       let RewardedAdEventType: any = null;
       let TestIds: any = null;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const ads = require('react-native-google-mobile-ads');
         RewardedAd = ads.RewardedAd || ads.default?.RewardedAd;
         RewardedAdEventType = ads.RewardedAdEventType || ads.default?.RewardedAdEventType;
         TestIds = ads.TestIds || ads.default?.TestIds;
         // initialize if available
         try { (ads as any)().initialize?.(); } catch {}
-      } catch (e) {
+      } catch {
         // native module not available — run fallback immediately
         onAfter();
         return { shown: false, reason: 'no-native' };
@@ -78,6 +55,29 @@ export function useSmartRewardedAd() {
         onAfter();
         return { shown: false, reason: 'no-native' };
       }
+
+      // helper functions moved here to avoid changing deps on every render
+      const loadState = async (uid: string): Promise<UsageState> => {
+        try {
+          const raw = await AsyncStorage.getItem(getKey(uid));
+          if (!raw) return { count: 0, weekStart: Date.now() };
+          const parsed = JSON.parse(raw) as UsageState;
+          if (!parsed.weekStart || Date.now() - parsed.weekStart > WEEK_MS) {
+            return { count: 0, weekStart: Date.now() };
+          }
+          return parsed;
+        } catch {
+          return { count: 0, weekStart: Date.now() };
+        }
+      };
+
+      const saveState = async (uid: string, state: UsageState) => {
+        try {
+          await AsyncStorage.setItem(getKey(uid), JSON.stringify(state));
+        } catch {
+          // ignore
+        }
+      };
 
       try {
         const adUnit = __DEV__ || !ADS.REWARDED_ID ? (TestIds?.REWARDED ?? 'ca-app-pub-3940256099942544/5224354917') : ADS.REWARDED_ID;
@@ -154,12 +154,12 @@ export function useSmartRewardedAd() {
             }
           }, 7000);
         });
-      } catch (err) {
+      } catch {
         onAfter();
         return { shown: false, reason: 'exception' };
       }
     },
-    [user, loadState, saveState]
+    [user]
   );
 
   return { showAdAndThen } as const;
