@@ -18,8 +18,9 @@ import { useTheme } from '../context/ThemeContext';
 import logger from '../shared/utils/logger';
 import { Language } from '../i18n/translations';
 import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
-// Updates and DevSettings are intentionally not used here; removed unused imports
 
+
+const AdBanner = require('../shared/components/AdBanner').AdBanner;
 type LanguageSelectionScreenProps = {
   navigation: NativeStackNavigationProp<any>;
 };
@@ -184,6 +185,8 @@ export const LanguageSelectionScreen: React.FC<LanguageSelectionScreenProps> = (
           </TouchableOpacity>
         </Animated.View>
       </View>
+      {/* Bottom banner */}
+      <AdBanner style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }} />
     </SafeAreaView>
   );
 };

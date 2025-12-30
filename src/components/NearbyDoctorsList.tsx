@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AdBanner from '../shared/components/AdBanner';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { FONT_SIZES, SPACING, RADIUS, SHADOWS } from '../shared/constants/theme';
@@ -231,15 +232,15 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
                 : null;
 
               return (
-                <TouchableOpacity
-                  key={index.toString()}
-                  style={styles.doctorCard}
-                  onPress={() => {
-                    onDoctorPress(doctor);
-                    onClose();
-                  }}
-                  activeOpacity={0.7}
-                >
+                <React.Fragment key={index.toString()}>
+                  <TouchableOpacity
+                    style={styles.doctorCard}
+                    onPress={() => {
+                      onDoctorPress(doctor);
+                      onClose();
+                    }}
+                    activeOpacity={0.7}
+                  >
                   <View style={[styles.cardContent, isRTL && { flexDirection: 'row-reverse' }]}
                   >
                     <View
@@ -300,7 +301,14 @@ export const NearbyDoctorsModal: React.FC<NearbyDoctorsModalProps> = ({
                     size={20} 
                     color={colors.textSecondary} 
                   />
-                </TouchableOpacity>
+                  {/* ads places*/}
+                  </TouchableOpacity>
+                  {(index + 1) % 2 === 0 && (
+                    <View style={styles.bannerWrapper}>
+                      <AdBanner />
+                    </View>
+                  )}
+                </React.Fragment>
               );
             })
           )}
@@ -325,6 +333,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   sortButtonText: { fontSize: FONT_SIZES.sm, color: colors.textSecondary, fontWeight: '600' },
   sortButtonTextActive: { color: colors.white },
   listContent: { padding: SPACING.lg, gap: SPACING.md },
+  bannerWrapper: { marginVertical: SPACING.md },
   doctorCard: { backgroundColor: colors.card, borderRadius: RADIUS.lg, padding: SPACING.md, flexDirection: 'row', alignItems: 'center', ...SHADOWS.medium },
   cardContent: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   iconContainer: { width: 56, height: 56, borderRadius: RADIUS.md, alignItems: 'center', justifyContent: 'center', marginRight: SPACING.md, ...SHADOWS.small },

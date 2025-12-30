@@ -5,7 +5,6 @@
     "description": "HealthConnect — book and manage healthcare appointments",
     "version": "1.0.1",
     "orientation": "portrait",
-    "display": "standalone",
     "icon": "./assets/AppLogo.png",
     "userInterfaceStyle": "automatic",
     "splash": {
@@ -28,7 +27,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to find nearby doctors.",
         "NSLocationAlwaysUsageDescription": "This app needs access to your location to find nearby doctors.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "GADApplicationIdentifier": "ca-app-pub-1741941427300096~1571982751"
       }
     },
     "android": {
@@ -53,14 +53,42 @@
       "favicon": "./assets/AppLogo.png"
     },
     "plugins": [
-      ["expo-notifications"],
+      [
+        "./src/plugins/expo-admob-plugin",
+        {
+          "appId": "ca-app-pub-1741941427300096~1571982751"
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "android_app_id": "ca-app-pub-1741941427300096~1571982751",
+          "delay_app_measurement_init": false,
+          "optimize_initialization": true,
+          "optimize_ad_loading": true
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36
+          },
+          "kotlinVersion": "1.8.21"
+        }
+      ],
+      [
+        "expo-notifications"
+      ],
       [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow HealthConnect to use your location to find nearby doctors."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-secure-store"
     ],
     "owner": "solaabara1",
     "extra": {
@@ -68,5 +96,6 @@
         "projectId": "ed9f8d9d-3dd9-4175-9f26-cd01207e91e1"
       }
     }
-  }
+  },
+  
 }

@@ -319,8 +319,16 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
   const loadProfile = useCallback(async () => {
     try {
       setInitialLoading(true);
-      const data = await ApiService.getMyProfile();
-      
+      const data = await ApiService.getMyProfileSafe();
+      if (data == null) {
+        // Server returned 500 or no profile available — treat as non-fatal
+        setInitialLoading(false);
+        showCustomAlert(setAlertConfig, t.error, t.serverError, [
+          { text: t.ok }
+        ]);
+        return;
+      }
+
       setProfileData({
         ...data,
         location: data.location || { 
@@ -328,7 +336,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
           address: data.address || '', 
         }
       });
-      
+
       setInitialLoading(false);
     } catch (err: any) {
       // Support wrapped/enriched errors (ApiService may attach original)

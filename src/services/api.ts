@@ -390,7 +390,13 @@ class ApiService {
         } catch (err: any) {
           // If not retryable or last attempt, try cache fallback then rethrow enriched error
           const status = err?.response?.status;
-          const isRetryable = shouldRetry(err);
+          let isRetryable = shouldRetry(err);
+          // Treat explicit 500 responses as non-retryable for this endpoint so
+          // the client can quickly fall back to cache and avoid noisy retries
+          // during backend errors.
+          if (status === 500) {
+            isRetryable = false;
+          }
           if (attempt < maxAttempts && isRetryable) {
             const jitter = Math.floor(Math.random() * 100);
             const delay = baseDelay * Math.pow(2, attempt - 1) + jitter;
@@ -438,6 +444,24 @@ class ApiService {
     inFlightRequests.set(key, fn);
     fn.finally(() => inFlightRequests.delete(key)).catch(() => {});
     return fn;
+  }
+
+  /**
+   * Safe wrapper around `getMyProfile` which returns `null` when the
+   * server responds with a 500. Callers can use this to treat server
+   * errors as non-fatal and continue with a null profile.
+   */
+  async getMyProfileSafe(): Promise<DoctorResponseDto | null> {
+    try {
+      return await this.getMyProfile();
+    } catch (err: any) {
+      const status = err?.original?.response?.status || err?.response?.status;
+      if (status === 500) {
+        logger.warn('getMyProfileSafe: server returned 500, returning null');
+        return null;
+      }
+      throw err;
+    }
   }
 
   async updateMyProfile(doctorData: DoctorRequestDto): Promise<DoctorResponseDto> {
