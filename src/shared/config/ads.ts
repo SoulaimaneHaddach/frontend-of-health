@@ -1,7 +1,3 @@
-import { Platform } from 'react-native';
-
-const isIos = Platform.OS === 'ios';
-
 export const ADS = {
   // BANNER_ID: 'ca-app-pub-1741941427300096/8947909896',
   // REWARDED_ID: 'ca-app-pub-1741941427300096/6345797281',

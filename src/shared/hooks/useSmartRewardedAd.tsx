@@ -22,7 +22,7 @@ export function useSmartRewardedAd() {
         return { count: 0, weekStart: Date.now() };
       }
       return parsed;
-    } catch (e) {
+    } catch {
       return { count: 0, weekStart: Date.now() };
     }
   };
@@ -30,7 +30,7 @@ export function useSmartRewardedAd() {
   const saveState = async (uid: string, state: UsageState) => {
     try {
       await AsyncStorage.setItem(getKey(uid), JSON.stringify(state));
-    } catch (e) {
+    } catch {
       // ignore
     }
   };
@@ -67,7 +67,7 @@ export function useSmartRewardedAd() {
         RewardedAdEventType = ads.RewardedAdEventType || ads.default?.RewardedAdEventType;
         TestIds = ads.TestIds || ads.default?.TestIds;
         // initialize if available
-        try { (ads as any)().initialize?.(); } catch (e) {}
+        try { (ads as any)().initialize?.(); } catch {}
       } catch (e) {
         // native module not available — run fallback immediately
         onAfter();
@@ -92,16 +92,16 @@ export function useSmartRewardedAd() {
         const cleanup = () => {
           try {
             rewarded.removeAllListeners?.();
-          } catch (e) {}
+          } catch {}
         };
 
         return await new Promise<any>((resolve) => {
-          const onReward = async () => {
+            const onReward = async () => {
             earned = true;
             // increment counter
             const newState = { count: state.count + 1, weekStart: state.weekStart };
             await saveState(uid, newState);
-            try { cleanup(); } catch (e) {}
+            try { cleanup(); } catch {}
             onAfter();
             finished = true;
             resolve({ shown: true, rewarded: true });
@@ -109,7 +109,7 @@ export function useSmartRewardedAd() {
 
           const onCloseFallback = async () => {
             if (finished) return;
-            try { cleanup(); } catch (e) {}
+            try { cleanup(); } catch {}
             // if ad closed without reward we still count this as a view attempt
             const newState = { count: state.count + 1, weekStart: state.weekStart };
             await saveState(uid, newState);
@@ -121,7 +121,7 @@ export function useSmartRewardedAd() {
           rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => {
             try {
               rewarded.show();
-            } catch (e) {
+            } catch {
               onCloseFallback();
             }
           });
@@ -136,7 +136,7 @@ export function useSmartRewardedAd() {
 
           rewarded.addAdEventListener((RewardedAdEventType as any).ERROR, async () => {
             // fallback
-            try { cleanup(); } catch (e) {}
+            try { cleanup(); } catch {}
             onAfter();
             finished = true;
             resolve({ shown: false, reason: 'error' });
@@ -147,7 +147,7 @@ export function useSmartRewardedAd() {
           setTimeout(() => {
             if (!finished) {
               // fallback
-              try { cleanup(); } catch (e) {}
+              try { cleanup(); } catch {}
               onAfter();
               finished = true;
               resolve({ shown: false, reason: 'timeout' });
@@ -159,7 +159,7 @@ export function useSmartRewardedAd() {
         return { shown: false, reason: 'exception' };
       }
     },
-    [user]
+    [user, loadState, saveState]
   );
 
   return { showAdAndThen } as const;
