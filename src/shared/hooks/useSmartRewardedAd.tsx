@@ -19,7 +19,29 @@ export function useSmartRewardedAd() {
       const uid = user?.id || 'anonymous';
       const chance = options?.chance ?? 0.4; // default 40% probability
 
-      const state = await loadState(uid);
+        const loadState = async (uid: string): Promise<UsageState> => {
+          try {
+            const raw = await AsyncStorage.getItem(getKey(uid));
+            if (!raw) return { count: 0, weekStart: Date.now() };
+            const parsed = JSON.parse(raw) as UsageState;
+            if (!parsed.weekStart || Date.now() - parsed.weekStart > WEEK_MS) {
+              return { count: 0, weekStart: Date.now() };
+            }
+            return parsed;
+          } catch {
+            return { count: 0, weekStart: Date.now() };
+          }
+        };
+
+        const saveState = async (uid: string, state: UsageState) => {
+          try {
+            await AsyncStorage.setItem(getKey(uid), JSON.stringify(state));
+          } catch {
+            // ignore
+          }
+        };
+
+        const state = await loadState(uid);
       if (state.count >= 8) {
         // cap reached
         onAfter();
@@ -55,29 +77,6 @@ export function useSmartRewardedAd() {
         onAfter();
         return { shown: false, reason: 'no-native' };
       }
-
-      // helper functions moved here to avoid changing deps on every render
-      const loadState = async (uid: string): Promise<UsageState> => {
-        try {
-          const raw = await AsyncStorage.getItem(getKey(uid));
-          if (!raw) return { count: 0, weekStart: Date.now() };
-          const parsed = JSON.parse(raw) as UsageState;
-          if (!parsed.weekStart || Date.now() - parsed.weekStart > WEEK_MS) {
-            return { count: 0, weekStart: Date.now() };
-          }
-          return parsed;
-        } catch {
-          return { count: 0, weekStart: Date.now() };
-        }
-      };
-
-      const saveState = async (uid: string, state: UsageState) => {
-        try {
-          await AsyncStorage.setItem(getKey(uid), JSON.stringify(state));
-        } catch {
-          // ignore
-        }
-      };
 
       try {
         const adUnit = __DEV__ || !ADS.REWARDED_ID ? (TestIds?.REWARDED ?? 'ca-app-pub-3940256099942544/5224354917') : ADS.REWARDED_ID;
