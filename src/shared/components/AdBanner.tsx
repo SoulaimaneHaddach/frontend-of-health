@@ -13,12 +13,11 @@ export const AdBanner: React.FC<{ size?: string; style?: any }> = ({ size, style
   let BannerAdSize: any = null;
   let TestIds: any = null;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const ads = require('react-native-google-mobile-ads');
     BannerAd = ads.BannerAd || ads.Banner;
     BannerAdSize = ads.BannerAdSize || ads.BannerAdSizes || ads.BannerAdSize;
     TestIds = ads.TestIds;
-  } catch (e) {
+  } catch {
     BannerAd = null;
   }
 
