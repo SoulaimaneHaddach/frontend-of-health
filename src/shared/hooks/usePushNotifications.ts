@@ -105,7 +105,7 @@ export const usePushNotifications = ({
           shouldShowList: true,
         }),
       });
-    } catch (e) {
+    } catch {
       // ignore if not supported
     }
 
