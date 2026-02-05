@@ -25,11 +25,10 @@ import logger from '../shared/utils/logger';
 
 export type RootStackParamList = {
 
-  Onboarding: undefined; //added
+  Onboarding: undefined;
   LanguageSelection: undefined;
   Welcome: undefined;
   DoctorLogin: undefined;
-  // ForgotPassword route removed
   DoctorProfile: undefined;
   DoctorBookings: undefined;
   Home: undefined;
@@ -41,7 +40,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export const AppNavigator: React.FC = () => {
   // Toggle to temporarily disable push + WebSocket notifications for local testing
   // Set to false to enable push + booking notifications.
-  const DISABLE_NOTIFICATIONS = true;
+  const DISABLE_NOTIFICATIONS = false;
 
   const FORCE_SHOW_ONBOARDING = false; 
 
@@ -99,39 +98,29 @@ export const AppNavigator: React.FC = () => {
     }
   }, [pushToken]);
 
+  // Register device token with backend when available (token + doctorId)
   useEffect(() => {
-    if (!pushToken) return;
+    if (!pushToken || !doctorIdForWs) return;
 
     const register = async () => {
-        try {
+      try {
         const tokenType = pushToken.startsWith('ExponentPushToken') ? 'expo' : 'native';
-        const metadata = { doctorId: doctorIdForWs };
-        await ApiService.registerDeviceToken(pushToken, Platform.OS, tokenType, metadata);
-        logger.debug('Device token registered');
+        await ApiService.registerDeviceToken(pushToken, Platform.OS, tokenType, { doctorId: doctorIdForWs });
+        logger.debug('Device token registration attempted (may be no-op if backend absent)');
       } catch (e) {
-
-        logger.warn('Device token registration failed, queuing for retry', e);
-        try {
-          await requestQueueService.addRequest('/devices', 'POST', {
-            body: { token: pushToken, platform: Platform.OS, tokenType: pushToken.startsWith('ExponentPushToken') ? 'expo' : 'native', metadata: { doctorId: doctorIdForWs } },
-            priority: 20,
-            metadata: { action: 'register_device' },
-          });
-        } catch (qErr) {
-          logger.warn('Failed to queue device registration', qErr);
-        }
+        logger.warn('Failed to register device token with backend', e);
       }
     };
 
-    if (!networkService.isConnected()) {
-      requestQueueService.addRequest('/devices', 'POST', {
-        body: { token: pushToken, platform: Platform.OS, tokenType: pushToken.startsWith('ExponentPushToken') ? 'expo' : 'native', metadata: { doctorId: doctorIdForWs } },
-        priority: 20,
-        metadata: { action: 'register_device' },
-      }).catch((e) => { logger.warn('Failed to queue device registration', e); });
-    } else {
-      register();
-    }
+    register();
+  }, [pushToken, doctorIdForWs]);
+
+  useEffect(() => {
+    if (!pushToken) return;
+
+    // Device registration disabled: backend does not provide /devices endpoint.
+    // Avoid sending or queuing device tokens. Keep local debug log for visibility.
+    logger.debug('Device token present but device registration is disabled by configuration.');
   }, [pushToken, doctorIdForWs]);
 
   useEffect(() => {

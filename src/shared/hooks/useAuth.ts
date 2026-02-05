@@ -1,7 +1,7 @@
 // src/shared/hooks/useAuth.ts
 import { useState, useCallback, useEffect } from 'react';
 import { useApi } from './useApi';
-import ApiService, { LoginRequestDTO, DoctorRegisterRequestDTO, AuthResponse } from '../../services/api';
+import ApiService, { LoginRequestDTO, AuthResponse } from '../../services/api';
 import { logError } from '../utils/errorHandler';
 import { TokenStorage, secureStorage } from '../utils/secureStorage';
 import { 
@@ -26,7 +26,6 @@ export interface UseAuthReturn {
   loading: boolean;
   error: string | null;
   login: (credentials: LoginRequestDTO) => Promise<void>;
-  register: (data: DoctorRegisterRequestDTO) => Promise<void>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
 }
@@ -49,7 +48,6 @@ export function useAuth(): UseAuthReturn {
   const [loading, setLoading] = useState(true);
 
   const loginApi = useApi<AuthResponse>();
-  const registerApi = useApi<AuthResponse>();
 
   const clearAuthState = useCallback(async () => {
     try {
@@ -171,36 +169,7 @@ export function useAuth(): UseAuthReturn {
     [loginApi, saveAuthState]
   );
 
-  const register = useCallback(
-    async (data: DoctorRegisterRequestDTO) => {
-      // Validate registration data (skip confirmPassword validation for DTO)
-      const validation = validateForm.registration({
-        email: data.email,
-        password: data.password,
-        confirmPassword: data.password, // Use same password for validation
-        name: data.name,
-      });
-      
-      if (!validation.isValid) {
-        const firstError = Object.values(validation.errors)[0];
-        throw new Error(firstError);
-      }
 
-      const response = await registerApi.execute(() => ApiService.register(data));
-      
-      if (response && response.accessToken) {
-        const userInfo: UserInfo = {
-          id: response.id,
-          email: response.email,
-          name: data.name,
-          role: 'doctor',
-        };
-        
-        await saveAuthState(response.accessToken, userInfo);
-      }
-    },
-    [registerApi, saveAuthState]
-  );
 
   const refreshAuth = useCallback(async () => {
     setLoading(true);
@@ -211,10 +180,9 @@ export function useAuth(): UseAuthReturn {
     isAuthenticated,
     user,
     token,
-    loading: loading || loginApi.loading || registerApi.loading,
-    error: loginApi.error || registerApi.error,
+    loading: loading || loginApi.loading,
+    error: loginApi.error,
     login,
-    register,
     logout,
     refreshAuth,
   };

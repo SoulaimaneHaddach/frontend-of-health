@@ -18,7 +18,6 @@ export interface Translations {
 
   // Common
   login: string;
-  register: string;
   logout: string;
   cancel: string;
   ok: string;
@@ -138,15 +137,8 @@ export interface Translations {
   // Form Labels
   password: string;
   confirmPassword: string;
-  forgotPassword: string;
-  createAccount: string;
-  alreadyHaveAccount: string;
-  dontHaveAccount: string;
   signIn: string;
-  signUp: string;
-  registrationCreatedMessage: string;
-  registrationFailedDefault: string;
-  registrationFailedTitle: string;
+  
 
   // Doctor Specific
   myBookings: string;
@@ -217,7 +209,6 @@ export const translations: Record<Language, Translations> = {
     getStarted: 'Get Started',
     // Common
     login: 'Login',
-    register: 'Register',
     logout: 'Logout',
     cancel: 'Cancel',
     ok: 'OK',
@@ -265,8 +256,8 @@ export const translations: Record<Language, Translations> = {
     confirmBooking: 'Confirm Booking',
     bookingSuccess: 'Booking Successful',
     bookingFailed: 'Booking Failed',
-    bookingQueuedTitle: 'Booking Queued',
-    bookingQueuedMessage: 'Your booking was queued and will be sent when your device is online.',
+    bookingQueuedTitle: 'Booking Submitted',
+    bookingQueuedMessage: 'Your booking is done. You will receive a call or an email.',
 
     // Errors
     sessionExpired: 'Session Expired',
@@ -278,9 +269,6 @@ export const translations: Record<Language, Translations> = {
     requiredField: 'This field is required',
     passwordTooShort: 'Password must be at least 6 characters',
     passwordsDontMatch: 'Passwords do not match',
-    registrationCreatedMessage: 'Account created successfully. Please log in.',
-    registrationFailedDefault: 'Registration failed. Please try again.',
-    registrationFailedTitle: 'Registration Failed',
     invalidCredentials: 'Email or password is incorrect',
 
     // New additions
@@ -293,12 +281,7 @@ export const translations: Record<Language, Translations> = {
     viewProfile: 'View Profile',
     password: 'Password',
     confirmPassword: 'Confirm Password',
-    forgotPassword: 'Forgot Password?',
-    createAccount: 'Create',
-    alreadyHaveAccount: 'Already have an account?',
-    dontHaveAccount: "Don't have an account?",
     signIn: 'Sign In',
-    signUp: 'Sign Up',
     myBookings: 'My Bookings',
     upcomingAppointments: 'Upcoming Appointments',
     pastAppointments: 'Past Appointments',
@@ -411,7 +394,6 @@ export const translations: Record<Language, Translations> = {
 
     // Common
     login: 'Connexion',
-    register: 'S\'inscrire',
     logout: 'Déconnexion',
     cancel: 'Annuler',
     ok: 'OK',
@@ -461,8 +443,8 @@ export const translations: Record<Language, Translations> = {
     confirmBooking: 'Confirmer la réservation',
     bookingSuccess: 'Réservation réussie',
     bookingFailed: 'Échec de la réservation',
-    bookingQueuedTitle: 'Réservation en file',
-    bookingQueuedMessage: 'Votre réservation a été mise en file et sera envoyée lorsque votre appareil sera en ligne.',
+    bookingQueuedTitle: 'Réservation soumise',
+    bookingQueuedMessage: 'Votre réservation est confirmée. Vous recevrez un appel ou un courriel.',
 
     // Errors
     sessionExpired: 'Session expirée',
@@ -474,9 +456,6 @@ export const translations: Record<Language, Translations> = {
     requiredField: 'Ce champ est obligatoire',
     passwordTooShort: 'Le mot de passe doit contenir au moins 6 caractères',
     passwordsDontMatch: 'Les mots de passe ne correspondent pas',
-    registrationCreatedMessage: 'Compte créé avec succès. Veuillez vous connecter.',
-    registrationFailedDefault: 'Échec de l\'inscription. Veuillez réessayer.',
-    registrationFailedTitle: 'Échec de l\'inscription',
     invalidCredentials: 'Email ou mot de passe incorrect',
 
     // New additions
@@ -489,12 +468,7 @@ export const translations: Record<Language, Translations> = {
     viewProfile: 'Voir le profil',
     password: 'Mot de passe',
     confirmPassword: 'Confirmer le mot de passe',
-    forgotPassword: 'Mot de passe oublié?',
-    createAccount: 'Créer',
-    alreadyHaveAccount: 'Vous avez déjà un compte?',
-    dontHaveAccount: "Vous n'avez pas de compte?",
     signIn: 'Se connecter',
-    signUp: 'S\'inscrire',
     myBookings: 'Mes réservations',
     upcomingAppointments: 'Rendez-vous à venir',
     pastAppointments: 'Rendez-vous passés',
@@ -608,7 +582,6 @@ export const translations: Record<Language, Translations> = {
 
     // Common
     login: 'تسجيل الدخول',
-    register: 'التسجيل',
     logout: 'تسجيل الخروج',
     cancel: 'إلغاء',
     ok: 'حسنا',
@@ -658,8 +631,8 @@ export const translations: Record<Language, Translations> = {
     confirmBooking: 'تأكيد الحجز',
     bookingSuccess: 'تم الحجز بنجاح',
     bookingFailed: 'فشل الحجز',
-    bookingQueuedTitle: 'تم وضع الحجز في الطابور',
-    bookingQueuedMessage: 'تم وضع حجرك في قائمة الانتظار وسيتم إرساله بمجرد أن يكون جهازك متصلاً بالإنترنت.',
+    bookingQueuedTitle: 'تم تقديم الحجز',
+    bookingQueuedMessage: 'تم إتمام حجزك. ستتلقى مكالمة هاتفية أو بريدًا إلكترونيًا.',
 
     // Errors
     sessionExpired: 'انتهت الجلسة',
@@ -669,9 +642,6 @@ export const translations: Record<Language, Translations> = {
 
     passwordTooShort: 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل',
     passwordsDontMatch: 'كلمات المرور غير متطابقة',
-    registrationCreatedMessage: 'تم إنشاء الحساب بنجاح. يرجى تسجيل الدخول.',
-    registrationFailedDefault: 'فشل التسجيل. حاول مرة أخرى.',
-    registrationFailedTitle: 'فشل التسجيل',
     invalidCredentials: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
 
     // Navigation & Actions
@@ -686,12 +656,7 @@ export const translations: Record<Language, Translations> = {
     // Authentication
     password: 'كلمة المرور',
     confirmPassword: 'تأكيد كلمة المرور',
-    forgotPassword: 'هل نسيت كلمة المرور؟',
-    createAccount: 'إنشاء',
-    alreadyHaveAccount: 'هل لديك حساب؟',
-    dontHaveAccount: 'ليس لديك حساب؟',
     signIn: 'تسجيل الدخول',
-    signUp: 'إنشاء حساب',
 
     // Bookings Management
     myBookings: 'حجوزاتي',

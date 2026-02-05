@@ -59,15 +59,7 @@
           "appId": "ca-app-pub-1741941427300096~1571982751"
         }
       ],
-      [
-        "react-native-google-mobile-ads",
-        {
-          "android_app_id": "ca-app-pub-1741941427300096~1571982751",
-          "delay_app_measurement_init": false,
-          "optimize_initialization": true,
-          "optimize_ad_loading": true
-        }
-      ],
+
       [
         "expo-build-properties",
         {

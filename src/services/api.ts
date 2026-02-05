@@ -5,7 +5,6 @@ import {
   DoctorRequestDto,
   DoctorResponseDto,
   DoctorMapDto,
-  DoctorRegisterRequestDTO,
   LoginRequestDTO,
   AuthResponse,
   DoctorQueryParams,
@@ -16,7 +15,6 @@ import { logError } from '../shared/utils/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import ENV from '../config/env';
 import { TokenStorage } from '../shared/utils/secureStorage';
-// rateLimiter intentionally removed: not used in this module
 import { errorLoggingService, ErrorSeverity } from '../shared/services/errorLoggingService';
 import { networkService } from '../shared/services/networkService';
 import { offlineStorageService } from '../shared/services/offlineStorageService';
@@ -48,7 +46,6 @@ export type {
   DoctorRequestDto,
   DoctorResponseDto,
   DoctorMapDto,
-  DoctorRegisterRequestDTO,
   LoginRequestDTO,
   AuthResponse,
   DoctorQueryParams,
@@ -272,40 +269,8 @@ class ApiService {
       throw error;
     }
   }
-  async register(data: DoctorRegisterRequestDTO): Promise<AuthResponse> {
-    try {
-      const response = await this.api.post<AuthResponse>('/auth/register', data);
-      await this.setAuthToken(response.data.accessToken);
-      return response.data;
-    } catch (error) {
-      logError(error, 'register');
-      throw error;
-    }
-  }
-  async forgotPassword(email: string): Promise<{ message?: string }> {
-    try {
-      const response = await this.api.post<{ message?: string }>(
-        '/auth/forgot-password',
-        { email }
-      );
-      return response.data;
-    } catch (error) {
-      logError(error, 'forgotPassword');
-      throw error;
-    }
-  }
-  async resetPassword(token: string, newPassword: string): Promise<{ message?: string }> {
-    try {
-      const response = await this.api.post<{ message?: string }>(
-        '/auth/reset-password',
-        { token, newPassword }
-      );
-      return response.data;
-    } catch (error) {
-      logError(error, 'resetPassword');
-      throw error;
-    }
-  }
+  // Note: register / forgot-password / reset-password were removed per backend/frontend sync.
+  // These no-ops are intentionally omitted to avoid calling removed backend endpoints.
 
   async logout(): Promise<void> {
     try {
@@ -601,7 +566,8 @@ class ApiService {
   }
 
   async searchDoctors(query: string): Promise<DoctorResponseDto[]> {
-    const response = await this.api.get<DoctorResponseDto[]>('/doctors/search', {
+    // Reuse the existing /doctors endpoint with query param `q` instead of creating a new /doctors/search endpoint
+    const response = await this.api.get<DoctorResponseDto[]>('/doctors', {
       params: { q: query },
     });
     return response.data;
@@ -741,15 +707,11 @@ class ApiService {
 
   async deleteBooking(bookingId: string): Promise<void> {
     await this.initialize();
+    // Server does not expose DELETE /bookings/{id}; translate delete to status update (CANCELED)
     try {
-      await this.api.delete(`/bookings/${bookingId}`);
-    } catch (err: any) {
-      const status = err?.response?.status;
-      if (status === 401 || status === 403) {
-        await this.initialize();
-        await this.api.delete(`/bookings/${bookingId}`);
-        return;
-      }
+      await this.updateBookingStatus(bookingId, 'CANCELED' as any);
+      return;
+    } catch (err) {
       throw err;
     }
   }
@@ -764,21 +726,12 @@ class ApiService {
     tokenType: string,
     metadata?: Record<string, any>
   ): Promise<void> {
-    try {
-      await this.initialize();
-      // Send to authenticated endpoint so server can tie token to user when possible
-      await this.api.post('/devices', {
-        token,
-        platform,
-        tokenType,
-        metadata,
-      });
-      if (ENV.ENABLE_LOGGING && __DEV__) {
-        logger.debug('✅ Device token registered with backend');
-      }
-    } catch (error) {
-      logger.warn('Failed to register device token with backend', error);
+    // Device registration endpoint is optional. Backend may not implement `/api/devices`.
+    // Keep this as a no-op to avoid errors in clients; callers should remove calls if push not required.
+    if (ENV.ENABLE_LOGGING && __DEV__) {
+      logger.warn('registerDeviceToken: skipped (no backend /devices implementation)');
     }
+    return;
   }
 }
 

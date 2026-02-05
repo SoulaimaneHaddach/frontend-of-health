@@ -4,6 +4,7 @@
 
 import { Client, StompSubscription } from '@stomp/stompjs';
 import { networkService } from '../shared/services/networkService';
+import { TokenStorage } from '../shared/utils/secureStorage';
 import { errorLoggingService, ErrorSeverity } from '../shared/services/errorLoggingService';
 import logger from '../shared/utils/logger';
 
@@ -90,15 +91,32 @@ export class BookingWebSocketService {
 
     this.isManualDisconnect = false;
 
-    this.client = new Client({
-      brokerURL: wsUrl,
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-      
-      onConnect: () => {
-        logger.debug('✅ WebSocket connected');
-        this.reconnectAttempts = 0;
+    // Attempt to include Authorization header if token is available
+    const attachClientWithAuth = async () => {
+      const token = await TokenStorage.getToken();
+      // Print the token before connecting (developer debug)
+      logger.debug('🔑 WebSocket auth token:', token);
+      const connectHeaders = token ? { Authorization: `Bearer ${token}` } : undefined;
+
+      this.client = new Client({
+        brokerURL: wsUrl,
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+        connectHeaders,
+
+        onConnect: () => {
+          logger.debug('✅ WebSocket connected');
+          // Log underlying WebSocket instance if accessible
+          try {
+            const wsInstance: any = (this.client as any)?._transport?._ws || (this.client as any)?._websocket;
+            if (wsInstance) {
+              logger.debug('🔓 Underlying WebSocket state onConnect', { readyState: wsInstance.readyState, url: wsInstance.url });
+            }
+          } catch (e) {
+            logger.debug('🔓 Could not access raw WebSocket instance on connect', e);
+          }
+          this.reconnectAttempts = 0;
         
         // Log success
         errorLoggingService.addBreadcrumb({
@@ -112,8 +130,9 @@ export class BookingWebSocketService {
         // Subscribe to doctor's booking queue
         this.subscription = this.client!.subscribe(destination, (message) => {
           try {
+            logger.debug('📩 STOMP message received (raw):', { headers: message.headers, body: message.body });
             const booking = JSON.parse(message.body);
-            logger.debug('📬 New booking received:', booking);
+            logger.debug('📬 New booking parsed:', booking);
             
             // Log breadcrumb
             errorLoggingService.addBreadcrumb({
@@ -134,9 +153,9 @@ export class BookingWebSocketService {
             );
           }
         });
-      },
+        },
 
-      onStompError: (frame) => {
+        onStompError: (frame) => {
         logger.error('❌ STOMP error:', frame.headers['message']);
         logger.error('Details:', frame.body);
         
@@ -153,16 +172,20 @@ export class BookingWebSocketService {
 
         this.config.onError?.(frame);
         this.handleReconnect();
-      },
+        },
 
-      onWebSocketClose: (event) => {
+        onWebSocketClose: (event) => {
           try {
-          const code = (event && (event as any).code) || (event && (event as any).wasClean ? 1000 : undefined);
-          const reason = (event && (event as any).reason) || undefined;
-          logger.debug('🔌 WebSocket disconnected', { code, reason });
-        } catch {
-          logger.debug('🔌 WebSocket disconnected');
-        }
+            const code = (event && (event as any).code) || (event && (event as any).wasClean ? 1000 : undefined);
+            const reason = (event && (event as any).reason) || undefined;
+            logger.debug('🔌 WebSocket disconnected', { code, reason });
+            if (code === 1006) {
+              logger.error('❗ WebSocket closed with abnormal closure (1006) — possible network/server reject');
+              errorLoggingService.addBreadcrumb({ category: 'network', message: 'WebSocket closed with code 1006', level: ErrorSeverity.ERROR, data: { url: wsUrl } });
+            }
+          } catch {
+            logger.debug('🔌 WebSocket disconnected');
+          }
         
         // Log disconnection
         errorLoggingService.addBreadcrumb({
@@ -176,25 +199,33 @@ export class BookingWebSocketService {
         if (!this.isManualDisconnect && this.config.autoReconnect) {
           this.handleReconnect();
         }
-      },
+        },
 
-      onWebSocketError: (event) => {
-        logger.error('❌ WebSocket error:', event);
+        onWebSocketError: (event) => {
+          logger.error('❌ WebSocket error event:', event);
+          try {
+            const raw = (this.client as any)?._transport?._ws || (this.client as any)?._websocket;
+            if (raw) {
+              logger.debug('🔎 Raw socket state on error', { readyState: raw.readyState, url: raw.url });
+            }
+          } catch (e) {
+            logger.debug('🔎 Could not read raw socket state on error', e);
+          }
 
-        // Log with context
-        errorLoggingService.logError(
-          new Error('WebSocket connection error'),
-          ErrorSeverity.ERROR,
-          { action: 'websocket_error', extra: { url: wsUrl, reconnectAttempts: this.reconnectAttempts } },
-          false
-        );
+          // Log with context
+          errorLoggingService.logError(
+            new Error('WebSocket connection error'),
+            ErrorSeverity.ERROR,
+            { action: 'websocket_error', extra: { url: wsUrl, reconnectAttempts: this.reconnectAttempts } },
+            false
+          );
 
-        // Try reconnect flow (will respect max attempts and network state)
-        this.handleReconnect();
-      },
+          // Try reconnect flow (will respect max attempts and network state)
+          this.handleReconnect();
+        },
 
-      // StompJS does not officially expose onWebSocketOpen in types; attach via beforeConnect hook
-      beforeConnect: () => {
+        // StompJS does not officially expose onWebSocketOpen in types; attach via beforeConnect hook
+        beforeConnect: () => {
         try {
           // Attempt to access underlying WebSocket if available
           const wsInstance: any = (this.client as any)?._transport?._ws || (this.client as any)?._websocket;
@@ -207,9 +238,40 @@ export class BookingWebSocketService {
           // ignore
         }
       },
-    });
+      });
 
-    this.client.activate();
+      this.client.activate();
+    };
+
+    // Fire and forget attaching client; errors handled inside client callbacks
+    attachClientWithAuth().catch((e) => {
+      logger.error('❌ Failed to initialize WebSocket client with auth', e);
+      // fallback to unauthenticated client initialization
+      try {
+        this.client = new Client({
+          brokerURL: wsUrl,
+          reconnectDelay: 5000,
+          heartbeatIncoming: 4000,
+          heartbeatOutgoing: 4000,
+          onConnect: () => logger.debug('✅ WebSocket connected (fallback, no auth)'),
+          onWebSocketClose: (event) => {
+            const code = (event && (event as any).code) || undefined;
+            logger.debug('🔌 WebSocket disconnected (fallback)', { code });
+            if (code === 1006) logger.error('❗ WebSocket fallback closed with 1006');
+          },
+          onWebSocketError: (ev) => logger.error('❌ WebSocket error (fallback):', ev),
+          beforeConnect: () => {
+            try {
+              const wsInstance: any = (this.client as any)?._transport?._ws || (this.client as any)?._websocket;
+              if (wsInstance) logger.debug('🔓 Raw WebSocket (fallback pre-connect)', { readyState: wsInstance.readyState, url: wsInstance.url });
+            } catch {}
+          },
+        });
+        this.client.activate();
+      } catch (err) {
+        logger.error('❌ Fallback unauthenticated WebSocket init failed', err);
+      }
+    });
   }
 
   private handleReconnect(): void {

@@ -30,17 +30,6 @@ export interface DoctorRequestDto {
   services?: string[];
 }
 
-export interface DoctorRegisterRequestDTO {
-  name: string;
-  email: string;
-  password: string;
-  specialization: string;
-  phoneNumber: string;
-  latitude: number;
-  longitude: number;
-  address: string;
-}
-
 export interface LoginRequestDTO {
   email: string;
   password: string;
