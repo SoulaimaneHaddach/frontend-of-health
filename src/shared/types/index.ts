@@ -86,16 +86,6 @@ export interface LoginCredentials {
   email: string;
   password: string;
 }
-
-export interface RegisterData extends LoginCredentials {
-  name: string;
-  phoneNumber: string;
-  specialization?: string;
-  latitude?: number;
-  longitude?: number;
-  address?: string;
-}
-
 // Filters for doctor search
 export interface SearchFilters {
   specialty?: SpecialtyType;

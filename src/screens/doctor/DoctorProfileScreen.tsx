@@ -99,9 +99,9 @@ const SPECIALTIES: Specialty[] = [
 ];
 
 // Helper function to get translated specialty label
-const getTranslatedSpecialty = (value: string, t: any): string => {
-  const specialtyKey = value.toLowerCase() as keyof typeof t;
-  return (t[specialtyKey] as string) || value;
+const getTranslatedSpecialty = (value: string | undefined, t: any): string => {
+  const specialtyKey = (value || '').toLowerCase() as keyof typeof t;
+  return (t[specialtyKey] as string) || (value || '');
 };
 
 // Default location for Tétouan, Morocco
@@ -408,13 +408,12 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
     }
   }, [initialLoading, fadeAnim, slideAnim, scaleAnim]);
 
-  const selectedSpecialtyObj = useMemo(() => 
-    SPECIALTIES.find(
-      s => s.label.toLowerCase() === profileData.specialization.toLowerCase() ||
-           s.value === profileData.specialization.toLowerCase()
-    ),
-    [profileData.specialization]
-  );
+  const selectedSpecialtyObj = useMemo(() => {
+    const spec = (profileData.specialization ?? '').toLowerCase();
+    return SPECIALTIES.find(
+      s => s.label.toLowerCase() === spec || s.value === spec
+    );
+  }, [profileData.specialization]);
 
   /**
    * Map region configuration
@@ -865,7 +864,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
             <View style={styles.infoContainer}>
               <Text style={[styles.sectionTitle, isRTL && { textAlign: 'right' }]}>{t.name}</Text>
               <InfoCard icon="person" label={t.name} value={profileData.name} isDark={isDarkMode} />
-              <InfoCard icon="fitness" label={t.specialty} value={getTranslatedSpecialty(profileData.specialization.toLowerCase(), t)} isDark={isDarkMode} />
+              <InfoCard icon="fitness" label={t.specialty} value={getTranslatedSpecialty(profileData.specialization, t)} isDark={isDarkMode} />
               <InfoCard icon="mail" label={t.email} value={profileData.email} isDark={isDarkMode} />
               <InfoCard icon="call" label={t.phone} value={profileData.phoneNumber} isDark={isDarkMode} />
               <InfoCard icon="location" label={t.address} value={profileData.location.address} isDark={isDarkMode} />
@@ -974,7 +973,7 @@ export const DoctorProfileScreen: React.FC<DoctorProfileScreenProps> = ({ naviga
                 <SpecialtyOption
                   key={specialty.value}
                   specialty={specialty}
-                  isSelected={profileData.specialization.toLowerCase() === specialty.label.toLowerCase()}
+                  isSelected={(profileData.specialization ?? '').toLowerCase() === specialty.label.toLowerCase()}
                   onPress={() => handleSpecialtySelect(specialty)}
                   isDark={isDarkMode}
                   translatedLabel={getTranslatedSpecialty(specialty.value, t)}

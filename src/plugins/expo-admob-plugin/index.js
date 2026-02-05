@@ -48,12 +48,6 @@ module.exports = function withAdMobPlugin(config, props) {
   const appId = (props && props.appId) || 'ca-app-pub-1741941427300096~1571982751';
   config = addAndroidMetaData(config, appId);
   config = addIosInfoPlist(config, appId);
-  // NOTE: Removed gradle injection that set `googleMobileAdsJson = file(...)`
-  // because that made the build script interpret it as a java.io.File which
-  // broke the react-native-google-mobile-ads Gradle logic (it expects a
-  // parsed JSON-like object with helper methods). The Expo config plugin
-  // already adds the app id via meta-data / Info.plist above, so we avoid
-  // injecting a file reference here to prevent the File/getStringValue error.
   return config;
 };
 

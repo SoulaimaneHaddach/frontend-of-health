@@ -67,9 +67,10 @@ export const usePushNotifications = ({
           // getDevicePushTokenAsync returns native token when configured in bare workflow
           // In managed Expo, getExpoPushTokenAsync is typically used.
           const deviceToken = await Notifications.getDevicePushTokenAsync();
-            if (deviceToken && deviceToken.data) {
+          if (deviceToken && deviceToken.data) {
             if (mounted) {
               setPushToken(deviceToken.data);
+              logger.debug && logger.debug('Push token obtained (device):', deviceToken.data);
               // Persist token securely for later retrieval
               try { await TokenStorage.setPushToken(deviceToken.data); } catch {}
             }
@@ -79,6 +80,7 @@ export const usePushNotifications = ({
             const expoToken = await Notifications.getExpoPushTokenAsync();
             if (expoToken && expoToken.data && mounted) {
               setPushToken(expoToken.data);
+              logger.debug && logger.debug('Push token obtained (expo):', expoToken.data);
               try { await TokenStorage.setPushToken(expoToken.data); } catch {}
             }
           } catch (err2) {
@@ -92,25 +94,42 @@ export const usePushNotifications = ({
 
     register();
 
-    // Foreground notification handler
+    // Ensure notifications are shown in foreground by default
+    try {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        }),
+      });
+    } catch (e) {
+      // ignore if not supported
+    }
+
+    // Foreground notification handler: only handle booking notifications
     receivedListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      // Default behaviour: call callback and show an Alert
+      const data = notification.request.content.data || {};
+
+      // Only handle booking notifications here
+      if (!data || !data.bookingId) return;
+
+      // Call consumer handler for booking notifications
       onNotification?.(notification);
 
-      // If no custom handler provided, show a simple alert with possible booking info
+      // Default behaviour when no custom handler: show a booking Alert
       if (!onNotification) {
-        const data = notification.request.content.data || {};
-        const title = notification.request.content.title || 'Notification';
-        const body = notification.request.content.body || '';
-
-        // If it contains bookingId, surface it
-        if (data.bookingId) {
-          Alert.alert(title, body || `Booking ${data.bookingId}`, [
+        const title = notification.request.content.title || 'Booking Notification';
+        const body = notification.request.content.body || `Booking ${data.bookingId}`;
+        if (Platform.OS === 'web') {
+          alert(`${title}\n${body}`);
+        } else {
+          Alert.alert(title, body, [
             { text: 'Dismiss' },
             { text: 'View', onPress: () => onNotificationResponse?.(data) },
           ]);
-        } else {
-          Alert.alert(title, body || 'You have a new notification');
         }
       }
     });

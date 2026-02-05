@@ -43,7 +43,8 @@ export default function App() {
   }, []);
 
   return (
-    <ErrorBoundary
+    <ThemeProvider>
+      <ErrorBoundary
       onError={(error, errorInfo) => {
         // Log error to error logging service
         errorLoggingService.logError(
@@ -60,15 +61,14 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <LanguageProvider>
-            <ThemeProvider>
-              <AnalyticsProvider debug={__DEV__}>
-                <OfflineIndicator />
-                <AppNavigator />
-              </AnalyticsProvider>
-            </ThemeProvider>
+            <AnalyticsProvider debug={__DEV__}>
+              <OfflineIndicator />
+              <AppNavigator />
+            </AnalyticsProvider>
           </LanguageProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
+    </ThemeProvider>
   );
 }

@@ -78,6 +78,7 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
   
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
   const pendingRequestsRef = useRef<Set<string>>(new Set());
+  const bookingsRef = useRef<BookingResponse[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
   const pageRef = useRef<number>(page);
   
@@ -190,6 +191,11 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
     };
   }, []);
 
+  // keep a mutable ref of the latest bookings to avoid stale closures
+  useEffect(() => {
+    bookingsRef.current = bookings;
+  }, [bookings]);
+
   useEffect(() => {
     Animated.timing(headerAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     loadDoctorId();
@@ -286,21 +292,28 @@ export const DoctorBookingsScreen: React.FC<Props> = ({ navigation }) => {
   const handleStatusUpdate = async (bookingId: string, newStatus: BookingStatus) => {
     if (pendingRequests.has(bookingId)) return;
     
-    const previousBookings = [...bookings];
-    const booking = bookings.find(b => b.id === bookingId);
+    const previousBookings = [...bookingsRef.current];
+    const booking = bookingsRef.current.find(b => b.id === bookingId);
     if (!booking) return;
 
+    // Prepare the updated bookings array from the latest ref to avoid stale closures
+    const updatedBookings = bookingsRef.current.map(b => b.id === bookingId ? { ...b, status: newStatus } : b);
+
     closeDetail();
-    
-    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
-    setPendingRequests(prev => new Set(prev).add(bookingId));
+
+    // Apply optimistic UI update
+    setBookings(updatedBookings);
+    setPendingRequests(prev => { const n = new Set(prev); n.add(bookingId); return n; });
 
     try {
       await ApiService.updateBookingStatus(bookingId, newStatus);
-      saveToCache(bookings.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
-    } catch {
+      // Save the exact updated array we rendered to cache
+      saveToCache(updatedBookings);
+    } catch (err) {
+      // Rollback optimistic update on failure
       setBookings(previousBookings);
-      Alert.alert('Error', 'Failed to update. Please try again.');
+      Alert.alert(t.error || 'Error', t.bookingFailed || 'Failed to update. Please try again.');
+      logger.error('Update booking status failed', err);
     } finally {
       setPendingRequests(prev => { const n = new Set(prev); n.delete(bookingId); return n; });
     }
