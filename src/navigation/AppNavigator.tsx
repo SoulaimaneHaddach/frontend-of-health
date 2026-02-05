@@ -5,8 +5,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import ApiService from '../services/api';
-import { requestQueueService } from '../shared/services/requestQueueService';
-import { networkService } from '../shared/services/networkService';
 import { useAnalytics } from '../shared/hooks/useAnalytics';
 import { useBookingNotifications } from '../shared/hooks/useBookingNotifications';
 import usePushNotifications from '../shared/hooks/usePushNotifications';

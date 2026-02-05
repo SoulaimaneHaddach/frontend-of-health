@@ -721,10 +721,10 @@ class ApiService {
    * tokenType: 'expo' | 'native' or custom string
    */
   async registerDeviceToken(
-    token: string,
-    platform: string,
-    tokenType: string,
-    metadata?: Record<string, any>
+    _token: string,
+    _platform: string,
+    _tokenType: string,
+    _metadata?: Record<string, any>
   ): Promise<void> {
     // Device registration endpoint is optional. Backend may not implement `/api/devices`.
     // Keep this as a no-op to avoid errors in clients; callers should remove calls if push not required.
